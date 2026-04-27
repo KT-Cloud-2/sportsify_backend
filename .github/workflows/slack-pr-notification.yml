@@ -2,7 +2,7 @@ name: Notify Slack on PR Events
 
 on:
   pull_request:
-    types: [review_requested, ready_for_review, closed]
+    types: [review_requested, ready_for_review, closed, reopened]
     branches:
       - '**'
 
@@ -10,7 +10,17 @@ jobs:
   notify-slack:
     runs-on: ubuntu-latest
 
+    # 동일한 PR에 대해 동시 실행 방지 (최신 것만 실행)
+    concurrency:
+      group: slack-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
     steps:
+      - name: Wait for other events
+        run: |
+          # 다른 이벤트들이 함께 발생할 수 있으니 잠시 대기
+          sleep 5
+
       - name: Send Slack Notification with Mentions
         run: |
           # PR 정보 가져오기
@@ -26,9 +36,8 @@ jobs:
             exit 0
           fi
           
-          # PR 작성자와 리뷰어 정보
+          # PR 작성자 정보
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          REQUESTED_REVIEWER="${{ github.event.requested_reviewer.login }}"
           
           # GitHub Secrets에서 매핑 정보 가져오기
           MAPPING_JSON='${{ secrets.SLACK_USER_MAPPING }}'
@@ -46,46 +55,99 @@ jobs:
             SLACK_AUTHOR_ID=$(get_slack_id "$PR_AUTHOR")
           fi
           
+          # 모든 리뷰어 멘션 생성 함수
+          get_all_reviewers_mentions() {
+            local CURRENT_REVIEWERS='${{ toJson(github.event.pull_request.requested_reviewers) }}'
+            local REVIEWER_MENTIONS=""
+          
+            if [ "$CURRENT_REVIEWERS" != "null" ] && [ "$CURRENT_REVIEWERS" != "[]" ] && [ -n "$CURRENT_REVIEWERS" ]; then
+              for reviewer in $(echo "$CURRENT_REVIEWERS" | jq -r '.[].login'); do
+                SLACK_ID=$(get_slack_id "$reviewer")
+                if [ "$SLACK_ID" != "Unknown" ]; then
+                  REVIEWER_MENTIONS+="<@$SLACK_ID> "
+                else
+                  REVIEWER_MENTIONS+="@$reviewer (GitHub) "
+                fi
+              done
+            fi
+          
+            echo "$REVIEWER_MENTIONS"
+          }
+          
+          echo "Processing PR #${PR_NUMBER} - Action: ${PR_ACTION}"
+          
           # PR 상태에 따른 메시지 구분
           case "$PR_ACTION" in
             "ready_for_review")
-              PR_STATUS="🏃 *리뷰를 받을 준비가 되었습니다!*"
-              ALL_MENTIONS=""  # ready_for_review에서는 멘션 없음
-              ;;
-            "review_requested")
-              PR_STATUS="🏸 *리뷰 요청이 발생했습니다!*"
-              # 리뷰 요청된 특정 사람만 멘션
-              if [ -n "$REQUESTED_REVIEWER" ]; then
-                SLACK_REVIEWER_ID=$(get_slack_id "$REQUESTED_REVIEWER")
-                if [ "$SLACK_REVIEWER_ID" != "Unknown" ]; then
-                  ALL_MENTIONS="<@$SLACK_REVIEWER_ID>"
-                else
-                  ALL_MENTIONS="@$REQUESTED_REVIEWER (GitHub)"
-                fi
-              else
-                ALL_MENTIONS=""
+              # 현재 할당된 리뷰어가 있는지 확인
+              CURRENT_REVIEWERS='${{ toJson(github.event.pull_request.requested_reviewers) }}'
+          
+              # 리뷰어가 null이거나 빈 배열이면 메시지 전송하지 않음
+              if [ "$CURRENT_REVIEWERS" == "null" ] || [ "$CURRENT_REVIEWERS" == "[]" ] || [ -z "$CURRENT_REVIEWERS" ]; then
+                echo "No reviewers assigned. Skipping notification."
+                exit 0
+              fi
+          
+              echo "Reviewers assigned, sending review request notification"
+              PR_STATUS="📢 *리뷰 알림 요청*"
+              ALL_MENTIONS=$(get_all_reviewers_mentions)
+          
+              # 리뷰어가 실제로 있을 때만 진행
+              if [ -z "$ALL_MENTIONS" ]; then
+                echo "No valid reviewers found. Skipping notification."
+                exit 0
               fi
               ;;
+          
+            "review_requested")
+              # 요청된 리뷰어가 null이면 메시지 전송하지 않음
+              REQUESTED_REVIEWER="${{ github.event.requested_reviewer.login }}"
+              if [ -z "$REQUESTED_REVIEWER" ] || [ "$REQUESTED_REVIEWER" == "null" ]; then
+                echo "No specific reviewer requested. Skipping notification."
+                exit 0
+              fi
+          
+              PR_STATUS="📢 *리뷰 알림 요청*"
+          
+              SLACK_REVIEWER_ID=$(get_slack_id "$REQUESTED_REVIEWER")
+              if [ "$SLACK_REVIEWER_ID" != "Unknown" ]; then
+                ALL_MENTIONS="<@$SLACK_REVIEWER_ID>"
+              else
+                ALL_MENTIONS="@$REQUESTED_REVIEWER (GitHub)"
+              fi
+              ;;
+          
             "closed")
+              # PR 작성자 멘션
+              if [ "$SLACK_AUTHOR_ID" != "Unknown" ] && [ "$SLACK_AUTHOR_ID" != "작성자 정보 없음" ]; then
+                AUTHOR_MENTION="<@$SLACK_AUTHOR_ID>"
+              else
+                AUTHOR_MENTION="@$PR_AUTHOR (GitHub)"
+              fi
+          
               if [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
                 PR_STATUS="✅ *PR Merged*"
               else
                 PR_STATUS="❌ *PR Closed*"
               fi
-              ALL_MENTIONS=""
+              ALL_MENTIONS="$AUTHOR_MENTION"
               ;;
+          
             "reopened")
               PR_STATUS="♻️ *PR이 다시 열렸습니다!*"
-              ALL_MENTIONS=""
+              # 리뷰어들 멘션
+              ALL_MENTIONS=$(get_all_reviewers_mentions)
               ;;
+          
             *)
               PR_STATUS="☝️ *PR 업데이트 알림*"
-              ALL_MENTIONS=""
+              # 리뷰어들 멘션
+              ALL_MENTIONS=$(get_all_reviewers_mentions)
               ;;
           esac
           
           # Slack 작성자 표시
-          if [ "$SLACK_AUTHOR_ID" == "Unknown" ]; then
+          if [ "$SLACK_AUTHOR_ID" == "Unknown" ] || [ "$SLACK_AUTHOR_ID" == "작성자 정보 없음" ]; then
             AUTHOR_DISPLAY="@$PR_AUTHOR (GitHub)"
           else
             AUTHOR_DISPLAY="<@$SLACK_AUTHOR_ID>"
@@ -94,12 +156,22 @@ jobs:
           # 메시지 구성
           MESSAGE_TEXT="${PR_STATUS}\\n*PR 제목:* ${PR_TITLE} (#${PR_NUMBER})\\n*작성자:* ${AUTHOR_DISPLAY}"
           
-          # 리뷰어 멘션이 있는 경우에만 추가
+          # 멘션 대상에 따라 라벨 구분
           if [ -n "$ALL_MENTIONS" ]; then
-            MESSAGE_TEXT="${MESSAGE_TEXT}\\n*리뷰어:* ${ALL_MENTIONS}"
+            case "$PR_ACTION" in
+              "closed")
+                # closed/merged 일 때는 작성자 멘션이므로 별도 표시 안 함 (이미 작성자로 표시됨)
+                ;;
+              *)
+                # 나머지는 리뷰어 멘션
+                MESSAGE_TEXT="${MESSAGE_TEXT}\\n*리뷰어:* ${ALL_MENTIONS}"
+                ;;
+            esac
           fi
           
           MESSAGE_TEXT="${MESSAGE_TEXT}\\n*링크:* ${PR_URL}"
+          
+          echo "Sending Slack notification: ${PR_STATUS}"
           
           # Slack Webhook 호출
           curl -X POST \
