@@ -163,18 +163,17 @@ com.sportsify
 ├── payment/            # 동일 구조
 ├── chat/
 │   ├── application/
-│   │   └── consumer/   # Kafka Consumer
+│   │   └── consumer/   # Redis Streams Consumer
 │   └── ...             # 동일 구조
 ├── notification/
 │   ├── application/
-│   │   └── consumer/   # Kafka Consumer
+│   │   └── consumer/   # Redis Streams Consumer
 │   └── ...             # 동일 구조
 │
 └── infrastructure/     # 공통 인프라
-    ├── config/         # Kafka, Redis, JPA Config
+    ├── config/         # Redis, JPA Config
     ├── redis/
-    ├── jpa/
-    └── kafka/
+    └── jpa/
 ```
 
 ---
@@ -182,7 +181,7 @@ com.sportsify
 ## 7. 도메인 간 결합 규칙
 
 - 다른 도메인 엔티티를 직접 참조하지 않는다.
-- 도메인 간 통신은 **Kafka 이벤트** 또는 **자체 DTO** 를 통해서만 한다.
+- 도메인 간 통신은 **Redis Streams 이벤트** 또는 **자체 DTO** 를 통해서만 한다.
 - Claude를 사용하는 경우에도 다른 도메인 코드를 직접 구현하지 않는다.
 
 ---
