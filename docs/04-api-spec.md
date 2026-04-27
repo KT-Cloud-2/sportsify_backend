@@ -1523,33 +1523,89 @@ POST /api/payments/{paymentId}/refund
 
 ### 엔드포인트 목록
 
-| method | path | auth required | 설명 |
-| --- | --- | --- | --- |
-| GET | /api/chat/rooms | N | 채팅방 목록 조회 |
-| GET | /api/chat/rooms/team/{teamName} | N | 팀별 채팅방 조회 |
-| WS | /ws/chat (STOMP) | O | WebSocket 연결 / 메시지 전송 |
-| GET | /api/chat/intensity/{gameId} | N | 응원 열기 지수 조회 |
-| GET | /api/chat/history/{roomId} | O | 채팅 이력 조회 |
+| method | path                                  | auth required | 설명                    |
+|--------|---------------------------------------|---------------|-----------------------|
+| POST   | /api/chat/create                      | O             | 채팅방 생성                |
+| GET    | /api/chat/rooms                       | O             | 내 채팅방 목록 조회           |
+| GET    | /api/chat/rooms/game/{gameId}         | N             | 게임별 채팅방 조회            |
+| GET    | /api/chat/rooms/{roomId}              | O/N           | 채팅방 상세 조회             |
+| PATCH  | /api/chat/rooms/{roomId}              | O             | 채팅방 정보 수정             |
+| POST   | /api/chat/rooms/{roomId}/join         | O             | 채팅방 입장                |
+| POST   | /api/chat/rooms/{roomId}/leave        | O             | 채팅방 상세 나가기            |
+| POST   | /api/chat/rooms/{roomId}/invite       | O             | 채팅방 상세 초대             |
+| PATCH  | /api/chat/rooms/{roomId}/notification | O             | 채팅방 알림 설정 변경          |
+| GET    | /api/chat/history/{roomId}            | O             | 채팅 이력 조회              |
+| WS     | /ws/chat (STOMP)                      | O/N           | WebSocket 연결 / 메시지 전송 |
+| DELETE | /api/chat/messages/{messageId}        | O             | 메시지 삭제                |
+| POST   | /api/chat/message/upload              | O             | 메시지 첨부 파일 업로드         |
+
+
 
 ---
 
-### 5-1. 채팅방 목록 조회
+### 5-1. 채팅방 생성
+
+```
+POST /api/chat/create
+```
+
+Auth Required: **O**
+
+Request Body
+
+| 필드                | 타입      | 필수  | 설명                                                             |
+|-------------------|---------|-----|----------------------------------------------------------------|
+| `type`            | String  | Y   | 채팅방 유형 (`GAME` \|  `DM`)                                       |
+| `name`            | String* | Y/N | 채팅방 표시 이름. `DM` 의 경우 자동 생성되어 생략 가능                             |
+| `imageUrl`        | String* | N   | 채팅방 프로필 이미지 URL                                                |
+| `gameId`          | Long*   | Y/N | `type=GAME` 일 때 필수                                             |
+| `inviteeIds`      | Long[]* | Y/N | `DM` / 비공개 방 생성 시 함께 초대할 사용자 ID 목록                             |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "type": "GAME",
+    "gameId": 101,
+    "name": "KIA vs 삼성 경기 채팅",
+    "imageUrl": null,
+    "createdBy": 9,
+    "createdAt": "2026-04-21T09:00:00Z"
+  }
+}
+```
+
+Validation / Business Rules
+
+- 인증된 사용자만 생성 가능.
+- 동일 사용자 간 `DM` 중복 생성 시 기존 방을 반환 (`DUPLICATE_DIRECT_ROOM` 대신 200 OK + 기존 방).
+- `roomId` 는 서버에서 발급, 클라이언트가 보낸 값은 무시.
+- `type=GAME` 인 경우 `gameId` 가 존재 여부를 외부 컨텍스트 호출로 검증.
+
+---
+
+### 5-2. 내 채팅방 목록 조회
 
 ```
 GET /api/chat/rooms
 ```
 
-#### Query Parameter
+Auth Required: **O**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| `type` | String | N | 채팅방 유형 (`GAME` \| `TEAM` \| `GENERAL`) |
-| `cursor` | String | N | 페이지네이션 커서 |
-| `limit` | Integer | N | 페이지 크기 (기본 20) |
+Query Parameter
 
-#### Response Body
+| 파라미터 | 타입      | 필수 | 설명                      |
+|----------|---------|----|-------------------------|
+| `type` | String  | Y  | 채팅방 유형 (`GAME` \| `DM`) |
+| `cursor` | Integer | N  | 페이지네이션 커서               |
+| `limit` | Integer | N  | 페이지 크기 (기본 20, 최대 100)  |
 
-```json
+Response Body
+
+```
 {
   "success": true,
   "data": {
@@ -1558,242 +1614,870 @@ GET /api/chat/rooms
         "roomId": 201,
         "type": "GAME",
         "gameId": 101,
-        "teamId": null,
         "title": "KIA vs 삼성 경기 채팅",
+        "imageUrl": null,
         "currentParticipants": 432,
-        "maxParticipants": 5000,
-        "createdAt": "2025-04-21T09:00:00Z"
+        "lastMessage": {
+          "messageId": 9981,
+          "content": "방금 홈런!!",
+          "type": "TEXT",
+          "createdAt": "2026-04-27T14:22:15Z"
+        },
+        "unreadCount": 12,
+        "notificationEnabled": true,
+        "createdAt": "2026-04-21T09:00:00Z",
+        "updatedAt": "2026-04-27T14:22:15Z"
       }
     ],
-    "nextCursor": "eyJpZCI6MjAxfQ==",
+    "nextCursor": 0,
     "hasNext": false,
     "totalCount": 5
   }
 }
 ```
 
-#### Response Field
+Response Field
 
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `roomId` | Long | 채팅방 ID |
-| `type` | String | 채팅방 유형 (`GAME` \| `TEAM` \| `GENERAL`) |
-| `gameId` | Long \| null | 연결된 경기 ID (GAME 타입일 때) |
-| `teamId` | Long \| null | 연결된 팀 ID (TEAM 타입일 때) |
-| `title` | String | 채팅방 표시 이름 |
-| `currentParticipants` | Integer | 현재 참여 인원 |
-| `maxParticipants` | Integer | 최대 참여 인원 |
+| 필드 | 타입             | 설명                     |
+|------|----------------|------------------------|
+| `roomId` | Long           | 채팅방 ID                 |
+| `type` | String         | 채팅방 유형                 |
+| `gameId` | Long \| null   | 연결된 경기 ID (`GAME` 일 때) |
+| `title` | String         | 채팅방 표시 이름              |
+| `imageUrl` | String \| null | 프로필 이미지                |
+| `currentParticipants` | Integer        | 현재 참여 인원               |
+| `lastMessage` | Object \| null | 마지막 메시지 요약             |
+| `unreadCount` | Integer        | 안읽은 메시지 개수             |
+| `notificationEnabled` | Boolean        | 해당 방 알림 수신 여부          |
+| `createdAt` | DateTime       | 생성 시각                  |
+| `updatedAt` | DateTime       | 마지막 갱신 시각              |
+| `nextCursor` | Long \| null        | 다음 page 커서             |
+| `hasNext` | Boolean        | 다음 page 존재여부           |
+| `totalCount` | Integer        | 가져온 채팅방 목록의 수          |
 
----
+Validation / Business Rules
 
-### 5-2. 팀별 채팅방 조회
-
-```
-GET /api/chat/rooms/team/{teamName}
-```
-
-#### Path Variable
-
-| 변수 | 타입 | 설명 |
-| --- | --- | --- |
-| `teamName` | String | 팀 short_name 또는 정식 명칭 |
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "roomId": 202,
-    "type": "TEAM",
-    "teamId": 1,
-    "teamName": "KIA 타이거즈",
-    "currentParticipants": 1205,
-    "maxParticipants": 10000
-  }
-}
-```
-
-#### Http Status / Error Code
-
-| 에러 코드 | HTTP Status | 설명 |
-| --- | --- | --- |
-| `CHAT_ROOM_NOT_FOUND` | 404 | 해당 팀 채팅방 없음 |
+- 인증된 사용자만 조회 가능.
+- `JOINED` 상태인 방만 반환 (`LEFT`, `BANNED` 제외).
 
 ---
 
-### 5-3. WebSocket 연결 / 메시지 전송 (STOMP)
+### 5-3. 게임별 채팅방 조회
 
 ```
-WS /ws/chat
+GET /api/chat/rooms/game/{gameId}
 ```
 
-STOMP 프로토콜. HTTP 핸드쉐이크 단계에서 JWT 검증 (`ChannelInterceptor`).
+Auth Required: **N**
 
-#### STOMP CONNECT 헤더
+Path Parameter
 
-| 헤더 | 설명 |
-| --- | --- |
-| `Authorization` | `Bearer {accessToken}` |
+| 파라미터     | 타입 | 필수 | 설명    |
+|----------|------|------|-------|
+| `gameId` | String | Y | 게임 Id |
 
-#### 구독 채널 (SUBSCRIBE)
-
-| destination | 설명 |
-| --- | --- |
-| `/topic/chat/rooms/{roomId}` | 채팅방 메시지 수신 |
-| `/topic/queue/{gameId}` | 대기열 순번 도래 시 서버 Push (예매 진입 신호) |
-| `/user/queue/errors` | 개인 에러 수신 |
-
-#### 대기열 Push 수신 구조 (`/topic/queue/{gameId}`)
-
-```json
-{
-  "gameId": 101,
-  "memberId": 1,
-  "message": "이제 예매하실 수 있습니다.",
-  "expireAt": "2025-04-21T10:15:00Z"
-}
-```
-
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `gameId` | Long | 경기 ID |
-| `memberId` | Long | 순번 도달한 회원 ID |
-| `message` | String | 안내 메시지 |
-| `expireAt` | String (ISO8601) | 예매 진입 유효 시간 (초과 시 대기열 재진입 필요) |
-
-#### 메시지 전송 (SEND)
-
-**destination**: `/app/chat/rooms/{roomId}/send`
-
-```json
-{
-  "content": "오늘도 파이팅!",
-  "type": "MESSAGE"
-}
-```
-
-#### SEND Field
-
-| 필드 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| `content` | String | Y | 메시지 내용 (최대 80자) |
-| `type` | String | Y | `MESSAGE` \| `CHEER` |
-
-#### 수신 메시지 구조
-
-```json
-{
-  "messageId": 30001,
-  "roomId": 201,
-  "senderId": 1,
-  "senderNickname": "응원왕",
-  "content": "오늘도 파이팅!",
-  "type": "MESSAGE",
-  "isFiltered": false,
-  "createdAt": "2025-04-21T14:00:01Z"
-}
-```
-
-#### 수신 Field
-
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `messageId` | Long | 메시지 ID |
-| `senderId` | Long | 발신자 회원 ID |
-| `senderNickname` | String | 발신자 닉네임 |
-| `type` | String | `MESSAGE` \| `CHEER` \| `SYSTEM` |
-| `isFiltered` | Boolean | 욕설 필터링 여부 |
-
----
-
-### 5-4. 응원 열기 지수 조회
-
-```
-GET /api/chat/intensity/{gameId}
-```
-
-#### Path Variable
-
-| 변수 | 타입 | 설명 |
-| --- | --- | --- |
-| `gameId` | Long | 경기 ID |
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "gameId": 101,
-    "team1Score": 8421,
-    "team2Score": 3150,
-    "totalMessages": 11571,
-    "updatedAt": "2025-04-21T14:05:00Z"
-  }
-}
-```
-
-#### Response Field
-
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `team1Score` | Long | team1 응원 열기 점수 (Redis Sorted Set score 기반) |
-| `team2Score` | Long | team2 응원 열기 점수 |
-| `totalMessages` | Long | 총 메시지 수 |
-| `updatedAt` | String (ISO8601) | 마지막 갱신 시각 |
-
----
-
-### 5-5. 채팅 이력 조회
-
-```
-GET /api/chat/history/{roomId}
-```
-
-#### Path Variable
-
-| 변수 | 타입 | 설명 |
-| --- | --- | --- |
-| `roomId` | Long | 채팅방 ID |
-
-#### Query Parameter
+Query Parameter
 
 | 파라미터 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| `cursor` | String | N | 이전 메시지 기준 커서 (messageId 인코딩) |
-| `limit` | Integer | N | 페이지 크기 (기본 50, 최대 100) |
+|----------|------|------|------|
+| `cursor` | Long \| null | N | 페이지네이션 커서 |
+| `limit` | Integer | N | 페이지 크기 (기본 20, 최대 100) |
 
-#### Response Body
+Response Body
 
-```json
+```
 {
   "success": true,
   "data": {
     "items": [
       {
-        "messageId": 30001,
-        "senderId": 1,
-        "senderNickname": "응원왕",
-        "content": "오늘도 파이팅!",
-        "type": "MESSAGE",
-        "isFiltered": false,
-        "createdAt": "2025-04-21T14:00:01Z"
+        "roomId": 305,
+        "type": "GAME",
+        "gameId": 5,
+        "title": "KIA 타이거즈 응원방",
+        "imageUrl": "https://cdn.example.com/teams/kia.png",
+        "currentParticipants": 2154,
+        "createdAt": "2026-03-01T00:00:00Z"
       }
     ],
-    "nextCursor": "eyJtZXNzYWdlSWQiOjMwMDAwfQ==",
+    "nextCursor": null,
+    "hasNext": false,
+    "totalCount": 1
+  }
+}
+```
+
+Response Field
+
+| 필드 | 타입             | 설명                     |
+|------|----------------|------------------------|
+| `roomId` | Long           | 채팅방 ID                 |
+| `type` | String         | 채팅방 유형                 |
+| `gameId` | Long \| null   | 연결된 경기 ID  |
+| `title` | String         | 채팅방 표시 이름              |
+| `imageUrl` | String \| null | 프로필 이미지                |
+| `currentParticipants` | Integer        | 현재 참여 인원               |
+| `createdAt` | DateTime       | 생성 시각                  |
+| `nextCursor` | Long \| null        | 다음 page 커서             |
+| `hasNext` | Boolean        | 다음 page 존재여부           |
+| `totalCount` | Integer        | 가져온 채팅방 목록의 수          |
+
+Validation / Business Rules
+
+- 비인증 사용자도 조회 가능 (둘러보기 용).
+- `type = GAME` 이고 `status = ACTIVE` 인 방만 반환.
+
+---
+
+### 5-4. 채팅방 상세 조회
+
+```
+GET /api/chat/rooms/{roomId}
+```
+
+Auth Required: **O/N**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "type": "GAME",
+    "gameId": 101,
+    "title": "KIA vs 삼성 경기 채팅",
+    "imageUrl": null,
+    "currentParticipants": 432,
+    "createdBy": 9,
+    "createdAt": "2026-04-21T09:00:00Z",
+    "myMembership": {
+      "status": "JOINED",
+      "notificationEnabled": true,
+      "lastReadMessageId": 9974,
+      "joinedAt": "2026-04-21T09:00:00Z"
+    }
+  }
+}
+```
+
+Response Field
+
+| 필드                    | 타입             | 설명                          |
+|-----------------------|----------------|-----------------------------|
+| `success`              | Boolean        | 성공여부                        |
+| `roomId`              | Long           | 채팅방 ID                      |
+| `type`                | String         | 채팅방 유형                      |
+| `gameId`              | Long \| null   | 연결된 경기 ID                   |
+| `title`               | String         | 채팅방 표시 이름                   |
+| `imageUrl`            | String \| null | 프로필 이미지                     |
+| `currentParticipants` | Integer        | 현재 참여 인원                    |
+| `createdBy`            | Long           | 생성자                         |
+| `createdAt`           | DateTime       | 생성 시각                       |
+| `status`          | String         | 사용자의 채팅방 상태                 |
+| `notificationEnabled`             | Boolean        | 사용자의 채팅방 알림 여부              |
+| `lastReadMessageId`          | Integer        | 사용자의 채팅방의 마지막 읽은 message id |
+| `joinedAt`          | DateTime       | 사용자의 채팅방 입장 날짜              |
+
+
+
+Validation / Business Rules
+
+- `GAME`  은 비멤버도 메타 정보 조회 가능 (단 `myMembership = null`).
+- `DM` 은 멤버만 조회 가능 (`FORBIDDEN`).
+- 삭제된 방은 `ROOM_NOT_FOUND`.
+
+---
+
+### 5-5. 채팅방 정보 수정
+
+```
+PATCH /api/chat/rooms/{roomId}
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Request Body
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `title` | String | N | 새 제목 (1~100자) |
+| `imageUrl` | String | N | 새 이미지 URL (빈 문자열 → null 처리) |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "title": "KIA vs 삼성 응원방",
+    "imageUrl": "https://cdn.example.com/rooms/201.png",
+    "updatedAt": "2026-04-27T15:00:00Z"
+  }
+}
+```
+Response Field
+
+| 필드          | 타입             | 설명          |
+|-------------|----------------|-------------|
+| `success`   | String        | 성공여부        |
+| `roomId`    | Long   | 채팅방 ID      |
+| `title`     | String         | 채팅방 표시 이름   |
+| `imageUrl`  | String \| null | 프로필 이미지     |
+| `updatedAt` | DateTime       | 마지막 엡데이트 날짜 |
+
+
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 채팅방의 활성 멤버만 가능.
+- `DM` 은 수정 불가 (`FORBIDDEN`).
+- 변경 후 `chat.room.updated` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+
+---
+
+### 5-6. 채팅방 입장
+
+```
+POST /api/chat/rooms/{roomId}/join
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "memberId": 9,
+    "status": "JOINED",
+    "joinedAt": "2026-04-27T15:01:11Z"
+  }
+}
+```
+Response Field
+
+| 필드         | 타입             | 설명               |
+|------------|----------------|------------------|
+| `success`  | String        | 성공여부             |
+| `roomId`   | Long   | 채팅방 ID           |
+| `memberId` | Long   | 사용자 ID           |
+| `status`   | String         | 사용자의 채팅방에서의 현 상태 |
+| `joinedAt` | DateTime       | 사용자의 채팅방 입장 날짜   |
+
+
+
+Validation / Business Rules
+
+- 인증된 사용자만 입장 가능.
+- `DM` / 비공개 방은 사전에 `INVITED` 상태여야 입장 가능.
+- 이미 `JOINED` → `ALREADY_JOINED`.
+- `BANNED` → `BANNED_MEMBER`.
+- 입장 성공 시 `chat.room.member.joined` 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+
+---
+
+### 5-7. 채팅방 나가기
+
+```
+POST /api/chat/rooms/{roomId}/leave
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "memberId": 9,
+    "status": "LEFT",
+    "updatedAt": "2026-04-27T15:10:00Z"
+  }
+}
+```
+
+Response Field
+
+| 필드         | 타입             | 설명                      |
+|------------|----------------|-------------------------|
+| `success`  | String        | 성공여부                    |
+| `roomId`   | Long   | 채팅방 ID                  |
+| `memberId` | Long   | 사용자 ID                  |
+| `status`   | String         | 사용자의 채팅방에서의 현 상태        |
+| `updatedAt` | DateTime       | 사용자의 채팅방에서의 마지막 업데이트 날짜 |
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 멤버만 가능.
+- 이미 `LEFT` → `ALREADY_LEFT`.
+- 나가기 성공 시 `chat.room.member.left` 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+
+---
+
+### 5-8. 참여자 초대
+
+```
+POST /api/chat/rooms/{roomId}/invite
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Request Body
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `inviteeIds` | Long[] | Y | 초대할 사용자 ID 목록 (1~50명) |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "invited": [
+      { "memberId": 12, "status": "INVITED" },
+      { "memberId": 13, "status": "INVITED" }
+    ],
+    "skipped": [
+      { "memberId": 14, "reason": "ALREADY_JOINED" }
+    ]
+  }
+}
+```
+
+Response Field
+
+| 필드          | 타입       | 설명                      |
+|-------------|----------|-------------------------|
+| `success`   | String   | 성공여부                    |
+| `memberId`  | Long     | 사용자 ID                  |
+| `invited`   | List     | 초대된 사용자 그룹              |
+| `status`    | String   | 사용자의 채팅방에서의 현 상태        |
+| `updatedAt` | DateTime | 사용자의 채팅방에서의 마지막 업데이트 날짜 |
+| `skipped`   | List     | 초대되지 못한 사용자 그룹          |
+| `reason`    | String   | 초대되지 못한 이유              |
+
+
+Validation / Business Rules
+
+- 초대 가능 대상은 `DM` 외의 비공개 그룹 방. (공개 방은 그냥 join)
+- 초대자 본인이 해당 방의 멤버여야 함.
+- 이미 `JOINED` / `BANNED` 인 사용자는 `skipped` 에 사유와 함께 반환.
+- 신규 `INVITED` 멤버에게 `chat.room.member.invited` 이벤트 발송.
+
+---
+
+### 5-9. 알림 설정 변경
+
+```
+PATCH /api/chat/rooms/{roomId}/notification
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Request Body
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `enabled` | Boolean | Y | 알림 수신 여부 |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "memberId": 9,
+    "notificationEnabled": false,
+    "updatedAt": "2026-04-27T15:20:00Z"
+  }
+}
+```
+
+Response Field
+
+| 필드          | 타입       | 설명                      |
+|-------------|----------|-------------------------|
+| `success`   | String   | 성공여부                    |
+| `roomId`    | Long     | 채팅방 ID                  |
+| `notificationEnabled`    | String   | 사용자의 채팅방에서의 아림 여부       |
+| `updatedAt` | DateTime | 사용자의 채팅방에서의 마지막 업데이트 날짜 |
+
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 활성 멤버만 가능.
+
+---
+
+
+### 5-10. 채팅 이력 조회
+
+```
+GET /api/chat/history/{roomId}
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+
+Query Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `before` | Long | N | 이 메시지 ID 보다 과거의 것만 조회. 미지정 시 최신 메시지부터 |
+| `limit` | Integer | N | 페이지 크기 (기본 30, 최대 100) |
+
+Response Body
+
+```
+{
+  "success": true,
+  "senderId": 9,
+  "data": {
+    "items": [
+      {
+        "messageId": 9981,
+        "roomId": 201,
+        "type": "TEXT",
+        "content": "방금 홈런!!",
+        "status": "ACTIVE",
+        "createdAt": "2026-04-27T14:22:15Z"
+      },
+      {
+        "messageId": 9980,
+        "roomId": 201,
+        "type": "IMAGE",
+        "content": "https://cdn.example.com/chat/9980.png",
+        "status": "ACTIVE",
+        "createdAt": "2026-04-27T14:21:00Z"
+      }
+    ],
+    "nextCursor": 9980,
     "hasNext": true
   }
 }
 ```
 
-#### Http Status / Error Code
+Response Field
 
-| 에러 코드 | HTTP Status | 설명 |
-| --- | --- | --- |
-| `CHAT_ROOM_NOT_FOUND` | 404 | 존재하지 않는 채팅방 |
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `messageId` | Long | 메시지 ID |
+| `roomId` | Long | 채팅방 ID |
+| `senderId` | Long | 발신자 ID (시스템 메시지는 0) |
+| `type` | String | `TEXT` / `IMAGE` / `FILE` / `SYSTEM` |
+| `content` | String | 텍스트 본문 또는 파일 URL |
+| `status` | String | `ACTIVE` / `DELETED` |
+| `createdAt` | DateTime | 생성 시각 |
+| `nextCursor` | Long \| null | 다음 페이지 커서  |
+| `hasNext` | Boolean | 다음 페이지 존재 여부 |
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 멤버 (`DM`/`GROUP` 비공개 방의 경우)만 조회 가능.
+- `GAME`  공개 방은 비멤버도 조회 가능하도록 옵션 가능 (정책에 따라 결정).
+- 정렬: `messageId DESC` (최신순).
+- `DELETED` 메시지는 `content` 가 `"[삭제된 메시지입니다]"` 로 마스킹되어 반환.
 
 ---
+
+
+### 5-11. WebSocket (STOMP)
+
+### 5-11-1. 연결 (CONNECT)
+
+```
+WS  /ws/chat   (STOMP over WebSocket, SockJS fallback 지원)
+```
+
+CONNECT 헤더
+
+| 헤더 | 필수 | 설명 |
+|------|------|------|
+| `Authorization` | Y | `Bearer {accessToken}` |
+| `accept-version` | Y | `1.1,1.2` |
+| `heart-beat` | N | `10000,10000` 권장 |
+
+연결 시 처리
+
+- 인증 실패 시 STOMP `ERROR` 프레임 후 연결 종료.
+- 서버는 `userId ↔ session ↔ subscriptions` 매핑을 in-memory(예: ConcurrentHashMap) 에 저장.
+- 동일 사용자의 다중 디바이스 접속 허용 (sessionId 별로 분리 관리).
+- 연결 성공 시 `/user/queue/system` 으로 다음 페이로드를 푸시:
+
+```
+{
+  "event": "CONNECTED",
+  "userId": 9,
+  "sessionId": "ws-3f1a..."
+}
+```
+
+### 5-11-2. 구독 destination (SUBSCRIBE)
+
+| Destination | 설명 |
+|-------------|------|
+| `/topic/rooms/{roomId}` | 해당 방의 모든 이벤트 (메시지/입퇴장/수정/읽음 등) |
+| `/topic/rooms/{roomId}/messages` | 해당 방의 메시지 전용 채널 (위와 분리하고 싶을 때) |
+| `/topic/rooms/{roomId}/typing` | 타이핑 인디케이터 채널 (휘발성, DB 저장 안 함) |
+| `/user/queue/notifications` | 자기 자신에게 오는 개인 알림 (초대, mentioned 등) |
+| `/user/queue/system` | 자기 자신에게 오는 시스템 메시지 (연결/오류) |
+
+구독 시점에 서버가 `roomId` 에 대한 멤버 권한을 검증한다. 비멤버가 비공개 방을 구독하면 `ERROR` 프레임 반환.
+
+### 5-11-3. 발신 destination (SEND)
+
+#### 5-11-3-1. 메시지 전송
+
+```
+SEND  /app/chat.send
+```
+
+Headers
+
+| 헤더 | 필수 | 설명 |
+|------|------|------|
+| `Authorization` | Y | `Bearer {accessToken}` (CONNECT 시 검증되었어도 destination 별 재검증) |
+
+Payload
+
+```
+{
+  "clientMessageId": "cm-9b2f-...",
+  "roomId": 201,
+  "type": "TEXT",
+  "content": "방금 홈런!!"
+}
+```
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `clientMessageId` | String | Y | 클라이언트가 발급한 임시 ID (가짜 message id). 재전송 시 동일 값 유지하여 중복 저장 방지 |
+| `roomId` | Long | Y | 대상 채팅방 ID |
+| `type` | String | Y | `TEXT` / `IMAGE` / `FILE` |
+| `content` | String | Y | 본문 또는 업로드 결과 URL |
+
+Server → Client (성공)
+
+`/topic/rooms/{roomId}/messages` 로 브로드캐스트:
+
+```
+{
+  "event": "MESSAGE_SENT",
+  "clientMessageId": "cm-9b2f-...",
+  "messageId": 9982,
+  "roomId": 201,
+  "senderId": 9,
+  "type": "TEXT",
+  "content": "방금 홈런!!",
+  "createdAt": "2026-04-27T14:22:30Z"
+}
+```
+
+Server → Sender (실패)
+
+`/user/queue/system` 으로 송신자 본인에게만:
+
+```
+{
+  "event": "MESSAGE_FAILED",
+  "clientMessageId": "cm-9b2f-...",
+  "errorCode": "MESSAGE_TOO_LONG",
+  "message": "메시지 본문은 4000자를 초과할 수 없습니다."
+}
+```
+
+Validation / Business Rules
+
+- 인증된 사용자 + (비공개 방이면) 활성 멤버만 발송 가능.
+- `clientMessageId` 가 동일한 요청은 멱등 처리 (이미 저장된 messageId 를 재반환).
+- DB 저장 실패 시 최대 3회 재시도, 그래도 실패하면 `MESSAGE_FAILED` 응답.
+- 동일 채팅방 메시지는 `messageId` (BIGSERIAL) 의 단조 증가로 순서 보장.
+
+---
+
+#### 5-11-3-2. 읽음 상태 갱신
+
+```
+SEND  /app/chat.read
+```
+
+Payload
+
+```
+{
+  "roomId": 201,
+  "lastReadMessageId": 9982
+}
+```
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+| `lastReadMessageId` | Long | Y | 사용자가 마지막으로 읽은 메시지 ID |
+
+처리
+
+1. 사용자/방 권한 검증.
+2. Redis `chat:room:{roomId}:user:{userId}:lastRead` 와 비교 후 더 큰 경우에만 갱신 (단조 증가 검증).
+3. 같은 방의 다른 멤버에게 `/topic/rooms/{roomId}` 로 multicast.
+4. DB 영속화는 별도 스케줄러(2~3초 주기) 또는 disconnect/shutdown 시점에서 일괄 반영.
+
+Server → Other Members
+
+```
+{
+  "event": "READ_UPDATED",
+  "roomId": 201,
+  "userId": 9,
+  "lastReadMessageId": 9982,
+  "updatedAt": "2026-04-27T14:22:35Z"
+}
+```
+
+Validation / Business Rules
+
+- `DM` / 비공개 방 멤버에게만 의미. 공개 방의 읽음 표시는 정책에 따라 비활성화 가능.
+- 이전 값보다 작거나 같은 `lastReadMessageId` 는 무시(역행 방지).
+
+---
+
+#### 5-11-3-3. 타이핑 인디케이터
+
+```
+SEND  /app/chat.typing
+```
+
+Payload
+
+```
+{
+  "roomId": 201,
+  "typing": true
+}
+```
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `roomId` | Long | Y | 채팅방 ID |
+| `typing` | Boolean | Y | 타이핑 시작/종료 |
+
+Server → Other Members (`/topic/rooms/{roomId}/typing`)
+
+```
+{
+  "event": "TYPING",
+  "roomId": 201,
+  "userId": 9,
+  "typing": true,
+  "at": "2026-04-27T14:22:36Z"
+}
+```
+
+Validation / Business Rules
+
+- 휘발성 이벤트, DB/Redis 영속화 없음.
+- 같은 사용자가 5초 이내에 다시 `typing=true` 를 보내면 디바운스로 throttle 권장.
+
+---
+
+#### 5-11-3-4. 서버 발신 이벤트 종류 (`/topic/rooms/{roomId}` 구독자에게 푸시)
+
+| event | 발생 시점 | 페이로드 핵심 필드 |
+|-------|-----------|-------------------|
+| `MESSAGE_SENT` | 새 메시지 발송 성공 | `messageId`, `senderId`, `type`, `content`, `createdAt` |
+| `MESSAGE_DELETED` | 메시지 삭제 성공 | `messageId`, `deletedBy`, `at` |
+| `MEMBER_JOINED` | 사용자 입장 | `memberId`, `joinedAt` |
+| `MEMBER_LEFT` | 사용자 나감 | `memberId`, `at` |
+| `MEMBER_INVITED` | 새 사용자 초대 | `memberIds[]`, `invitedBy`, `at` |
+| `ROOM_UPDATED` | 채팅방 메타 변경 | `title`, `imageUrl`, `updatedAt` |
+| `READ_UPDATED` | 읽음 상태 갱신 | `userId`, `lastReadMessageId`, `updatedAt` |
+| `TYPING` | 타이핑 인디케이터 | `userId`, `typing` |
+
+각 이벤트는 다음 공통 envelope 를 따른다.
+
+```
+{
+  "event": "MESSAGE_SENT",
+  "roomId": 201,
+  "occurredAt": "2026-04-27T14:22:30Z",
+  "payload": { ... 이벤트별 필드 ... }
+}
+```
+
+---
+
+#### 5-11-3-5. DISCONNECT
+
+- STOMP `DISCONNECT` 또는 TCP 연결 종료 시 서버는 다음을 수행한다:
+    - in-memory `userId ↔ session` 매핑에서 해당 sessionId 제거.
+    - Redis 의 `chat:room:{roomId}:online:{userId}` (해당 사용자가 구독 중이던 방들) 정리.
+    - 마지막 read 값을 DB 에 flush.
+- 동일 사용자의 다른 세션이 남아있다면 사용자 단위의 online 상태는 유지.
+
+---
+
+
+---
+
+### 5-12. 메시지 삭제
+
+```
+DELETE /api/chat/messages/{messageId}
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|----------|------|------|------|
+| `messageId` | Long | Y | 메시지 ID |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "messageId": 9981,
+    "roomId": 201,
+    "status": "DELETED",
+    "updatedAt": "2026-04-27T15:30:00Z"
+  }
+}
+```
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 멤버만 가능.
+- 본인이 보낸 메시지만 삭제 가능 (`FORBIDDEN`).
+- 이미 `DELETED` → 멱등 처리 (200 OK).
+- 삭제 성공 시 `chat.message.deleted` 이벤트가 같은 방 멤버에게 브로드캐스트.
+
+---
+
+### 5-13. 메시지 첨부 파일 업로드
+
+```
+POST /api/chat/messages/upload
+```
+
+Auth Required: **O**
+
+Content-Type: `multipart/form-data`
+
+Form Field
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `file` | File | Y | 업로드할 파일 (이미지/일반 파일) |
+| `roomId` | Long | Y | 대상 채팅방 ID (멤버 검증용) |
+
+Response Body
+
+```
+{
+  "success": true,
+  "data": {
+    "uploadId": "u-2c0a9f1b",
+    "url": "https://cdn.example.com/chat/2026/04/27/u-2c0a9f1b.png",
+    "type": "IMAGE",
+    "size": 215433,
+    "mimeType": "image/png",
+    "expiresAt": "2026-04-27T15:40:00Z"
+  }
+}
+```
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 멤버만 가능.
+- 업로드 결과로 받은 `url` 을 STOMP `SEND /app/chat.send` 의 `content` 에 담아 메시지를 발송한다.
+- 이미지 5MB / 파일 25MB 기본 제한 (정책 가변).
+- 허용 MIME: 이미지 (`image/jpeg`, `image/png`, `image/webp`, `image/gif`), 문서 (`application/pdf`, ...).
+- `expiresAt` 이 지나도록 메시지를 보내지 않으면 업로드 파일은 GC.
+
+---
+
+## 부록 A.  비기능적 정책
+
+| 항목 | 정책 |
+|------|------|
+| 메시지 본문 최대 길이 | 4,000 자 |
+| 채팅방 이름 길이 | 1~100 자 |
+| 페이지 사이즈 기본/최대 | 20 / 100 |
+| 메시지 발송 속도 제한 | 사용자당 초당 10건 (`RATE_LIMITED`) |
+| Redis Key 네이밍 | `chat:room:{roomId}:user:{userId}:lastRead` 등 prefix 통일 |
+| 메시지 순서 보장 | DB `messageId` (BIGSERIAL) 단조 증가 + `(room_id, id)` 인덱스 |
+| Multi-instance 브로드캐스트 | Redis Pub/Sub 또는 STOMP relay 채택 (배포 환경에 따라 결정) |
+
+
+## 부록 B. 도메인 ↔ API 매핑 요약
+
+| 도메인 행위 | REST/STOMP                                                 |
+|-------------|------------------------------------------------------------|
+| `ChatRoom.create()` | `POST /api/chat/create`                                    |
+| `ChatRoom.join()` | `POST /api/chat/rooms/{roomId}/join`                       |
+| `ChatRoom.leave()` | `POST /api/chat/rooms/{roomId}/leave`                      |
+| `ChatRoom.invite()` | `POST /api/chat/rooms/{roomId}/invite`                     |
+| `ChatRoom.rename()` / `changeImage()` | `PATCH /api/chat/rooms/{roomId}`                           |
+| `ChatRoom.changeNotification()` | `PATCH /api/chat/rooms/{roomId}/notification`              |
+| `ChatRoom.markRead()` | `SEND /app/chat.read`                                      |
+| `Message.send()` | `SEND /app/chat.send`                                      |
+| `Message.softDelete()` | `DELETE /api/chat/messages/{messageId}`                    |
+| 첨부 파일 업로드 | `POST /api/chat/messages/upload`                           |
+| 이력 조회 | `GET /api/chat/history/{roomId}`                           |
+| 목록 조회 | `GET /api/chat/rooms`, `GET /api/chat/rooms/game/{gameId}` |
+
 
 ## 6. Notification 도메인
 
