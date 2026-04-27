@@ -48,7 +48,7 @@
 - [ ] 로그인 성공 핸들러 — JWT 발급 + 콜백 리다이렉트
 - [ ] JWT Access Token / Refresh Token 발급 및 검증
 - [ ] Refresh Token 재발급 (`POST /api/auth/token/refresh`)
-- [ ] 로그아웃 — Refresh Token 블랙리스트 등록 (`POST /api/members/logout`)
+- [ ] 로그아웃 — Redis에서 Refresh Token 삭제 (`POST /api/members/logout`)
 - [ ] 내 정보 조회 (`GET /api/members/me`)
 - [ ] 내 정보 수정 — 닉네임 (`PATCH /api/members/me`)
 - [ ] 회원 탈퇴 (`DELETE /api/members/me`) — status = WITHDRAWN
