@@ -135,7 +135,7 @@ Google Java Format 사용 (`google-java-format`)
 ## 6. 패키지 구조 — 도메인 패키징 + DDD
 
 ```
-com.sortsify
+com.sportsify
 ├── SortsifyApplication.java
 │
 ├── common/
@@ -187,9 +187,44 @@ com.sortsify
 
 ---
 
-## 8. 협업 문화
+## 8. 환경변수 / 보안 규칙
+
+### 클론 후 최초 1회 셋업 필수
+
+```bash
+bash scripts/setup.sh
+```
+
+이 스크립트가 하는 일:
+1. `git config core.hooksPath .githooks` — 팀 공유 Git hook 경로 설정
+2. `.env.example` → `.env.local` 복사 (없을 경우에만)
+
+> **셋업을 건너뛰면 pre-commit hook이 동작하지 않는다.**
+
+### .env 파일 규칙
+
+| 파일 | 용도 | 커밋 |
+|------|------|------|
+| `.env.example` | 환경변수 키 템플릿 (값 없음) | **커밋 O** |
+| `.env.local` | 로컬 개발용 실제 값 | **커밋 금지** |
+| `.env.prod` | 운영 서버용 실제 값 | **커밋 금지** |
+
+- `.env.local`, `.env.prod`는 `.gitignore`에 등록되어 있음
+- pre-commit hook(`.githooks/pre-commit`)이 `.env` 파일 스테이징을 차단함
+- `git add -f`로 강제 추가 시도해도 커밋 단계에서 차단됨
+
+### 새 환경변수 추가 시
+
+1. `.env.example`에 키와 설명 주석 추가 (값은 비워둠) — **커밋**
+2. `application-local.properties` / `application-prod.properties`에 `${변수명}` 참조 추가 — **커밋**
+3. 각자 `.env.local` / EC2 환경변수에 실제 값 설정 — **커밋 금지**
+
+---
+
+## 9. 협업 문화
 
 - Git Flow 브랜치 전략 준수
 - PR 리뷰 후 merge (팀장 최종 승인)
 - 주 2회 회고
 - Jira / Notion으로 이슈 관리
+- **클론 직후 `bash scripts/setup.sh` 필수 실행**

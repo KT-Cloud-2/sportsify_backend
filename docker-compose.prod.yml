@@ -1,0 +1,21 @@
+services:
+  app:
+    image: sportsify-app:${IMAGE_TAG:-latest}
+    container_name: sportsify-app
+    env_file: .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "${APP_PORT:-8081}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
