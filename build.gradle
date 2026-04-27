@@ -117,10 +117,11 @@ openapi3 {
     outputFileNamePrefix = 'openapi'
 }
 
-// openapi3 결과물을 리소스 소스셋에 포함 — processResources가 jar에 자동으로 패키징함
-sourceSets.main.resources.srcDir(layout.buildDirectory.dir('api-spec'))
-
-// processResources → openapi3(→ test) 순서 보장
-tasks.named('processResources') {
+// openapi.json을 bootJar에 정적 리소스로 포함
+// processResources 경유 시 openapi3 → check → test 순환 발생하므로 bootJar에서만 의존
+tasks.named('bootJar') {
     dependsOn 'openapi3'
+    from(layout.buildDirectory.dir('api-spec')) {
+        into 'BOOT-INF/classes/static'
+    }
 }
