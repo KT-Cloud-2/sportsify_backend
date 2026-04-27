@@ -38,5 +38,7 @@ out/
 
 /private
 
-.env
-.env**
+**/.env
+**/.env.*
+!.env.example
+/.env.example
