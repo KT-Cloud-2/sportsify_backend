@@ -138,7 +138,12 @@ tasks.named('copyOpenApiSpec') {
     mustRunAfter 'processResources'
 }
 
-// bootJar 실행 시: test → openapi3 → copyOpenApiSpec → bootJar
+// bootJar 실행 시: test → openapi3 → copyOpenApiSpec → resolveMainClassName → bootJar
 tasks.named('bootJar') {
     dependsOn 'copyOpenApiSpec'
+}
+
+// resolveMainClassName은 build/resources/main을 읽으므로 copyOpenApiSpec 이후 실행 보장
+tasks.named('resolveMainClassName') {
+    mustRunAfter 'copyOpenApiSpec'
 }
