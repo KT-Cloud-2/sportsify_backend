@@ -29,8 +29,8 @@
 - [x] `application.yml` 환경 분리 구조 (`local` / `dev` / `prod`) + `.env` 연동
 - [x] `Docker Compose` — PostgreSQL 18, Redis, Prometheus, Grafana 로컬 실행 환경 구성
 - [x] DB 스키마 마이그레이션 — Flyway 채택, `V1__init_schema.sql` 작성 완료
-- [ ] `ApiResponse<T>` 공통 응답 래퍼
-- [ ] `GlobalExceptionHandler` 공통 예외 핸들러 (에러 코드 포함)
+- [x] `ApiResponse<T>` 공통 응답 래퍼
+- [x] `GlobalExceptionHandler` 공통 예외 핸들러 (에러 코드 포함)
 - [ ] Spring Security 기본 설정 (SecurityFilterChain, 공개 경로 허용)
 - [ ] JWT 인증 필터 (`JwtAuthenticationFilter`)
 - [ ] Swagger / SpringDoc OpenAPI 3.0 설정 (`/swagger-ui.html`)
