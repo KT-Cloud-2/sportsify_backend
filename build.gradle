@@ -117,33 +117,10 @@ openapi3 {
     outputFileNamePrefix = 'openapi'
 }
 
-// openapi3는 test 스니펫 이후에 실행
-afterEvaluate {
-    tasks.named('openapi3') {
-        dependsOn tasks.named('test')
-    }
-}
+// openapi3 결과물을 리소스 소스셋에 포함 — processResources가 jar에 자동으로 패키징함
+sourceSets.main.resources.srcDir(layout.buildDirectory.dir('api-spec'))
 
-// openapi.json을 빌드 산출물 static 디렉토리로 복사
-// src/main/resources/static 는 건드리지 않음 — jar 내부에만 포함됨
-tasks.register('copyOpenApiSpec', Copy) {
+// processResources → openapi3(→ test) 순서 보장
+tasks.named('processResources') {
     dependsOn 'openapi3'
-    from layout.buildDirectory.dir('api-spec')
-    include 'openapi.json'
-    into layout.buildDirectory.dir('resources/main/static')
-}
-
-// processResources 이후, copyOpenApiSpec이 덮어쓰지 않도록 순서 보장
-tasks.named('copyOpenApiSpec') {
-    mustRunAfter 'processResources'
-}
-
-// bootJar 실행 시: test → openapi3 → copyOpenApiSpec → resolveMainClassName → bootJar
-tasks.named('bootJar') {
-    dependsOn 'copyOpenApiSpec'
-}
-
-// resolveMainClassName은 build/resources/main을 읽으므로 copyOpenApiSpec 이후 실행 보장
-tasks.named('resolveMainClassName') {
-    mustRunAfter 'copyOpenApiSpec'
 }
