@@ -1,0 +1,110 @@
+name: Notify Slack on PR Events
+
+on:
+  pull_request:
+    types: [review_requested, ready_for_review, closed]
+    branches:
+      - '**'
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Slack Notification with Mentions
+        run: |
+          # PR 정보 가져오기
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_ACTION="${{ github.event.action }}"
+          PR_IS_DRAFT=${{ github.event.pull_request.draft }}
+          
+          # Draft PR일 경우 알림 스킵
+          if [ "$PR_ACTION" == "ready_for_review" ] && [ "$PR_IS_DRAFT" == "true" ]; then
+            echo "Draft PR입니다. Slack 알림을 생략합니다."
+            exit 0
+          fi
+          
+          # PR 작성자와 리뷰어 정보
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          REQUESTED_REVIEWER="${{ github.event.requested_reviewer.login }}"
+          
+          # GitHub Secrets에서 매핑 정보 가져오기
+          MAPPING_JSON='${{ secrets.SLACK_USER_MAPPING }}'
+          
+          # jq를 사용하여 JSON 파싱하는 함수
+          get_slack_id() {
+            local github_username=$1
+            echo "$MAPPING_JSON" | jq -r --arg user "$github_username" '.[$user] // "Unknown"'
+          }
+          
+          # 작성자의 Slack ID 가져오기
+          if [ -z "$PR_AUTHOR" ]; then
+            SLACK_AUTHOR_ID="작성자 정보 없음"
+          else
+            SLACK_AUTHOR_ID=$(get_slack_id "$PR_AUTHOR")
+          fi
+          
+          # PR 상태에 따른 메시지 구분
+          case "$PR_ACTION" in
+            "ready_for_review")
+              PR_STATUS="🏃 *리뷰를 받을 준비가 되었습니다!*"
+              ALL_MENTIONS=""  # ready_for_review에서는 멘션 없음
+              ;;
+            "review_requested")
+              PR_STATUS="🏸 *리뷰 요청이 발생했습니다!*"
+              # 리뷰 요청된 특정 사람만 멘션
+              if [ -n "$REQUESTED_REVIEWER" ]; then
+                SLACK_REVIEWER_ID=$(get_slack_id "$REQUESTED_REVIEWER")
+                if [ "$SLACK_REVIEWER_ID" != "Unknown" ]; then
+                  ALL_MENTIONS="<@$SLACK_REVIEWER_ID>"
+                else
+                  ALL_MENTIONS="@$REQUESTED_REVIEWER (GitHub)"
+                fi
+              else
+                ALL_MENTIONS=""
+              fi
+              ;;
+            "closed")
+              if [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
+                PR_STATUS="✅ *PR Merged*"
+              else
+                PR_STATUS="❌ *PR Closed*"
+              fi
+              ALL_MENTIONS=""
+              ;;
+            "reopened")
+              PR_STATUS="♻️ *PR이 다시 열렸습니다!*"
+              ALL_MENTIONS=""
+              ;;
+            *)
+              PR_STATUS="☝️ *PR 업데이트 알림*"
+              ALL_MENTIONS=""
+              ;;
+          esac
+          
+          # Slack 작성자 표시
+          if [ "$SLACK_AUTHOR_ID" == "Unknown" ]; then
+            AUTHOR_DISPLAY="@$PR_AUTHOR (GitHub)"
+          else
+            AUTHOR_DISPLAY="<@$SLACK_AUTHOR_ID>"
+          fi
+          
+          # 메시지 구성
+          MESSAGE_TEXT="${PR_STATUS}\\n*PR 제목:* ${PR_TITLE} (#${PR_NUMBER})\\n*작성자:* ${AUTHOR_DISPLAY}"
+          
+          # 리뷰어 멘션이 있는 경우에만 추가
+          if [ -n "$ALL_MENTIONS" ]; then
+            MESSAGE_TEXT="${MESSAGE_TEXT}\\n*리뷰어:* ${ALL_MENTIONS}"
+          fi
+          
+          MESSAGE_TEXT="${MESSAGE_TEXT}\\n*링크:* ${PR_URL}"
+          
+          # Slack Webhook 호출
+          curl -X POST \
+               -H 'Content-type: application/json' \
+               --data "{
+                 \"text\": \"${MESSAGE_TEXT}\"
+               }" \
+               ${{ secrets.SLACK_WEBHOOK_URL }}
