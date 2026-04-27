@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sportsify API Docs</title>
+  <style>
+    body { margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <!--
+    bootJar로 빌드하면 /openapi.json (Spring REST Docs 기반) 사용
+    IDE에서 직접 실행 시에는 /v3/api-docs (springdoc 런타임) 로 변경
+  -->
+  <redoc spec-url="/openapi.json"
+         expand-responses="200,201"
+         required-props-first="true"
+         hide-download-button="false">
+  </redoc>
+  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>
