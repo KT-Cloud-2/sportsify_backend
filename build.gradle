@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.epages.restdocs-api-spec' version '0.19.4'
 }
 
 group = 'com'
@@ -19,18 +20,108 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-h2console'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    compileOnly 'org.projectlombok:lombok'
-    runtimeOnly 'com.h2database:h2'
+    // Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // Security & OAuth2
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // JWT (JJWT)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // JPA + PostgreSQL + Flyway
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // QueryDSL — OpenFeign fork (Spring Boot 4 / Spring Data 4 지원)
+    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.1'
+    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.1:jakarta'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // API 문서 (Swagger UI) — Spring Boot 4 호환 버전
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+
+    // Email (알림 도메인) — 구현 시 활성화
+    //implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // MQTT (알림 도메인) — 구현 시 활성화
+    //implementation 'org.springframework.integration:spring-integration-mqtt'
+
+    // Actuator (Prometheus 연동)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testCompileOnly 'org.projectlombok:lombok'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Testcontainers — testcontainers 2.x 좌표
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:testcontainers-jdbc'
+    testImplementation 'org.testcontainers:testcontainers'   // Redis GenericContainer용
+
+    // Spring REST Docs + OpenAPI 변환 (restdocs-api-spec)
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+    testImplementation 'com.epages:restdocs-api-spec-mockmvc:0.19.4'
+
+}
+
+// QueryDSL Q클래스 생성 경로
+def querydslDir = layout.buildDirectory.dir('generated/querydsl')
+
+sourceSets {
+    main {
+        java {
+            srcDirs += [querydslDir]
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.generatedSourceOutputDirectory = querydslDir
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// Spring REST Docs → OpenAPI 3.0 JSON 변환
+openapi3 {
+    server = 'http://localhost:8080'
+    title = 'Sportsify API'
+    description = '스포츠 경기 예매 + 팀 응원 채팅 서비스 API'
+    version = project.version
+    format = 'json'
+    outputDirectory = layout.buildDirectory.dir('api-spec').get().asFile.path
+    outputFileNamePrefix = 'openapi'
+}
+
+// openapi.json을 bootJar에 정적 리소스로 포함
+// processResources 경유 시 openapi3 → check → test 순환 발생하므로 bootJar에서만 의존
+tasks.named('bootJar') {
+    dependsOn 'openapi3'
+    from(layout.buildDirectory.dir('api-spec')) {
+        into 'BOOT-INF/classes/static'
+    }
 }

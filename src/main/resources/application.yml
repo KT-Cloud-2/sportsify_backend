@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: sportsify
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  jackson:
+    time-zone: UTC
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false       # Swagger UI 비활성화, Redoc으로 대체
+  default-produces-media-type: application/json
