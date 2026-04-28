@@ -125,7 +125,7 @@ CREATE TABLE games
     sport_type          VARCHAR(30),
     start_at            TIMESTAMP   NOT NULL,
     duration_minutes    INT         NOT NULL DEFAULT 180,
-    status              VARCHAR(20) NOT NULL, -- SCHEDULED | OPEN | IN_PROGRESS | FINISHED | CANCELLED
+    status              VARCHAR(20) NOT NULL, -- SCHEDULED | ON_SALE | SALE_CLOSED | IN_PROGRESS | FINISHED | CANCELLED
     day_type            VARCHAR(10),          -- WEEKDAY | WEEKEND | HOLIDAY
     game_grade          VARCHAR(20),          -- NORMAL | RIVAL
     max_ticket_per_user INT         NOT NULL DEFAULT 4,
