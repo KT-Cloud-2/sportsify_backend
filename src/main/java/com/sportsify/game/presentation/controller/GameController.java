@@ -2,13 +2,11 @@ package com.sportsify.game.presentation.controller;
 
 
 import com.sportsify.game.application.service.GameService;
+import com.sportsify.game.presentation.dto.GameDetailResponseDto;
 import com.sportsify.game.presentation.dto.GameListResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,4 +29,8 @@ public class GameController {
         return ResponseEntity.ok(gameService.getGames(sportType, teamId, status, from, to));
     }
 
+    @GetMapping("/{gameId}")
+    public ResponseEntity<GameDetailResponseDto> getGameDetail(@PathVariable Long gameId) {
+        return ResponseEntity.ok(gameService.getGameDetail(gameId));
+    }
 }

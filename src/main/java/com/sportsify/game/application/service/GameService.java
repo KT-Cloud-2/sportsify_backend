@@ -1,9 +1,11 @@
 package com.sportsify.game.application.service;
 
+import com.sportsify.game.application.dto.SeatGradeSummary;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.GameSeatRepository;
+import com.sportsify.game.presentation.dto.GameDetailResponseDto;
 import com.sportsify.game.presentation.dto.GameListResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,5 +47,26 @@ public class GameService {
                     return GameListResponseDto.from(game, availableSeats);
                 })
                 .toList();
+    }
+
+    public GameDetailResponseDto getGameDetail(Long gameId) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 경기입니다. id=" + gameId));
+
+        int availableSeats = gameSeatRepository.countByGameIdAndSeatStatus(
+                gameId,
+                SeatStatus.AVAILABLE
+        );
+
+        List<Object[]> summaryData = gameSeatRepository.findSeatGradeSummaryByGameId(gameId);
+        List<SeatGradeSummary> seatGradeSummary = summaryData.stream()
+                .map(row -> SeatGradeSummary.of(
+                        (String) row[0],
+                        (Integer) row[1],
+                        ((Long) row[2]).intValue()
+                ))
+                .toList();
+
+        return GameDetailResponseDto.of(game, availableSeats, seatGradeSummary);
     }
 }
