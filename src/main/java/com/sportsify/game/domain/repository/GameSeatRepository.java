@@ -20,4 +20,8 @@ public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
             GROUP BY zg.name, gs.price
             """)
     List<Object[]> findSeatGradeSummaryByGameId(@Param("gameId") Long gameId);
+
+    List<GameSeat> findByGameIdAndSeatStatus(Long gameId, SeatStatus seatStatus);
+
+    List<GameSeat> findByGameId(Long gameId);
 }

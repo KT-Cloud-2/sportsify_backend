@@ -2,11 +2,13 @@ package com.sportsify.game.application.service;
 
 import com.sportsify.game.application.dto.SeatGradeSummary;
 import com.sportsify.game.domain.model.Game;
+import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.GameSeatRepository;
 import com.sportsify.game.presentation.dto.GameDetailResponseDto;
 import com.sportsify.game.presentation.dto.GameListResponseDto;
+import com.sportsify.game.presentation.dto.GameSeatListResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,5 +70,24 @@ public class GameService {
                 .toList();
 
         return GameDetailResponseDto.of(game, availableSeats, seatGradeSummary);
+    }
+
+    public List<GameSeatListResponseDto> getGameSeats(
+            Long gameId,
+            String grade,
+            String status
+    ) {
+       
+        if (!gameRepository.existsById(gameId)) {
+            throw new IllegalArgumentException("존재하지 않는 경기입니다. id=" + gameId);
+        }
+
+        List<GameSeat> gameSeats = gameSeatRepository.findByGameId(gameId);
+
+        return gameSeats.stream()
+                .filter(gs -> grade == null || gs.getSeat().getZoneGrade().getName().equals(grade))
+                .filter(gs -> status == null || gs.getSeatStatus().name().equals(status))
+                .map(GameSeatListResponseDto::from)
+                .toList();
     }
 }

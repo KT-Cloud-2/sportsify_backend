@@ -4,6 +4,7 @@ package com.sportsify.game.presentation.controller;
 import com.sportsify.game.application.service.GameService;
 import com.sportsify.game.presentation.dto.GameDetailResponseDto;
 import com.sportsify.game.presentation.dto.GameListResponseDto;
+import com.sportsify.game.presentation.dto.GameSeatListResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,5 +33,14 @@ public class GameController {
     @GetMapping("/{gameId}")
     public ResponseEntity<GameDetailResponseDto> getGameDetail(@PathVariable Long gameId) {
         return ResponseEntity.ok(gameService.getGameDetail(gameId));
+    }
+
+    @GetMapping("/{gameId}/seats")
+    public ResponseEntity<List<GameSeatListResponseDto>> getGameSeats(
+            @PathVariable Long gameId,
+            @RequestParam(required = false) String grade,
+            @RequestParam(required = false) String status
+    ) {
+        return ResponseEntity.ok(gameService.getGameSeats(gameId, grade, status));
     }
 }
