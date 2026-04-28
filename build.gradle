@@ -164,6 +164,10 @@ tasks.named('bootJar') {
     dependsOn 'prettifyOpenApiExamples'
 }
 
+tasks.named('processResources') {
+    dependsOn 'prettifyOpenApiExamples'
+}
+
 afterEvaluate {
     tasks.named('openapi3') {
         finalizedBy 'prettifyOpenApiExamples'
