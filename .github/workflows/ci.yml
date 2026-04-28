@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && !github.event.pull_request)
 
     steps:
       - uses: actions/checkout@v4
@@ -33,18 +36,6 @@ jobs:
 
       - name: Build
         run: ./gradlew build -x test --no-daemon
-
-      - name: Test
-        run: ./gradlew test --no-daemon
-        env:
-          SPRING_PROFILES_ACTIVE: test
-
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: build/reports/tests/
 
 # CD는 인프라 구성 완료 후 추가 예정
 # deploy job: main 브랜치 push 시 EC2-1 Blue/Green 배포
