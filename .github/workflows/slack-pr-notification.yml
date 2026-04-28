@@ -14,9 +14,11 @@ jobs:
       group: slack-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: true
 
+    continue-on-error: true
+
     steps:
       - name: Wait for other events
-        run: sleep 5
+        run: sleep 10
 
       - name: Send Slack Notification with Mentions
         run: |
