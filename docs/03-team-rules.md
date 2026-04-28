@@ -227,3 +227,5 @@ bash scripts/setup.sh
 - 주 2회 회고
 - Jira / Notion으로 이슈 관리
 - **클론 직후 `bash scripts/setup.sh` 필수 실행**
+
+Test
