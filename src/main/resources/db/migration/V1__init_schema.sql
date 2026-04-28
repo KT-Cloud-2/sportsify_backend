@@ -79,9 +79,10 @@ CREATE INDEX idx_activity_member ON activity_logs (member_id, created_at DESC);
 
 CREATE TABLE stadiums
 (
-    id      BIGSERIAL PRIMARY KEY,
-    name    VARCHAR(100) NOT NULL,
-    address VARCHAR(200)
+    id          BIGSERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    address     VARCHAR(200),
+    total_seats INTEGER
 );
 
 CREATE TABLE zone_grades

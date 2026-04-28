@@ -22,9 +22,13 @@ public class Stadium {
     @Column(length = 200)
     private String address;
 
+    @Column(name = "total_seats")
+    private Integer totalSeats;
+
     @Builder
-    public Stadium(String name, String address) {
+    public Stadium(String name, String address, Integer totalSeats) {
         this.name = name;
         this.address = address;
+        this.totalSeats = totalSeats;
     }
 }

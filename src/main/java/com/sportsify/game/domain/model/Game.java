@@ -8,7 +8,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -20,7 +19,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-@SQLRestriction("deleted_at IS NULL")
 public class Game {
 
     @Id
@@ -94,30 +92,6 @@ public class Game {
         this.maxTicketPerUser = maxTicketPerUser != null ? maxTicketPerUser : 4;
         this.saleStartAt = saleStartAt;
         this.saleEndAt = saleEndAt;
-    }
-
-    // 비즈니스 메서드
-    public void openSale() {
-        this.status = GameStatus.OPEN;
-    }
-
-    public void closeSale() {
-        this.status = GameStatus.FINISHED;
-    }
-
-    public void cancel() {
-        this.status = GameStatus.CANCELLED;
-    }
-
-    public void delete() {
-        this.deletedAt = LocalDateTime.now();
-    }
-
-    public boolean isOnSale() {
-        LocalDateTime now = LocalDateTime.now();
-        return status == GameStatus.OPEN &&
-                saleStartAt != null && saleStartAt.isBefore(now) &&
-                saleEndAt != null && saleEndAt.isAfter(now);
     }
 
 }
