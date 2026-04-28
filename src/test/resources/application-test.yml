@@ -4,6 +4,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    lock-retry-count: 10
 
   jpa:
     hibernate:

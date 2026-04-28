@@ -42,3 +42,4 @@ out/
 **/.env.*
 !.env.example
 /.env.example
+src/main/resources/static/openapi.json
