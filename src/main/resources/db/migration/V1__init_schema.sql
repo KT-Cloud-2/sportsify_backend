@@ -105,11 +105,13 @@ CREATE TABLE sections
 
 CREATE TABLE seats
 (
-    id          BIGSERIAL PRIMARY KEY,
-    section_id  BIGINT NOT NULL,
-    row_number  VARCHAR(10),
-    seat_number VARCHAR(10),
+    id            BIGSERIAL PRIMARY KEY,
+    section_id    BIGINT NOT NULL,
+    zone_grade_id BIGINT NOT NULL,
+    row_number    VARCHAR(10),
+    seat_number   VARCHAR(10),
     CONSTRAINT fk_seat_section FOREIGN KEY (section_id) REFERENCES sections (id),
+    CONSTRAINT fk_seat_zone FOREIGN KEY (zone_grade_id) REFERENCES zone_grades (id),
     CONSTRAINT uq_seat UNIQUE (section_id, row_number, seat_number)
 );
 
@@ -125,10 +127,7 @@ CREATE TABLE games
     status              VARCHAR(20) NOT NULL, -- SCHEDULED | OPEN | IN_PROGRESS | FINISHED | CANCELLED
     day_type            VARCHAR(10),          -- WEEKDAY | WEEKEND | HOLIDAY
     game_grade          VARCHAR(20),          -- NORMAL | RIVAL
-    is_rival_match      BOOLEAN     NOT NULL DEFAULT FALSE,
     max_ticket_per_user INT         NOT NULL DEFAULT 4,
-    total_seats         INT         NOT NULL DEFAULT 0,
-    available_seats     INT         NOT NULL DEFAULT 0,
     sale_start_at       TIMESTAMP,
     sale_end_at         TIMESTAMP,
     created_at          TIMESTAMP   NOT NULL,
@@ -146,20 +145,16 @@ CREATE INDEX idx_games_away_team ON games (away_team_id);
 
 CREATE TABLE game_seats
 (
-    id            BIGSERIAL PRIMARY KEY,
-    game_id       BIGINT      NOT NULL,
-    seat_id       BIGINT      NOT NULL,
-    zone_grade_id BIGINT,
-    team_side     VARCHAR(10) NOT NULL DEFAULT 'NEUTRAL',   -- TEAM1 | TEAM2 | NEUTRAL
-    price         INT         NOT NULL DEFAULT 0,
-    seat_status   VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE', -- AVAILABLE | RESERVED | SOLD
+    id          BIGSERIAL PRIMARY KEY,
+    game_id     BIGINT      NOT NULL,
+    seat_id     BIGINT      NOT NULL,
+    seat_status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE', -- AVAILABLE | RESERVED | SOLD,
+    price       INT         NOT NULL,
     CONSTRAINT fk_gs_game FOREIGN KEY (game_id) REFERENCES games (id),
     CONSTRAINT fk_gs_seat FOREIGN KEY (seat_id) REFERENCES seats (id),
-    CONSTRAINT fk_gs_zone FOREIGN KEY (zone_grade_id) REFERENCES zone_grades (id),
     CONSTRAINT uq_game_seat UNIQUE (game_id, seat_id)
 );
 
-CREATE INDEX idx_game_seats_game ON game_seats (game_id);
 CREATE INDEX idx_game_seats_status ON game_seats (game_id, seat_status);
 
 -- ============================================================
@@ -212,7 +207,6 @@ CREATE TABLE tickets
     CONSTRAINT uq_ticket_number UNIQUE (ticket_number)
 );
 
-CREATE INDEX idx_tickets_member ON tickets (member_id);
 CREATE INDEX idx_tickets_status ON tickets (member_id, status);
 
 -- 결제
@@ -253,6 +247,24 @@ CREATE TABLE refunds
     completed_at  TIMESTAMP,
     CONSTRAINT fk_refund_payment FOREIGN KEY (payment_id) REFERENCES payments (id)
 );
+
+-- 가격 정책
+CREATE TABLE price_policies
+(
+    id            BIGSERIAL PRIMARY KEY,
+    stadium_id    BIGINT      NOT NULL,
+    day_type      VARCHAR(10) NOT NULL, -- WEEKDAY | WEEKEND | HOLIDAY
+    zone_grade_id BIGINT      NOT NULL,
+    game_grade    VARCHAR(20) NOT NULL, -- REGULAR | PLAYOFF | FINAL
+    price         INT         NOT NULL,
+
+    CONSTRAINT fk_pp_stadium FOREIGN KEY (stadium_id) REFERENCES stadiums (id),
+    CONSTRAINT fk_pp_zone_grade FOREIGN KEY (zone_grade_id) REFERENCES zone_grades (id),
+    CONSTRAINT uq_price_policy UNIQUE (stadium_id, day_type, zone_grade_id, game_grade)
+);
+
+CREATE INDEX idx_price_policies_stadium ON price_policies (stadium_id);
+CREATE INDEX idx_price_policies_zone_grade ON price_policies (zone_grade_id);
 
 -- ============================================================
 -- 채팅 도메인
