@@ -96,9 +96,9 @@
 | GET | /oauth2/authorization/{registrationId} | N | 소셜 로그인 (Google / Kakao) |
 | GET | /oauth2/callback | N | 소셜 로그인 콜백 (토큰 발급) |
 | POST | /api/auth/token/refresh | N | 액세스 토큰 갱신 |
-| POST | /api/members/logout | O | 로그아웃 |
+| POST | /api/auth/logout | O | 로그아웃 |
 | GET | /api/members/me | O | 내 정보 조회 |
-| PATCH | /api/members/me | O | 내 정보 수정 (닉네임) |
+| PATCH | /api/members/me/nickname | O | 내 정보 수정 (닉네임) |
 | DELETE | /api/members/me | O | 회원 탈퇴 |
 | POST | /api/members/me/favorite-teams | O | 선호 팀 추가 |
 | GET | /api/members/me/favorite-teams | O | 선호 팀 목록 조회 |
@@ -187,7 +187,7 @@ POST /api/auth/token/refresh
 ### 1-4. 로그아웃
 
 ```
-POST /api/members/logout
+POST /api/auth/logout
 ```
 
 서버에서 refreshToken 무효화 (Redis 블랙리스트 등록).
@@ -248,7 +248,7 @@ GET /api/members/me
 ### 1-5-1. 내 정보 수정 (닉네임)
 
 ```
-PATCH /api/members/me
+PATCH /api/members/me/nickname
 ```
 
 #### Request Body
@@ -333,6 +333,7 @@ POST /api/members/me/favorite-teams
     "favoriteTeamId": 10,
     "teamId": 3,
     "teamName": "KIA 타이거즈",
+    "shortName": "KIA",
     "sportType": "BASEBALL",
     "priority": 1
   }
@@ -346,6 +347,7 @@ POST /api/members/me/favorite-teams
 | `favoriteTeamId` | Long | 선호 팀 레코드 ID |
 | `teamId` | Long | 팀 ID |
 | `teamName` | String | 팀 이름 |
+| `shortName` | String | 팀 약칭 |
 | `sportType` | String | 종목 |
 | `priority` | Integer | 선호 순위 |
 
@@ -430,6 +432,8 @@ PATCH /api/members/me/favorite-teams/{teamId}/priority
     "favoriteTeamId": 10,
     "teamId": 3,
     "teamName": "KIA 타이거즈",
+    "shortName": "KIA",
+    "sportType": "BASEBALL",
     "priority": 1
   }
 }
@@ -670,18 +674,20 @@ GET /api/games
       {
         "gameId": 101,
         "sportType": "BASEBALL",
-        "team1": {
-          "teamId": 1,
-          "name": "KIA 타이거즈",
-          "shortName": "KIA",
-          "isHome": true
-        },
-        "team2": {
-          "teamId": 2,
-          "name": "삼성 라이온즈",
-          "shortName": "삼성",
-          "isHome": false
-        },
+        "teams": [
+          {
+            "teamId": 1,
+            "name": "KIA 타이거즈",
+            "shortName": "KIA",
+            "side": "HOME"
+          },
+          {
+            "teamId": 2,
+            "name": "삼성 라이온즈",
+            "shortName": "삼성",
+            "side": "AWAY"
+          }
+        ],
         "gameTime": "2025-04-21T14:00:00Z",
         "venue": "광주-기아 챔피언스 필드",
         "status": "ON_SALE",
@@ -703,11 +709,13 @@ GET /api/games
 | --- | --- | --- |
 | `gameId` | Long | 경기 ID |
 | `sportType` | String | 종목 |
-| `team1` | Object | 첫 번째 팀 정보 |
-| `team1.isHome` | Boolean | team1이 홈팀 여부 |
-| `team2` | Object | 두 번째 팀 정보 |
+| `teams` | Array | 팀 정보 리스트 |
+| `teams[].teamId` | Long | 팀 ID |
+| `teams[].teamName` | String | 팀 이름 |
+| `teams[].teamLogo` | String | 팀 로고 URL |
+| `teams[].side` | String | 홈/어웨이 구분 (`HOME`, `AWAY`) |
 | `gameTime` | String (ISO8601) | 경기 시작 시각 |
-| `venue` | String | 경기장 |
+| `stadium` | String | 경기장 |
 | `status` | String | 경기 상태 |
 | `totalSeats` | Integer | 전체 좌석 수 |
 | `availableSeats` | Integer | 남은 좌석 수 |
@@ -735,20 +743,22 @@ GET /api/games/{gameId}
   "data": {
     "gameId": 101,
     "sportType": "BASEBALL",
-    "team1": {
-      "teamId": 1,
-      "name": "KIA 타이거즈",
-      "shortName": "KIA",
-      "isHome": true
-    },
-    "team2": {
-      "teamId": 2,
-      "name": "삼성 라이온즈",
-      "shortName": "삼성",
-      "isHome": false
-    },
+    "teams": [
+      {
+        "teamId": 1,
+        "name": "LG 트윈스",
+        "shortName": "LG",
+        "side": "HOME"
+      },
+      {
+        "teamId": 2,
+        "name": "두산 베어스",
+        "shortName": "두산",
+        "side": "AWAY"
+      }
+    ],
     "gameTime": "2025-04-21T14:00:00Z",
-    "venue": "광주-기아 챔피언스 필드",
+    "stadium": "광주-기아 챔피언스 필드",
     "status": "ON_SALE",
     "totalSeats": 20000,
     "availableSeats": 1500,
@@ -798,7 +808,6 @@ GET /api/games/{gameId}/seats
 
 | 파라미터 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| `teamSide` | String | N | 응원 구역 (`TEAM1` \| `TEAM2` \| `NEUTRAL`) |
 | `grade` | String | N | 좌석 등급 (`VIP` \| `R` \| `S` \| `A` \| `OUTFIELD`) |
 | `status` | String | N | 좌석 상태 (기본: `AVAILABLE`) |
 | `cursor` | String | N | 페이지네이션 커서 |
@@ -818,7 +827,6 @@ GET /api/games/{gameId}/seats
         "rowNumber": "C",
         "seatNumber": 22,
         "price": 30000,
-        "teamSide": "TEAM1",
         "status": "AVAILABLE"
       }
     ],
@@ -839,7 +847,6 @@ GET /api/games/{gameId}/seats
 | `rowNumber` | String | 열 번호 |
 | `seatNumber` | Integer | 좌석 번호 |
 | `price` | Integer | 현재 가격 (원) |
-| `teamSide` | String | 응원 구역 (`TEAM1` \| `TEAM2` \| `NEUTRAL`) |
 | `status` | String | `AVAILABLE` \| `RESERVED` \| `SOLD` |
 
 #### Http Status / Error Code
@@ -2783,9 +2790,9 @@ GET /api/notifications/history
 | GET | /oauth2/authorization/{registrationId} | N | 소셜 로그인 (Google / Kakao) |
 | GET | /oauth2/callback | N | 소셜 로그인 콜백 (토큰 발급) |
 | POST | /api/auth/token/refresh | N | 액세스 토큰 갱신 |
-| POST | /api/members/logout | O | 로그아웃 |
+| POST | /api/auth/logout | O | 로그아웃 |
 | GET | /api/members/me | O | 내 정보 조회 |
-| PATCH | /api/members/me | O | 내 정보 수정 (닉네임) |
+| PATCH | /api/members/me/nickname | O | 내 정보 수정 (닉네임) |
 | DELETE | /api/members/me | O | 회원 탈퇴 |
 | POST | /api/members/me/favorite-teams | O | 선호 팀 추가 |
 | GET | /api/members/me/favorite-teams | O | 선호 팀 목록 조회 |
