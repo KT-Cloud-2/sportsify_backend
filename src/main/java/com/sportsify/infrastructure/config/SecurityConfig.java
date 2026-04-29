@@ -5,6 +5,7 @@ import com.sportsify.infrastructure.security.JwtAuthenticationEntryPoint;
 import com.sportsify.infrastructure.security.JwtAuthenticationFilter;
 import com.sportsify.infrastructure.security.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -35,14 +36,16 @@ public class SecurityConfig {
                     "/oauth2/**",
                     "/login/**",
                     "/api/auth/**",
+                    "/api/teams",
+                    "/api/teams/**",
                     "/actuator/health",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/swagger",
+                    "/swagger.html",
                     "/webjars/**",
-                    "/docs.html",
-                    "/openapi.json"
+                    "/docs.html"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
@@ -53,5 +56,12 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

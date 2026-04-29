@@ -9,7 +9,7 @@ import com.sportsify.member.domain.model.MemberFavoriteTeam;
 import com.sportsify.member.domain.repository.MemberFavoriteTeamRepository;
 import com.sportsify.member.domain.repository.MemberRepository;
 import com.sportsify.team.domain.model.Team;
-import com.sportsify.team.infrastructure.repository.TeamRepository;
+import com.sportsify.team.domain.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

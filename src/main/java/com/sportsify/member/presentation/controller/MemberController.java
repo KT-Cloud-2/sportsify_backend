@@ -1,7 +1,8 @@
 package com.sportsify.member.presentation.controller;
 
-import com.sportsify.common.response.ApiResponse;
+import com.sportsify.common.response.CommonResponse;
 import com.sportsify.member.application.service.MemberService;
+import com.sportsify.member.presentation.api.MemberApi;
 import com.sportsify.member.presentation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,23 +15,23 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
-public class MemberController {
+public class MemberController implements MemberApi {
 
     private final MemberService memberService;
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<MemberResponse>> getMe(
+    public ResponseEntity<CommonResponse<MemberResponse>> getMe(
             @AuthenticationPrincipal Long memberId
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(MemberResponse.from(memberService.getMe(memberId))));
+        return ResponseEntity.ok(CommonResponse.ok(MemberResponse.from(memberService.getMe(memberId))));
     }
 
     @PatchMapping("/me/nickname")
-    public ResponseEntity<ApiResponse<UpdateNicknameResponse>> updateNickname(
+    public ResponseEntity<CommonResponse<UpdateNicknameResponse>> updateNickname(
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody UpdateNicknameRequest request
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(
+        return ResponseEntity.ok(CommonResponse.ok(
                 UpdateNicknameResponse.from(memberService.updateNickname(memberId, request.nickname()))
         ));
     }
@@ -44,33 +45,33 @@ public class MemberController {
     }
 
     @PostMapping("/me/favorite-teams")
-    public ResponseEntity<ApiResponse<FavoriteTeamResponse>> addFavoriteTeam(
+    public ResponseEntity<CommonResponse<FavoriteTeamResponse>> addFavoriteTeam(
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody AddFavoriteTeamRequest request
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(
+        return ResponseEntity.ok(CommonResponse.ok(
                 FavoriteTeamResponse.from(memberService.addFavoriteTeam(memberId, request.teamId(), request.priority()))
         ));
-    }
+    }// 설정변경으로 수정된 맴버 코드
 
     @GetMapping("/me/favorite-teams")
-    public ResponseEntity<ApiResponse<List<FavoriteTeamResponse>>> getFavoriteTeams(
+    public ResponseEntity<CommonResponse<List<FavoriteTeamResponse>>> getFavoriteTeams(
             @AuthenticationPrincipal Long memberId
     ) {
         List<FavoriteTeamResponse> response = memberService.getFavoriteTeams(memberId)
                 .stream()
                 .map(FavoriteTeamResponse::from)
                 .toList();
-        return ResponseEntity.ok(ApiResponse.ok(response));
+        return ResponseEntity.ok(CommonResponse.ok(response));
     }
 
     @PatchMapping("/me/favorite-teams/{teamId}/priority")
-    public ResponseEntity<ApiResponse<FavoriteTeamResponse>> updateFavoriteTeamPriority(
+    public ResponseEntity<CommonResponse<FavoriteTeamResponse>> updateFavoriteTeamPriority(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long teamId,
             @Valid @RequestBody UpdatePriorityRequest request
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(
+        return ResponseEntity.ok(CommonResponse.ok(
                 FavoriteTeamResponse.from(memberService.updateFavoriteTeamPriority(memberId, teamId, request.priority()))
         ));
     }

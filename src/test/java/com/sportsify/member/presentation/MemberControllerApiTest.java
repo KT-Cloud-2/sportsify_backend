@@ -1,53 +1,38 @@
 package com.sportsify.member.presentation;
 
-import com.epages.restdocs.apispec.Schema;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.member.application.dto.FavoriteTeamResult;
 import com.sportsify.member.application.dto.MemberResult;
 import com.sportsify.member.application.service.MemberService;
+import com.sportsify.member.presentation.controller.MemberController;
 import com.sportsify.member.presentation.dto.AddFavoriteTeamRequest;
 import com.sportsify.member.presentation.dto.UpdateNicknameRequest;
 import com.sportsify.member.presentation.dto.UpdatePriorityRequest;
-import com.sportsify.support.ApiTestSupport;
+import com.sportsify.support.WebMvcTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper.document;
-import static com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper.resourceDetails;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
-import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
-import static org.springframework.restdocs.payload.PayloadDocumentation.*;
-import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
-import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class MemberControllerApiTest extends ApiTestSupport {
+@WebMvcTest(MemberController.class)
+class MemberControllerApiTest extends WebMvcTestSupport {
 
     @MockitoBean
     private MemberService memberService;
 
     private static final Long TEST_MEMBER_ID = 1L;
-
-    private static org.springframework.restdocs.payload.FieldDescriptor[] errorResponseFields() {
-        return new org.springframework.restdocs.payload.FieldDescriptor[]{
-                fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부 (`false`)"),
-                fieldWithPath("data").type(JsonFieldType.NULL).description("데이터 없음"),
-                fieldWithPath("error.code").type(JsonFieldType.STRING).description("에러 코드"),
-                fieldWithPath("error.message").type(JsonFieldType.STRING).description("에러 메시지"),
-                fieldWithPath("error.detail").type(JsonFieldType.STRING).description("상세 정보").optional(),
-                fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
-        };
-    }
 
     // ──────────────────────── GET /api/members/me ────────────────────────
 
@@ -64,23 +49,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.memberId").value(1))
-                .andExpect(jsonPath("$.data.nickname").value("응원왕"))
-                .andDo(document("내정보-조회",
-                        resourceDetails()
-                                .tag("Member")
-                                .summary("내 정보 조회")
-                                .description("로그인한 회원의 기본 정보를 반환합니다.")
-                                .responseSchema(Schema.schema("MemberResponse")),
-                        responseFields(
-                                fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
-                                fieldWithPath("data.memberId").type(JsonFieldType.NUMBER).description("회원 ID"),
-                                fieldWithPath("data.email").type(JsonFieldType.STRING).description("이메일"),
-                                fieldWithPath("data.nickname").type(JsonFieldType.STRING).description("닉네임"),
-                                fieldWithPath("data.createdAt").type(JsonFieldType.STRING).description("가입 시각 (ISO8601)"),
-                                fieldWithPath("error").type(JsonFieldType.NULL).description("에러 정보"),
-                                fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
-                        )
-                ));
+                .andExpect(jsonPath("$.data.nickname").value("응원왕"));
     }
 
     @Test
@@ -99,11 +68,7 @@ class MemberControllerApiTest extends ApiTestSupport {
         mockMvc.perform(get("/api/members/me")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"))
-                .andDo(document("내정보-조회-404",
-                        resourceDetails().tag("Member"),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"));
     }
 
     // ──────────────────────── PATCH /api/members/me/nickname ────────────────────────
@@ -119,25 +84,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("새닉네임")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.nickname").value("새닉네임"))
-                .andDo(document("닉네임-수정",
-                        resourceDetails()
-                                .tag("Member")
-                                .summary("내 정보 수정 (닉네임)")
-                                .description("닉네임을 변경합니다. 2~20자, 중복 불가.")
-                                .requestSchema(Schema.schema("UpdateNicknameRequest"))
-                                .responseSchema(Schema.schema("UpdateNicknameResponse")),
-                        requestFields(
-                                fieldWithPath("nickname").type(JsonFieldType.STRING).description("변경할 닉네임 (2~20자)")
-                        ),
-                        responseFields(
-                                fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
-                                fieldWithPath("data.memberId").type(JsonFieldType.NUMBER).description("회원 ID"),
-                                fieldWithPath("data.nickname").type(JsonFieldType.STRING).description("변경된 닉네임"),
-                                fieldWithPath("error").type(JsonFieldType.NULL).description("에러 정보"),
-                                fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
-                        )
-                ));
+                .andExpect(jsonPath("$.data.nickname").value("새닉네임"));
     }
 
     @Test
@@ -148,11 +95,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("A")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"))
-                .andDo(document("닉네임-수정-400",
-                        resourceDetails().tag("Member"),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
     }
 
     @Test
@@ -166,11 +109,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("중복닉네임")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("NICKNAME_DUPLICATE"))
-                .andDo(document("닉네임-수정-409",
-                        resourceDetails().tag("Member"),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("NICKNAME_DUPLICATE"));
     }
 
     // ──────────────────────── DELETE /api/members/me ────────────────────────
@@ -182,13 +121,7 @@ class MemberControllerApiTest extends ApiTestSupport {
 
         mockMvc.perform(delete("/api/members/me")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
-                .andExpect(status().isNoContent())
-                .andDo(document("회원-탈퇴",
-                        resourceDetails()
-                                .tag("Member")
-                                .summary("회원 탈퇴")
-                                .description("회원 상태를 WITHDRAWN으로 변경합니다.")
-                ));
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -200,11 +133,7 @@ class MemberControllerApiTest extends ApiTestSupport {
         mockMvc.perform(delete("/api/members/me")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"))
-                .andDo(document("회원-탈퇴-404",
-                        resourceDetails().tag("Member"),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"));
     }
 
     // ──────────────────────── POST /api/members/me/favorite-teams ────────────────────────
@@ -220,30 +149,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(3L, 1)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.teamName").value("KIA 타이거즈"))
-                .andDo(document("선호팀-추가",
-                        resourceDetails()
-                                .tag("FavoriteTeam")
-                                .summary("선호 팀 추가")
-                                .description("선호 팀을 추가합니다. priority 미지정 시 마지막 순위 + 1로 자동 설정됩니다.")
-                                .requestSchema(Schema.schema("AddFavoriteTeamRequest"))
-                                .responseSchema(Schema.schema("FavoriteTeamResponse")),
-                        requestFields(
-                                fieldWithPath("teamId").type(JsonFieldType.NUMBER).description("추가할 팀 ID"),
-                                fieldWithPath("priority").type(JsonFieldType.NUMBER).description("선호 순위 (선택, 미지정 시 자동 할당)").optional()
-                        ),
-                        responseFields(
-                                fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
-                                fieldWithPath("data.favoriteTeamId").type(JsonFieldType.NUMBER).description("선호 팀 레코드 ID"),
-                                fieldWithPath("data.teamId").type(JsonFieldType.NUMBER).description("팀 ID"),
-                                fieldWithPath("data.teamName").type(JsonFieldType.STRING).description("팀 이름"),
-                                fieldWithPath("data.shortName").type(JsonFieldType.STRING).description("팀 약칭").optional(),
-                                fieldWithPath("data.sportType").type(JsonFieldType.STRING).description("종목 (BASEBALL | FOOTBALL | BASKETBALL)"),
-                                fieldWithPath("data.priority").type(JsonFieldType.NUMBER).description("선호 순위"),
-                                fieldWithPath("error").type(JsonFieldType.NULL).description("에러 정보"),
-                                fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
-                        )
-                ));
+                .andExpect(jsonPath("$.data.teamName").value("KIA 타이거즈"));
     }
 
     @Test
@@ -257,11 +163,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(3L, null)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_ALREADY_EXISTS"))
-                .andDo(document("선호팀-추가-409",
-                        resourceDetails().tag("FavoriteTeam"),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_ALREADY_EXISTS"));
     }
 
     @Test
@@ -275,11 +177,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(99L, null)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("TEAM_NOT_FOUND"))
-                .andDo(document("선호팀-추가-404",
-                        resourceDetails().tag("FavoriteTeam"),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("TEAM_NOT_FOUND"));
     }
 
     // ──────────────────────── GET /api/members/me/favorite-teams ────────────────────────
@@ -296,24 +194,7 @@ class MemberControllerApiTest extends ApiTestSupport {
         mockMvc.perform(get("/api/members/me/favorite-teams")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andDo(document("선호팀-목록",
-                        resourceDetails()
-                                .tag("FavoriteTeam")
-                                .summary("선호 팀 목록 조회")
-                                .description("등록된 선호 팀을 priority 오름차순으로 반환합니다."),
-                        responseFields(
-                                fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
-                                fieldWithPath("data[].favoriteTeamId").type(JsonFieldType.NUMBER).description("선호 팀 레코드 ID"),
-                                fieldWithPath("data[].teamId").type(JsonFieldType.NUMBER).description("팀 ID"),
-                                fieldWithPath("data[].teamName").type(JsonFieldType.STRING).description("팀 이름"),
-                                fieldWithPath("data[].shortName").type(JsonFieldType.STRING).description("팀 약칭").optional(),
-                                fieldWithPath("data[].sportType").type(JsonFieldType.STRING).description("종목"),
-                                fieldWithPath("data[].priority").type(JsonFieldType.NUMBER).description("선호 순위"),
-                                fieldWithPath("error").type(JsonFieldType.NULL).description("에러 정보"),
-                                fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
-                        )
-                ));
+                .andExpect(jsonPath("$.data.length()").value(2));
     }
 
     // ──────────────────────── PATCH .../favorite-teams/{teamId}/priority ────────────────────────
@@ -329,30 +210,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(2)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.priority").value(2))
-                .andDo(document("선호팀-우선순위-수정",
-                        resourceDetails()
-                                .tag("FavoriteTeam")
-                                .summary("선호 팀 우선순위 수정")
-                                .description("선호 팀의 우선순위를 변경합니다. 1 이상, 등록된 팀 수 이하여야 합니다."),
-                        pathParameters(
-                                parameterWithName("teamId").description("우선순위를 변경할 팀 ID (teams.id 기준)")
-                        ),
-                        requestFields(
-                                fieldWithPath("priority").type(JsonFieldType.NUMBER).description("변경할 우선순위 (1 이상)")
-                        ),
-                        responseFields(
-                                fieldWithPath("success").type(JsonFieldType.BOOLEAN).description("성공 여부"),
-                                fieldWithPath("data.favoriteTeamId").type(JsonFieldType.NUMBER).description("선호 팀 레코드 ID"),
-                                fieldWithPath("data.teamId").type(JsonFieldType.NUMBER).description("팀 ID"),
-                                fieldWithPath("data.teamName").type(JsonFieldType.STRING).description("팀 이름"),
-                                fieldWithPath("data.shortName").type(JsonFieldType.STRING).description("팀 약칭").optional(),
-                                fieldWithPath("data.sportType").type(JsonFieldType.STRING).description("종목"),
-                                fieldWithPath("data.priority").type(JsonFieldType.NUMBER).description("변경된 우선순위"),
-                                fieldWithPath("error").type(JsonFieldType.NULL).description("에러 정보"),
-                                fieldWithPath("timestamp").type(JsonFieldType.STRING).description("응답 시각")
-                        )
-                ));
+                .andExpect(jsonPath("$.data.priority").value(2));
     }
 
     @Test
@@ -366,14 +224,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(99)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_PRIORITY"))
-                .andDo(document("선호팀-우선순위-수정-400",
-                        resourceDetails().tag("FavoriteTeam"),
-                        pathParameters(
-                                parameterWithName("teamId").description("팀 ID")
-                        ),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("INVALID_PRIORITY"));
     }
 
     @Test
@@ -387,14 +238,7 @@ class MemberControllerApiTest extends ApiTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(1)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_NOT_FOUND"))
-                .andDo(document("선호팀-우선순위-수정-404",
-                        resourceDetails().tag("FavoriteTeam"),
-                        pathParameters(
-                                parameterWithName("teamId").description("팀 ID")
-                        ),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_NOT_FOUND"));
     }
 
     // ──────────────────────── DELETE .../favorite-teams/{teamId} ────────────────────────
@@ -406,16 +250,7 @@ class MemberControllerApiTest extends ApiTestSupport {
 
         mockMvc.perform(delete("/api/members/me/favorite-teams/{teamId}", 3L)
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
-                .andExpect(status().isNoContent())
-                .andDo(document("선호팀-삭제",
-                        resourceDetails()
-                                .tag("FavoriteTeam")
-                                .summary("선호 팀 삭제")
-                                .description("선호 팀을 삭제합니다. teamId는 teams.id 기준입니다."),
-                        pathParameters(
-                                parameterWithName("teamId").description("삭제할 팀 ID (teams.id 기준)")
-                        )
-                ));
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -427,13 +262,6 @@ class MemberControllerApiTest extends ApiTestSupport {
         mockMvc.perform(delete("/api/members/me/favorite-teams/{teamId}", 99L)
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_NOT_FOUND"))
-                .andDo(document("선호팀-삭제-404",
-                        resourceDetails().tag("FavoriteTeam"),
-                        pathParameters(
-                                parameterWithName("teamId").description("팀 ID")
-                        ),
-                        responseFields(errorResponseFields())
-                ));
+                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_NOT_FOUND"));
     }
 }
