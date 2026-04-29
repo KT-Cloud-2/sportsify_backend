@@ -13,7 +13,7 @@ import com.sportsify.member.domain.repository.MemberFavoriteTeamRepository;
 import com.sportsify.member.domain.repository.MemberRepository;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
-import com.sportsify.team.infrastructure.repository.TeamRepository;
+import com.sportsify.team.domain.repository.TeamRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

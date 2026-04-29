@@ -14,8 +14,7 @@ public class TestContainersConfig {
     @ServiceConnection
     public PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(DockerImageName.parse("postgres:18-alpine"))
-                .withDatabaseName("sportsify")
-                .withReuse(true);
+                .withDatabaseName("sportsify");
     }
 
     @Bean
