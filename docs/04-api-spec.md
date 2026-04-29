@@ -96,9 +96,9 @@
 | GET | /oauth2/authorization/{registrationId} | N | 소셜 로그인 (Google / Kakao) |
 | GET | /oauth2/callback | N | 소셜 로그인 콜백 (토큰 발급) |
 | POST | /api/auth/token/refresh | N | 액세스 토큰 갱신 |
-| POST | /api/members/logout | O | 로그아웃 |
+| POST | /api/auth/logout | O | 로그아웃 |
 | GET | /api/members/me | O | 내 정보 조회 |
-| PATCH | /api/members/me | O | 내 정보 수정 (닉네임) |
+| PATCH | /api/members/me/nickname | O | 내 정보 수정 (닉네임) |
 | DELETE | /api/members/me | O | 회원 탈퇴 |
 | POST | /api/members/me/favorite-teams | O | 선호 팀 추가 |
 | GET | /api/members/me/favorite-teams | O | 선호 팀 목록 조회 |
@@ -187,7 +187,7 @@ POST /api/auth/token/refresh
 ### 1-4. 로그아웃
 
 ```
-POST /api/members/logout
+POST /api/auth/logout
 ```
 
 서버에서 refreshToken 무효화 (Redis 블랙리스트 등록).
@@ -248,7 +248,7 @@ GET /api/members/me
 ### 1-5-1. 내 정보 수정 (닉네임)
 
 ```
-PATCH /api/members/me
+PATCH /api/members/me/nickname
 ```
 
 #### Request Body
@@ -333,6 +333,7 @@ POST /api/members/me/favorite-teams
     "favoriteTeamId": 10,
     "teamId": 3,
     "teamName": "KIA 타이거즈",
+    "shortName": "KIA",
     "sportType": "BASEBALL",
     "priority": 1
   }
@@ -346,6 +347,7 @@ POST /api/members/me/favorite-teams
 | `favoriteTeamId` | Long | 선호 팀 레코드 ID |
 | `teamId` | Long | 팀 ID |
 | `teamName` | String | 팀 이름 |
+| `shortName` | String | 팀 약칭 |
 | `sportType` | String | 종목 |
 | `priority` | Integer | 선호 순위 |
 
@@ -430,6 +432,8 @@ PATCH /api/members/me/favorite-teams/{teamId}/priority
     "favoriteTeamId": 10,
     "teamId": 3,
     "teamName": "KIA 타이거즈",
+    "shortName": "KIA",
+    "sportType": "BASEBALL",
     "priority": 1
   }
 }
@@ -2102,9 +2106,9 @@ GET /api/notifications/history
 | GET | /oauth2/authorization/{registrationId} | N | 소셜 로그인 (Google / Kakao) |
 | GET | /oauth2/callback | N | 소셜 로그인 콜백 (토큰 발급) |
 | POST | /api/auth/token/refresh | N | 액세스 토큰 갱신 |
-| POST | /api/members/logout | O | 로그아웃 |
+| POST | /api/auth/logout | O | 로그아웃 |
 | GET | /api/members/me | O | 내 정보 조회 |
-| PATCH | /api/members/me | O | 내 정보 수정 (닉네임) |
+| PATCH | /api/members/me/nickname | O | 내 정보 수정 (닉네임) |
 | DELETE | /api/members/me | O | 회원 탈퇴 |
 | POST | /api/members/me/favorite-teams | O | 선호 팀 추가 |
 | GET | /api/members/me/favorite-teams | O | 선호 팀 목록 조회 |
