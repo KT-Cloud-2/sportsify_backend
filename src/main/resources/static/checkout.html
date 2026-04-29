@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>결제 테스트</title>
+</head>
+<body>
+<h1>토스 결제 테스트</h1>
+
+<p>orderId: <span id="orderId"></span></p>
+<p>amount: <span id="amount"></span></p>
+
+<button onclick="requestPayment()">결제하기</button>
+
+<script src="https://js.tosspayments.com/v1/payment"></script>
+<script>
+    const clientKey = "test_ck_0RnYX2w5322llqkbJgRK3NeyqApQ";
+    const tossPayments = TossPayments(clientKey);
+
+    const params = new URLSearchParams(window.location.search);
+
+    const orderId = params.get("orderId");
+    const amount = Number(params.get("amount"));
+
+    document.getElementById("orderId").innerText = orderId;
+    document.getElementById("amount").innerText = amount;
+
+    function requestPayment() {
+        if (!orderId || !amount) {
+            alert("orderId 또는 amount가 없습니다.");
+            return;
+        }
+
+        tossPayments.requestPayment("카드", {
+            amount: amount,
+            orderId: orderId,
+            orderName: "스포츠 경기 예매",
+            customerName: "테스트유저",
+            successUrl: "http://localhost:8081/success.html",
+            failUrl: "http://localhost:8081/fail.html"
+        });
+    }
+</script>
+</body>
+</html>
