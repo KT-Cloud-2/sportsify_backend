@@ -150,7 +150,7 @@ INSERT INTO games (stadium_id, home_team_id, away_team_id, sport_type, start_at,
                    game_grade, max_ticket_per_user, sale_start_at, sale_end_at, created_at)
 VALUES
     -- 예매 중인 야구 경기 (1주일 후)
-    (1, 1, 2, 'BASEBALL', NOW() + INTERVAL '7 days', 180, 'OPEN', 'WEEKEND', 'RIVAL', 4,
+    (1, 1, 2, 'BASEBALL', NOW() + INTERVAL '7 days', 180, 'ON_SALE', 'WEEKEND', 'RIVAL', 4,
      NOW() - INTERVAL '1 day', NOW() + INTERVAL '6 days', NOW()),
 
     -- 예매 예정인 야구 경기 (2주일 후)
@@ -158,15 +158,15 @@ VALUES
      NOW() + INTERVAL '3 days', NOW() + INTERVAL '13 days', NOW()),
 
     -- 거의 매진된 경기 (Lock 테스트용)
-    (2, 1, 3, 'BASEBALL', NOW() + INTERVAL '10 days', 180, 'OPEN', 'WEEKEND', 'RIVAL', 2,
+    (1, 1, 3, 'BASEBALL', NOW() + INTERVAL '10 days', 180, 'ON_SALE', 'WEEKEND', 'RIVAL', 2,
      NOW() - INTERVAL '2 days', NOW() + INTERVAL '9 days', NOW()),
 
     -- 축구 경기
-    (3, 5, 6, 'FOOTBALL', NOW() + INTERVAL '5 days', 120, 'OPEN', 'WEEKEND', 'NORMAL', 4,
+    (1, 5, 6, 'FOOTBALL', NOW() + INTERVAL '5 days', 120, 'ON_SALE', 'WEEKEND', 'NORMAL', 4,
      NOW() - INTERVAL '1 day', NOW() + INTERVAL '4 days', NOW()),
 
     -- 농구 경기
-    (4, 8, 9, 'BASKETBALL', NOW() + INTERVAL '3 days', 150, 'OPEN', 'WEEKDAY', 'NORMAL', 4,
+    (1, 8, 9, 'BASKETBALL', NOW() + INTERVAL '3 days', 150, 'ON_SALE', 'WEEKDAY', 'NORMAL', 4,
      NOW() - INTERVAL '1 day', NOW() + INTERVAL '2 days', NOW());
 
 -- Game Seats (경기별 좌석)
