@@ -52,6 +52,8 @@ src/main/resources/static/openapi.json
 .Spotlight-V100
 .Trashes
 
+src/main/resources/db/seed/**
+
 ### Docker volumes / local data ###
 docker-volumes/
 postgres-data/
