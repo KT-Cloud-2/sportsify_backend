@@ -35,11 +35,14 @@ public class SecurityConfig {
                     "/oauth2/**",
                     "/login/**",
                     "/api/auth/**",
+                    "/api/teams",
+                    "/api/teams/**",
                     "/actuator/health",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/swagger",
+                    "/swagger.html",
                     "/webjars/**",
                     "/docs.html"
                 ).permitAll()
