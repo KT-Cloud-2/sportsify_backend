@@ -1,0 +1,5 @@
+reviews:
+  path_filters:
+    - "!docs/**"
+    - "!**/*.md"
+  high_level_summary: false

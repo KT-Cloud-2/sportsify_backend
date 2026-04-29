@@ -33,7 +33,7 @@
 - [x] `GlobalExceptionHandler` 공통 예외 핸들러 (에러 코드 포함)
 - [x] Spring Security 기본 설정 (SecurityFilterChain, 공개 경로 허용)
 - [x] JWT 인증 필터 (`JwtAuthenticationFilter`) — 블랙리스트 검증 포함
-- [ ] Swagger / SpringDoc OpenAPI 3.0 설정 (`/swagger-ui.html`)
+- [x] Swagger / SpringDoc OpenAPI 3.0 설정 , custom page(`/swagger.html`)
 - [x] Redis 설정 (`RedisTemplate`, `StringRedisTemplate`)
 - [x] GitHub Actions CI — 모든 브랜치 push/PR 시 빌드 + 테스트 자동 검증
 - [x] `.gitignore` — `.env*`, `build/`, `.gradle/` 확인
@@ -52,19 +52,21 @@
 - [x] 내 정보 조회 (`GET /api/members/me`)
 - [x] 내 정보 수정 — 닉네임 (`PATCH /api/members/me/nickname`)
 - [x] 회원 탈퇴 (`DELETE /api/members/me`) — status = WITHDRAWN
+- [x] `domain/repository` 인터페이스 분리 — DIP 적용 (`MemberRepository`, `MemberFavoriteTeamRepository`)
+- [x] `auth:role` Redis 제거 — 토큰 갱신 시 role DB 직접 조회로 교체
 - [ ] 로그인 기록 저장 (`activity_logs`)
 
 ### 팀 (담당: 강정훈)
 
-- [ ] 팀 목록 조회 (`GET /api/teams`) — sportType, isActive 필터
-- [ ] 팀 상세 조회 (`GET /api/teams/{teamId}`)
+- [x] 팀 목록 조회 (`GET /api/teams`) — sportType, isActive 필터 
+- [x] 팀 상세 조회 (`GET /api/teams/{teamId}`)
 - [x] 선호 팀 추가 (`POST /api/members/me/favorite-teams`)
 - [x] 선호 팀 목록 조회 (`GET /api/members/me/favorite-teams`)
 - [x] 선호 팀 우선순위 수정 (`PATCH /api/members/me/favorite-teams/{teamId}/priority`)
 - [x] 선호 팀 삭제 (`DELETE /api/members/me/favorite-teams/{teamId}`)
-- [ ] 관리자 팀 등록 (`POST /api/admin/teams`)
-- [ ] 관리자 팀 수정 (`PUT /api/admin/teams/{teamId}`)
-- [ ] 관리자 팀 비활성화 (`DELETE /api/admin/teams/{teamId}`)
+- [x] 관리자 팀 등록 (`POST /api/admin/teams`) (샘플 데이터로 대체)
+- [x] 관리자 팀 수정 (`PUT /api/admin/teams/{teamId}`) (샘플 데이터로 대체)
+- [x] 관리자 팀 비활성화 (`DELETE /api/admin/teams/{teamId}`) (샘플 데이터로 대체)
 
 ### 경기 / 좌석 (담당: 손하영)
 
