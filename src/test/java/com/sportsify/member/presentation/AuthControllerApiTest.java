@@ -4,11 +4,13 @@ import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.member.application.dto.TokenPairResult;
 import com.sportsify.member.application.service.AuthService;
+import com.sportsify.member.presentation.controller.AuthController;
 import com.sportsify.member.presentation.dto.LogoutRequest;
 import com.sportsify.member.presentation.dto.TokenRefreshRequest;
-import com.sportsify.support.ApiTestSupport;
+import com.sportsify.support.WebMvcTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -18,7 +20,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class AuthControllerApiTest extends ApiTestSupport {
+@WebMvcTest(AuthController.class)
+class AuthControllerApiTest extends WebMvcTestSupport {
 
     @MockitoBean
     private AuthService authService;

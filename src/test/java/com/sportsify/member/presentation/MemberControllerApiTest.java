@@ -5,12 +5,14 @@ import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.member.application.dto.FavoriteTeamResult;
 import com.sportsify.member.application.dto.MemberResult;
 import com.sportsify.member.application.service.MemberService;
+import com.sportsify.member.presentation.controller.MemberController;
 import com.sportsify.member.presentation.dto.AddFavoriteTeamRequest;
 import com.sportsify.member.presentation.dto.UpdateNicknameRequest;
 import com.sportsify.member.presentation.dto.UpdatePriorityRequest;
-import com.sportsify.support.ApiTestSupport;
+import com.sportsify.support.WebMvcTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -24,7 +26,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class MemberControllerApiTest extends ApiTestSupport {
+@WebMvcTest(MemberController.class)
+class MemberControllerApiTest extends WebMvcTestSupport {
 
     @MockitoBean
     private MemberService memberService;

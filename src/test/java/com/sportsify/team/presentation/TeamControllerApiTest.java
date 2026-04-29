@@ -4,9 +4,11 @@ import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.team.application.dto.TeamResult;
 import com.sportsify.team.application.service.TeamService;
-import com.sportsify.support.ApiTestSupport;
+import com.sportsify.team.presentation.controller.TeamController;
+import com.sportsify.support.WebMvcTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
@@ -16,7 +18,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class TeamControllerApiTest extends ApiTestSupport {
+@WebMvcTest(TeamController.class)
+class TeamControllerApiTest extends WebMvcTestSupport {
 
     @MockitoBean
     private TeamService teamService;
