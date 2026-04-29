@@ -1,23 +1,134 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Sportsify API Docs</title>
-  <style>
-    body { margin: 0; padding: 0; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Sportsify API Docs</title>
+    <link href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #fafafa;
+        }
+
+        .tab-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 24px;
+            height: 48px;
+            background: #1b1b1b;
+            border-bottom: 2px solid #333;
+        }
+
+        .tab-bar span {
+            color: #aaa;
+            font-size: 13px;
+            margin-right: 12px;
+            letter-spacing: 0.04em;
+        }
+
+        .tab-btn {
+            padding: 6px 20px;
+            border: 1px solid #444;
+            border-radius: 20px;
+            background: transparent;
+            color: #ccc;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .tab-btn:hover {
+            background: #2e2e2e;
+            color: #fff;
+        }
+
+        .tab-btn.active {
+            background: #4a90e2;
+            border-color: #4a90e2;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        #pane-swagger { display: block; }
+        #pane-redoc   { display: none; }
+    </style>
 </head>
 <body>
-  <!--
-    bootJar로 빌드하면 /openapi.json (Spring REST Docs 기반) 사용
-    IDE에서 직접 실행 시에는 /v3/api-docs (springdoc 런타임) 로 변경
-  -->
-  <redoc expand-responses="200,201"
-         hide-download-button="false"
-         required-props-first="true"
-         spec-url="openapi.json">
-  </redoc>
-  <script src="https://cdn.redoc.ly/redoc/v2.5.1/bundles/redoc.standalone.js"></script>
+
+<div class="tab-bar">
+    <span>Sportsify API</span>
+    <button class="tab-btn active" onclick="showTab('swagger', this)">Swagger UI</button>
+    <button class="tab-btn"        onclick="showTab('redoc', this)">Redoc</button>
+</div>
+
+<!-- Swagger UI -->
+<div id="pane-swagger">
+    <div id="swagger-ui"></div>
+</div>
+
+<!-- Redoc -->
+<div id="pane-redoc">
+    <div id="redoc-container"></div>
+</div>
+
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/redoc@latest/bundles/redoc.standalone.js"></script>
+<script>
+    const API_DOCS_URL = '/v3/api-docs';
+
+    let swaggerInitialized = false;
+    let redocInitialized   = false;
+
+    function initSwagger() {
+        if (swaggerInitialized) return;
+        swaggerInitialized = true;
+        SwaggerUIBundle({
+            url: API_DOCS_URL,
+            dom_id: '#swagger-ui',
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+            layout: 'BaseLayout',
+            deepLinking: true,
+            tryItOutEnabled: true,
+        });
+    }
+
+    function initRedoc() {
+        if (redocInitialized) return;
+        redocInitialized = true;
+        Redoc.init(API_DOCS_URL, {
+            scrollYOffset: 48,
+            hideDownloadButton: false,
+            expandResponses: '200,201',
+            theme: {
+                colors: { primary: { main: '#4a90e2' } },
+                typography: {
+                    fontSize: '14px',
+                    headings: { fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
+                },
+            },
+        }, document.getElementById('redoc-container'));
+    }
+
+    function showTab(name, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.getElementById('pane-swagger').style.display = name === 'swagger' ? 'block' : 'none';
+        document.getElementById('pane-redoc').style.display   = name === 'redoc'   ? 'block' : 'none';
+
+        if (name === 'swagger') initSwagger();
+        if (name === 'redoc')   initRedoc();
+    }
+
+    // 초기 로드: Swagger
+    initSwagger();
+</script>
 </body>
 </html>
