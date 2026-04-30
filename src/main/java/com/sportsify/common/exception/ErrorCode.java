@@ -21,7 +21,15 @@ public enum ErrorCode {
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_NOT_FOUND", "존재하지 않는 팀입니다."),
     FAVORITE_TEAM_ALREADY_EXISTS(HttpStatus.CONFLICT, "FAVORITE_TEAM_ALREADY_EXISTS", "이미 등록된 선호 팀입니다."),
     FAVORITE_TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "FAVORITE_TEAM_NOT_FOUND", "선호 팀으로 등록되지 않은 팀입니다."),
-    INVALID_PRIORITY(HttpStatus.BAD_REQUEST, "INVALID_PRIORITY", "우선순위 범위가 올바르지 않습니다.");
+    INVALID_PRIORITY(HttpStatus.BAD_REQUEST, "INVALID_PRIORITY", "우선순위 범위가 올바르지 않습니다."),
+
+    // 예매
+    GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "GAME_NOT_FOUND", "존재하지 않는 경기입니다."),
+    SEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "SEAT_NOT_FOUND", "존재하지 않는 좌석입니다."),
+    SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "SEAT_ALREADY_RESERVED", "이미 선점된 좌석입니다."),
+    GAME_NOT_ON_SALE(HttpStatus.valueOf(422), "GAME_NOT_ON_SALE", "판매 중이 아닌 경기입니다."),
+    TICKET_LIMIT_EXCEEDED(HttpStatus.valueOf(422), "TICKET_LIMIT_EXCEEDED", "경기당 1인 최대 4매를 초과했습니다."),
+    ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

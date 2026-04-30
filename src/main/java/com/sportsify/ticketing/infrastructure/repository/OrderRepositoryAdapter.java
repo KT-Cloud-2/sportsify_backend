@@ -1,6 +1,7 @@
 package com.sportsify.ticketing.infrastructure.repository;
 
 
+import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -10,4 +11,9 @@ import org.springframework.stereotype.Repository;
 public class OrderRepositoryAdapter implements OrderRepository {
 
     private final OrderJpaRepository jpaRepository;
+
+    @Override
+    public void save(Order order) {
+        jpaRepository.save(order);
+    }
 }

@@ -49,4 +49,19 @@ public class OrderSeat {
         this.expiresAt = expiresAt != null ? expiresAt : LocalDateTime.now().plusMinutes(15);
     }
 
+    public Long getSeatId() {
+        return gameSeat.getSeatId();
+    }
+
+    public String getSeatGradeName() {
+        return gameSeat.getZoneGradeName();
+    }
+
+    public String getSectionName() {
+        return gameSeat.getSectionName();
+    }
+
+    public Integer getSeatPrice() {
+        return gameSeat.getPrice();
+    }
 }

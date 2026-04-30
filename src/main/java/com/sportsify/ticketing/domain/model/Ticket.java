@@ -1,5 +1,6 @@
 package com.sportsify.ticketing.domain.model;
 
+import com.sportsify.member.domain.model.Member;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -23,9 +24,9 @@ public class Ticket {
     @JoinColumn(name = "order_seat_id", nullable = false)
     private OrderSeat orderSeat;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "member_id", nullable = false)
-//    private Member member;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Column(name = "ticket_number", nullable = false, length = 36)
     private String ticketNumber;
@@ -47,11 +48,9 @@ public class Ticket {
     private LocalDateTime cancelledAt;
 
     @Builder
-    public Ticket(OrderSeat orderSeat,
-//                Member member,
-                  Integer price) {
+    public Ticket(OrderSeat orderSeat, Member member, Integer price) {
         this.orderSeat = orderSeat;
-//        this.member = member;
+        this.member = member;
         this.ticketNumber = UUID.randomUUID().toString();
         this.price = price;
         this.status = TicketStatus.CONFIRMED;

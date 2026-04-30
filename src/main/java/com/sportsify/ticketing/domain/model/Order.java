@@ -1,7 +1,9 @@
 package com.sportsify.ticketing.domain.model;
 
+import com.sportsify.member.domain.model.Member;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
@@ -23,13 +25,13 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "member_id")
-//    private Member member;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private OrderStatus status = OrderStatus.PENDING;
+    private OrderStatus status;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderSeat> orderSeats = new ArrayList<>();
@@ -42,10 +44,14 @@ public class Order {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-//    @Builder
-//    public Order(Member member) {
-//        this.member = member;
-//        this.status = OrderStatus.PENDING;
-//    }
+    @Builder
+    public Order(Member member) {
+        this.member = member;
+        this.status = OrderStatus.PENDING;
+    }
+
+    public void addOrderSeat(OrderSeat orderSeat) {
+        this.orderSeats.add(orderSeat);
+    }
 
 }
