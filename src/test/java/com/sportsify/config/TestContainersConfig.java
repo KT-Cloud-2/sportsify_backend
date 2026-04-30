@@ -14,13 +14,15 @@ public class TestContainersConfig {
     @ServiceConnection
     public PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(DockerImageName.parse("postgres:18-alpine"))
-                .withDatabaseName("sportsify");
+                .withDatabaseName("sportsify")
+                .withReuse(true);
     }
 
     @Bean
     @ServiceConnection(name = "redis")
     public GenericContainer<?> redisContainer() {
         return new GenericContainer<>(DockerImageName.parse("redis:8-alpine"))
-                .withExposedPorts(6379);
+                .withExposedPorts(6379)
+                .withReuse(true);
     }
 }

@@ -31,10 +31,10 @@
 - [x] DB 스키마 마이그레이션 — Flyway 채택, `V1__init_schema.sql` 작성 완료
 - [x] `ApiResponse<T>` 공통 응답 래퍼
 - [x] `GlobalExceptionHandler` 공통 예외 핸들러 (에러 코드 포함)
-- [ ] Spring Security 기본 설정 (SecurityFilterChain, 공개 경로 허용)
-- [ ] JWT 인증 필터 (`JwtAuthenticationFilter`)
+- [x] Spring Security 기본 설정 (SecurityFilterChain, 공개 경로 허용)
+- [x] JWT 인증 필터 (`JwtAuthenticationFilter`) — 블랙리스트 검증 포함
 - [ ] Swagger / SpringDoc OpenAPI 3.0 설정 (`/swagger-ui.html`)
-- [ ] Redis 설정 (`RedisTemplate`, `StringRedisTemplate`)
+- [x] Redis 설정 (`RedisTemplate`, `StringRedisTemplate`)
 - [x] GitHub Actions CI — 모든 브랜치 push/PR 시 빌드 + 테스트 자동 검증
 - [x] `.gitignore` — `.env*`, `build/`, `.gradle/` 확인
 
@@ -44,24 +44,24 @@
 
 ### 회원 / 인증 (담당: 강정훈)
 
-- [ ] OAuth2 소셜 로그인 (Google, Kakao) — `CustomOAuth2UserService`
-- [ ] 로그인 성공 핸들러 — JWT 발급 + 콜백 리다이렉트
-- [ ] JWT Access Token / Refresh Token 발급 및 검증
-- [ ] Refresh Token 재발급 (`POST /api/auth/token/refresh`)
-- [ ] 로그아웃 — Redis에서 Refresh Token 삭제 (`POST /api/members/logout`)
-- [ ] 내 정보 조회 (`GET /api/members/me`)
-- [ ] 내 정보 수정 — 닉네임 (`PATCH /api/members/me`)
-- [ ] 회원 탈퇴 (`DELETE /api/members/me`) — status = WITHDRAWN
+- [x] OAuth2 소셜 로그인 (Google, Kakao) — `CustomOAuth2UserService`
+- [x] 로그인 성공 핸들러 — JWT 발급 + 콜백 리다이렉트 (`OAuth2AuthenticationSuccessHandler`)
+- [x] JWT Access Token / Refresh Token 발급 및 검증 (`JwtProvider`)
+- [x] Refresh Token 재발급 (`POST /api/auth/token/refresh`) — `AuthService`, `AuthController`
+- [x] 로그아웃 — Redis Refresh Token 삭제 + Access Token 블랙리스트 등록 (`POST /api/auth/logout`)
+- [x] 내 정보 조회 (`GET /api/members/me`)
+- [x] 내 정보 수정 — 닉네임 (`PATCH /api/members/me/nickname`)
+- [x] 회원 탈퇴 (`DELETE /api/members/me`) — status = WITHDRAWN
 - [ ] 로그인 기록 저장 (`activity_logs`)
 
 ### 팀 (담당: 강정훈)
 
 - [ ] 팀 목록 조회 (`GET /api/teams`) — sportType, isActive 필터
 - [ ] 팀 상세 조회 (`GET /api/teams/{teamId}`)
-- [ ] 선호 팀 추가 (`POST /api/members/me/favorite-teams`)
-- [ ] 선호 팀 목록 조회 (`GET /api/members/me/favorite-teams`)
-- [ ] 선호 팀 우선순위 수정 (`PATCH /api/members/me/favorite-teams/{teamId}/priority`)
-- [ ] 선호 팀 삭제 (`DELETE /api/members/me/favorite-teams/{teamId}`)
+- [x] 선호 팀 추가 (`POST /api/members/me/favorite-teams`)
+- [x] 선호 팀 목록 조회 (`GET /api/members/me/favorite-teams`)
+- [x] 선호 팀 우선순위 수정 (`PATCH /api/members/me/favorite-teams/{teamId}/priority`)
+- [x] 선호 팀 삭제 (`DELETE /api/members/me/favorite-teams/{teamId}`)
 - [ ] 관리자 팀 등록 (`POST /api/admin/teams`)
 - [ ] 관리자 팀 수정 (`PUT /api/admin/teams/{teamId}`)
 - [ ] 관리자 팀 비활성화 (`DELETE /api/admin/teams/{teamId}`)
@@ -106,7 +106,6 @@
 - [ ] 채팅 이력 조회 (`GET /api/chat/history/{roomId}`) — 커서 페이지네이션
 - [ ] 관리자 채팅방 생성 (`POST /api/admin/chat/rooms`)
 
-
 ### 알림 (담당: 강정훈)
 
 - [ ] Redis Streams Consumer Group 설정 (모든 Stream 공통)
@@ -119,7 +118,7 @@
 - [ ] 경기 시작 알림 — `game.starting` Consumer + @Scheduled
 - [ ] 멘션 알림 — `chat.mentioned` Consumer
 - [ ] Email 발송 — JavaMailSender + Thymeleaf 템플릿 (결제 완료)
-- 
+
 ---
 
 ## Sprint 2 — P2 기능 + 성능 
@@ -265,15 +264,18 @@ Sprint 0 (공통 인프라)
 
 ---
 
-## 현황 요약 (2026-04-26 기준)
+## 현황 요약 (2026-04-27 기준)
 
 | 항목 | 상태 |
 |------|------|
-| 프로젝트 기반 (Spring Boot 4.0.3 + Java 25) | 초기화 완료 |
-| 의존성 (JPA, Redis, Security 등) | **미추가** |
-| DB 스키마 | **미생성** |
-| 로그인/인증 | **미구현** |
-| 팀/경기/예매/결제/채팅/알림 | **미구현** |
-| 인프라 (EC2, ALB) | **구성 필요** |
-
-> **가장 먼저**: Sprint 0 공통 인프라 완료 → 팀원별 도메인 병렬 개발 시작
+| 프로젝트 기반 (Spring Boot 4.0.3 + Java 25) | 완료 |
+| 의존성 (JPA, Redis, Security, JWT, OAuth2 등) | 완료 |
+| DB 스키마 (Flyway V1) | 완료 |
+| Spring Security + JWT 필터 + 블랙리스트 | **완료** |
+| OAuth2 소셜 로그인 (Google, Kakao) | **완료** |
+| 회원 인증 API (토큰 갱신, 로그아웃) | **완료** |
+| 회원 정보 API (조회, 닉네임 수정, 탈퇴) | **완료** |
+| 선호 팀 API (추가, 조회, 우선순위, 삭제) | **완료** |
+| 팀 목록/상세 조회, 관리자 팀 CRUD | **미구현** |
+| 경기/좌석/예매/결제/채팅/알림 | **미구현** |
+| 인프라 (EC2, ALB, CD) | **구성 필요** |

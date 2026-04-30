@@ -1,5 +1,7 @@
 package com.sportsify.chat.domain.model.chatRoom;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -84,7 +86,7 @@ public class ChatRoom {
      */
     public void assignId(ChatRoomId id) {
         if (this.id != null) {
-            throw new IllegalStateException("ChatRoomId already assigned");
+            throw new BusinessException(ErrorCode.CONFLICT, "ChatRoomId already assigned");
         }
         this.id = Objects.requireNonNull(id, "id");
     }
@@ -98,7 +100,7 @@ public class ChatRoom {
         Objects.requireNonNull(newName, "newName");
         Objects.requireNonNull(createdBy, "createdBy");
         if (!createdBy.equals(this.createdBy)) {
-            throw new IllegalStateException("Only room leader can change name");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can change name");
         }
         if (this.name.equals(newName)) {
             return;
@@ -114,7 +116,7 @@ public class ChatRoom {
         ensureActive();
         Objects.requireNonNull(createdBy, "createdBy");
         if (!createdBy.equals(this.createdBy)) {
-            throw new IllegalStateException("Cannot edit message because leaderId does not match");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot edit message because leaderId does not match");
         }
         if (Objects.equals(this.imageUrl, imageUrl)) {
             return;
@@ -131,7 +133,7 @@ public class ChatRoom {
             return;
         }
         if (this.status == ChatRoomStatus.DELETED) {
-            throw new IllegalStateException("Cannot archive deleted room");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot archive deleted room");
         }
         this.status = ChatRoomStatus.ARCHIVED;
         this.updatedAt = now;
@@ -143,7 +145,7 @@ public class ChatRoom {
     public void delete(LocalDateTime now, MemberId createdBy) {
         Objects.requireNonNull(createdBy, "createdBy");
         if (!createdBy.equals(this.createdBy)) {
-            throw new IllegalStateException("Cannot edit message because leaderId does not match");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot edit message because leaderId does not match");
         }
         if (this.status == ChatRoomStatus.DELETED) {
             return;
@@ -156,11 +158,9 @@ public class ChatRoom {
 
     private void ensureActive() {
         if (status != ChatRoomStatus.ACTIVE) {
-            throw new IllegalStateException("ChatRoom is not active: status=" + status);
+            throw new BusinessException(ErrorCode.NOT_FOUND, "ChatRoom is not active: status=" + status);
         }
     }
-
-    /* -------------------- Enums -------------------- */
 
 
 }

@@ -94,8 +94,8 @@ public class ChatRoomMember {
      * 초대 수락 또는 LEFT 상태에서 재입장
      */
     public void accept(LocalDateTime now) {
-        if (this.status == MemberStatus.BANNED) {
-            throw new IllegalStateException("Banned member cannot rejoin");
+        if (this.status == MemberStatus.BANNED || this.status == MemberStatus.DELETED) {
+            throw new IllegalStateException("this member cannot join");
         }
         if (this.status == MemberStatus.JOINED) {
             return;
@@ -111,10 +111,21 @@ public class ChatRoomMember {
         if (this.status == MemberStatus.LEFT) {
             return;
         }
-        if (this.status == MemberStatus.BANNED) {
-            throw new IllegalStateException("Banned member cannot leave");
+        if (this.status == MemberStatus.BANNED || this.status == MemberStatus.DELETED) {
+            throw new IllegalStateException("this member cannot leave");
         }
         this.status = MemberStatus.LEFT;
+        this.updatedAt = now;
+    }
+
+    /**
+     * 사용자 일괄 퇴장(roomId)
+     */
+    public void delete(LocalDateTime now) {
+        if (this.status == MemberStatus.DELETED) {
+            return;
+        }
+        this.status = MemberStatus.DELETED;
         this.updatedAt = now;
     }
 
@@ -152,6 +163,21 @@ public class ChatRoomMember {
             return;
         }
         this.lastReadMessageId = messageId.value();
+        this.updatedAt = now;
+    }
+
+    /**
+     * 사용자의 status 변경
+     */
+    public void changeStatusToInvite(LocalDateTime now) {
+        if (this.status == MemberStatus.BANNED) {
+            throw new IllegalStateException("Banned user cannot be reinvited");
+        }
+        if (this.status == MemberStatus.JOINED) {
+            throw new IllegalStateException("Already joined member");
+        }
+        if (this.status == MemberStatus.INVITED) return;
+        this.status = MemberStatus.INVITED;
         this.updatedAt = now;
     }
 

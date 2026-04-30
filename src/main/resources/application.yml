@@ -13,5 +13,6 @@ springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
-    enabled: false       # Swagger UI 비활성화, Redoc으로 대체
+    enabled: true
+    path: /swagger
   default-produces-media-type: application/json
