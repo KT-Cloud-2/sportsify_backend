@@ -8,7 +8,7 @@ import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
-import com.sportsify.team.infrastructure.repository.TeamRepository;
+import com.sportsify.team.infrastructure.repository.TeamJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class MemberFavoriteTeamRepositoryTest extends RepositoryTestSupport {
     private MemberJpaRepository memberRepository;
 
     @Autowired
-    private TeamRepository teamRepository;
+    private TeamJpaRepository teamRepository;
 
     @Autowired
     private MemberFavoriteTeamJpaRepository favoriteTeamRepository;
@@ -39,8 +39,8 @@ class MemberFavoriteTeamRepositoryTest extends RepositoryTestSupport {
         member = memberRepository.save(
                 Member.create("test@test.com", "테스터", OAuthProvider.GOOGLE, "g-001")
         );
-        teamA = teamRepository.save(createTeam("KIA 타이거즈", "KIA", SportType.BASEBALL));
-        teamB = teamRepository.save(createTeam("두산 베어스", "두산", SportType.BASEBALL));
+        teamA = teamRepository.save(createTeam("테스트팀A", "TA", SportType.BASEBALL));
+        teamB = teamRepository.save(createTeam("테스트팀B", "TB", SportType.BASEBALL));
     }
 
     @Test
@@ -52,8 +52,8 @@ class MemberFavoriteTeamRepositoryTest extends RepositoryTestSupport {
         List<MemberFavoriteTeam> result = favoriteTeamRepository.findByMemberIdOrderByPriorityAsc(member.getId());
 
         assertThat(result).hasSize(2);
-        assertThat(result.get(0).getTeam().getName()).isEqualTo("두산 베어스");
-        assertThat(result.get(1).getTeam().getName()).isEqualTo("KIA 타이거즈");
+        assertThat(result.get(0).getTeam().getName()).isEqualTo("테스트팀B");
+        assertThat(result.get(1).getTeam().getName()).isEqualTo("테스트팀A");
     }
 
     @Test

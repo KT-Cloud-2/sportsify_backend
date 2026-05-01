@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.epages.restdocs-api-spec' version '0.20.1'
 }
 
 group = 'com'
@@ -71,6 +70,7 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
@@ -82,10 +82,6 @@ dependencies {
     testImplementation 'org.testcontainers:testcontainers-postgresql'
     testImplementation 'org.testcontainers:testcontainers-jdbc'
     testImplementation 'org.testcontainers:testcontainers'   // Redis GenericContainer용
-
-    // Spring REST Docs + OpenAPI 변환 (restdocs-api-spec)
-    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
-    testImplementation 'com.epages:restdocs-api-spec-mockmvc:0.20.1'
 
 }
 
@@ -108,68 +104,4 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-// Spring REST Docs → OpenAPI 3.0 JSON 변환
-// src/main/resources/static 에 직접 출력 → bootRun/bootJar 모두 추가 설정 없이 /openapi.json 서빙
-openapi3 {
-    server = 'http://localhost:8080'
-    title = 'Sportsify API'
-    description = '스포츠 경기 예매 + 팀 응원 채팅 서비스 API'
-    version = project.version
-    format = 'json'
-    outputDirectory = 'src/main/resources/static'
-    outputFileNamePrefix = 'openapi'
-}
 
-// openapi.json 예시 값을 escaped string → JSON object로 변환 (Redoc pretty-print 지원)
-tasks.register('prettifyOpenApiExamples') {
-    dependsOn 'openapi3'
-    def outputFile = file('src/main/resources/static/openapi.json')
-    inputs.file(outputFile)
-    outputs.file(outputFile)
-    doLast {
-        def slurper = new groovy.json.JsonSlurper()
-        def spec = slurper.parse(outputFile)
-
-        def fixExamples = { examples ->
-            examples.each { key, exampleObj ->
-                def val = exampleObj['value']
-                if (val instanceof String) {
-                    try {
-                        exampleObj['value'] = slurper.parseText(val)
-                    } catch (ignored) {}
-                }
-            }
-        }
-
-        spec['paths']?.each { path, pathItem ->
-            pathItem.each { method, operation ->
-                if (operation instanceof Map) {
-                    operation['responses']?.each { status, response ->
-                        response['content']?.each { mediaType, mediaTypeObj ->
-                            if (mediaTypeObj['examples']) fixExamples(mediaTypeObj['examples'])
-                        }
-                    }
-                    operation['requestBody']?.get('content')?.each { mediaType, mediaTypeObj ->
-                        if (mediaTypeObj['examples']) fixExamples(mediaTypeObj['examples'])
-                    }
-                }
-            }
-        }
-
-        outputFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(spec))
-    }
-}
-
-tasks.named('bootJar') {
-    dependsOn 'prettifyOpenApiExamples'
-}
-
-tasks.named('processResources') {
-    dependsOn 'prettifyOpenApiExamples'
-}
-
-afterEvaluate {
-    tasks.named('openapi3') {
-        finalizedBy 'prettifyOpenApiExamples'
-    }
-}

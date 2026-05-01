@@ -44,4 +44,19 @@ public enum ErrorCode {
     public String getMessage() {
         return message;
     }
+
+    public String toExampleJson(String detail) {
+        String detailValue = (detail == null || detail.isBlank()) ? "null" : "\"" + detail + "\"";
+        return """
+                {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "code": "%s",
+                    "message": "%s",
+                    "detail": %s
+                  },
+                  "timestamp": "2026-04-29T12:00:00Z"
+                }""".formatted(code, message, detailValue);
+    }
 }
