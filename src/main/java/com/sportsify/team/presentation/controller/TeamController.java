@@ -1,6 +1,5 @@
 package com.sportsify.team.presentation.controller;
 
-import com.sportsify.common.response.CommonResponse;
 import com.sportsify.team.application.service.TeamService;
 import com.sportsify.team.presentation.api.TeamApi;
 import com.sportsify.team.presentation.dto.TeamResponse;
@@ -18,7 +17,7 @@ public class TeamController implements TeamApi {
     private final TeamService teamService;
 
     @GetMapping
-    public ResponseEntity<CommonResponse<List<TeamResponse>>> getTeams(
+    public ResponseEntity<List<TeamResponse>> getTeams(
             @RequestParam(required = false) String sportType,
             @RequestParam(required = false) Boolean isActive
     ) {
@@ -26,13 +25,13 @@ public class TeamController implements TeamApi {
                 .stream()
                 .map(TeamResponse::from)
                 .toList();
-        return ResponseEntity.ok(CommonResponse.ok(response));
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{teamId}")
-    public ResponseEntity<CommonResponse<TeamResponse>> getTeam(
+    public ResponseEntity<TeamResponse> getTeam(
             @PathVariable Long teamId
     ) {
-        return ResponseEntity.ok(CommonResponse.ok(TeamResponse.from(teamService.getTeam(teamId))));
+        return ResponseEntity.ok(TeamResponse.from(teamService.getTeam(teamId)));
     }
 }

@@ -1,6 +1,5 @@
 package com.sportsify.infrastructure.security;
 
-import com.sportsify.common.response.CommonResponse;
 import com.sportsify.common.response.ErrorDetail;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,7 +26,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(
                 jsonMapper.writeValueAsString(
-                        CommonResponse.error(ErrorDetail.of("UNAUTHORIZED", "인증이 필요합니다.", null))
+                        ErrorDetail.of("UNAUTHORIZED", "인증이 필요합니다.", null)
                 )
         );
     }
