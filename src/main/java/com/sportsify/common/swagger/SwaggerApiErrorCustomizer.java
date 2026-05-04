@@ -77,8 +77,10 @@ public class SwaggerApiErrorCustomizer implements OperationCustomizer {
             ErrorCode errorCode = error.value();
             String statusCode = String.valueOf(errorCode.getHttpStatus().value());
             ApiResponse apiResponse = responses.computeIfAbsent(statusCode, k -> new ApiResponse());
-            apiResponse.setDescription(errorCode.getMessage());
-            apiResponse.setContent(buildErrorContent(errorCode, error.detail()));
+            if (apiResponse.getDescription() == null) {
+                apiResponse.setDescription(errorCode.getMessage());
+            }
+            mergeErrorExample(apiResponse, errorCode, error.detail());
         }
     }
 
@@ -159,20 +161,25 @@ public class SwaggerApiErrorCustomizer implements OperationCustomizer {
         };
     }
 
-    private Content buildErrorContent(ErrorCode errorCode, String detail) {
-        Schema<String> schema = new Schema<>();
-        schema.setName("ErrorResponse");
-
+    private void mergeErrorExample(ApiResponse apiResponse, ErrorCode errorCode, String detail) {
         io.swagger.v3.oas.models.examples.Example example = new io.swagger.v3.oas.models.examples.Example();
         example.setValue(parseJson(errorCode.toExampleJson(detail)));
 
-        MediaType mediaType = new MediaType();
-        mediaType.setSchema(schema);
-        mediaType.addExamples(errorCode.getCode(), example);
-
-        Content content = new Content();
-        content.addMediaType("application/json", mediaType);
-        return content;
+        if (apiResponse.getContent() == null) {
+            Schema<String> schema = new Schema<>();
+            schema.setName("ErrorResponse");
+            MediaType mediaType = new MediaType();
+            mediaType.setSchema(schema);
+            mediaType.addExamples(errorCode.getCode(), example);
+            Content content = new Content();
+            content.addMediaType("application/json", mediaType);
+            apiResponse.setContent(content);
+        } else {
+            MediaType mediaType = apiResponse.getContent().get("application/json");
+            if (mediaType != null) {
+                mediaType.addExamples(errorCode.getCode(), example);
+            }
+        }
     }
 
     private Object parseJson(String json) {
