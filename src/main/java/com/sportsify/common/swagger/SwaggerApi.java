@@ -24,6 +24,6 @@ public @interface SwaggerApi {
     String description() default "";
     String responseCode() default "200";
     String responseDescription() default "성공";
-    ErrorCode error() default ErrorCode.INVALID_INPUT;  // 단일 에러 (errors 미지정 시 무시)
-    ErrorCode[] errors() default {};                     // 복수 에러 (지정 시 error 무시)
+    ErrorCode error() default ErrorCode.INVALID_INPUT;  // 단일 에러. INVALID_INPUT은 sentinel(미지정)으로 사용 — @RequestBody 시 자동 추가되므로 별도 지정 불필요
+    ErrorCode[] errors() default {};                    // 복수 에러. 지정 시 error 필드는 무시됨
 }
