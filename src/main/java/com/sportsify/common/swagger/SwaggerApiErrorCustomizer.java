@@ -15,7 +15,6 @@ import org.springframework.web.method.HandlerMethod;
 
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -25,7 +24,6 @@ public class SwaggerApiErrorCustomizer implements OperationCustomizer {
 
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {
-        hideAuthenticationPrincipalParams(operation, handlerMethod);
         applySwaggerApi(operation, handlerMethod);
         applyErrors(operation, handlerMethod);
         return operation;
@@ -91,13 +89,38 @@ public class SwaggerApiErrorCustomizer implements OperationCustomizer {
             errors.add(invalidInputAnnotation());
         }
 
+        SwaggerApi swaggerApi = handlerMethod.getMethodAnnotation(SwaggerApi.class);
+        if (swaggerApi != null) {
+            if (swaggerApi.errors().length > 0) {
+                for (ErrorCode code : swaggerApi.errors()) {
+                    errors.add(errorAnnotation(code, ""));
+                }
+            } else if (swaggerApi.error() != ErrorCode.INVALID_INPUT) {
+                errors.add(errorAnnotation(swaggerApi.error(), ""));
+            }
+        }
+
         SwaggerApiError single = handlerMethod.getMethodAnnotation(SwaggerApiError.class);
         SwaggerApiErrors container = handlerMethod.getMethodAnnotation(SwaggerApiErrors.class);
 
         if (single != null) {
-            errors.add(single);
+            if (single.errors().length > 0) {
+                for (ErrorCode code : single.errors()) {
+                    errors.add(errorAnnotation(code, single.detail()));
+                }
+            } else {
+                errors.add(single);
+            }
         } else if (container != null) {
-            errors.addAll(Arrays.asList(container.value()));
+            for (SwaggerApiError error : container.value()) {
+                if (error.errors().length > 0) {
+                    for (ErrorCode code : error.errors()) {
+                        errors.add(errorAnnotation(code, error.detail()));
+                    }
+                } else {
+                    errors.add(error);
+                }
+            }
         }
 
         return errors;
@@ -112,22 +135,27 @@ public class SwaggerApiErrorCustomizer implements OperationCustomizer {
         return false;
     }
 
-    private void hideAuthenticationPrincipalParams(Operation operation, HandlerMethod handlerMethod) {
-        if (operation.getParameters() == null) {
-            return;
-        }
-        for (Parameter parameter : handlerMethod.getMethod().getParameters()) {
-            if (parameter.isAnnotationPresent(org.springframework.security.core.annotation.AuthenticationPrincipal.class)) {
-                operation.getParameters().removeIf(p -> p.getName().equals(parameter.getName()));
-            }
-        }
+    private SwaggerApiError invalidInputAnnotation() {
+        return errorAnnotation(ErrorCode.INVALID_INPUT, "");
     }
 
-    private SwaggerApiError invalidInputAnnotation() {
+    private SwaggerApiError errorAnnotation(ErrorCode code, String detail) {
         return new SwaggerApiError() {
-            public Class<SwaggerApiError> annotationType() { return SwaggerApiError.class; }
-            public ErrorCode value() { return ErrorCode.INVALID_INPUT; }
-            public String detail() { return ""; }
+            public Class<SwaggerApiError> annotationType() {
+                return SwaggerApiError.class;
+            }
+
+            public ErrorCode[] errors() {
+                return new ErrorCode[0];
+            }
+
+            public ErrorCode value() {
+                return code;
+            }
+
+            public String detail() {
+                return detail;
+            }
         };
     }
 

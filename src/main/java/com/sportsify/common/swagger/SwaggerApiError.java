@@ -9,6 +9,7 @@ import java.lang.annotation.*;
 @Documented
 @Repeatable(SwaggerApiErrors.class)
 public @interface SwaggerApiError {
-    ErrorCode value();
+    ErrorCode[] errors() default {};
+    ErrorCode value() default ErrorCode.INVALID_INPUT;
     String detail() default "";
 }
