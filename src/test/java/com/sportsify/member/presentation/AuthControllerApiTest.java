@@ -38,8 +38,7 @@ class AuthControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TokenRefreshRequest("valid-refresh-token"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.accessToken").value("new-access-token"));
+                .andExpect(jsonPath("$.accessToken").value("new-access-token"));
     }
 
     @Test
@@ -49,7 +48,7 @@ class AuthControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @Test
@@ -62,7 +61,7 @@ class AuthControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TokenRefreshRequest("expired-or-invalid-token"))))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("INVALID_REFRESH_TOKEN"));
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
     }
 
     // ──────────────────────── POST /api/auth/logout ────────────────────────
@@ -86,6 +85,6 @@ class AuthControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 }

@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springdoc.openapi-gradle-plugin' version '1.9.0'
 }
 
 group = 'com'
@@ -102,6 +103,33 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// OpenAPI 스펙 export 설정
+openApi {
+    apiDocsUrl = 'http://localhost:8080/v3/api-docs'
+    outputDir = layout.buildDirectory.dir('api-spec')
+    outputFileName = 'openapi.json'
+    waitTimeInSeconds = 30
+}
+
+// openapi.json → docs-export.html (standalone, 외부 공유용)
+tasks.register('generateApiDocs') {
+    dependsOn 'generateOpenApiDocs'
+    description = 'openapi.json을 embed한 standalone docs-export.html 생성 (외부 공유용)'
+
+    def specFile    = layout.buildDirectory.file('api-spec/openapi.json')
+    def templateFile = layout.projectDirectory.file('gradle/docs-export-template.html')
+    def outputFile  = layout.projectDirectory.file('docs/docs-export.html')
+
+    inputs.file(specFile)
+    inputs.file(templateFile)
+    outputs.file(outputFile)
+
+    doLast {
+        def specJson = specFile.get().asFile.text.replace('</', '<\\/')
+        outputFile.asFile.text = templateFile.asFile.text.replace('{{SPEC}}', specJson)
+    }
 }
 
 

@@ -1,34 +1,35 @@
-# API 명세서 — Sortsify
+# API 명세서 — Sportsify
 
-> **Base URL**: `https://api.sortsify.com` (로컬: `http://localhost:8080`) \
+> **Base URL**: `https://api.sportsify.com` (로컬: `http://localhost:8080`) \
 > **인증**: Auth Required = O 인 엔드포인트는 `Authorization: Bearer {accessToken}` 헤더 필요 \
-> **공통 응답 포맷**: 아래 `ApiResponse<T>` 구조를 항상 래핑
+> **성공 응답**: 도메인 DTO 직접 반환 (래핑 없음) \
+> **에러 응답**: `ErrorDetail` 구조로 통일
 
 ---
 
 ## 공통 응답 포맷
 
+### 성공 응답
+
+도메인 DTO를 HTTP 상태 코드와 함께 직접 반환합니다.
+
 ```json
-{
-  "success": true,
-  "data": {},
-  "error": null,
-  "timestamp": "2025-04-21T10:00:00Z"
-}
+// 200 OK — 단일 객체 예시
+{ "memberId": 1, "nickname": "응원왕", "email": "user@example.com" }
+
+// 200 OK — 배열 예시
+[ { "teamId": 1, "name": "KIA 타이거즈" }, { "teamId": 2, "name": "FC 서울" } ]
+
+// 204 No Content — 본문 없음
 ```
 
 ### 에러 응답
 
 ```json
 {
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "SEAT_ALREADY_RESERVED",
-    "message": "이미 선점된 좌석입니다.",
-    "detail": null
-  },
-  "timestamp": "2025-04-21T10:00:00Z"
+  "code": "SEAT_ALREADY_RESERVED",
+  "message": "이미 선점된 좌석입니다.",
+  "detail": null
 }
 ```
 
@@ -75,13 +76,10 @@
 
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [],
-    "nextCursor": "eyJpZCI6MTAwfQ==",
-    "hasNext": true,
-    "totalCount": 342
-  }
+  "items": [],
+  "nextCursor": "eyJpZCI6MTAwfQ==",
+  "hasNext": true,
+  "totalCount": 342
 }
 ```
 
