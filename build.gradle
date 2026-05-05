@@ -56,10 +56,10 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 
     // Email (알림 도메인) — 구현 시 활성화
-    //implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
 
     // MQTT (알림 도메인) — 구현 시 활성화
-    //implementation 'org.springframework.integration:spring-integration-mqtt'
+    implementation 'org.springframework.integration:spring-integration-mqtt'
 
     // Actuator (Prometheus 연동)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
