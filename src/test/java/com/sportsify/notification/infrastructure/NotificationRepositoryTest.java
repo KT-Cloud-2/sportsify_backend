@@ -77,4 +77,71 @@ class NotificationRepositoryTest extends RepositoryTestSupport {
 
         assertThat(page.getTotalElements()).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("id와 memberId로 알림을 조회한다 — 일치하면 반환, 다른 memberId면 empty")
+    void findByIdAndMemberId_존재하면_반환() {
+        // GIVEN
+        NotificationEvent event = notificationEventRepository.save(
+            NotificationEvent.create(NotificationEventType.TICKET_OPEN, "{}")
+        );
+        Notification saved = notificationRepository.save(Notification.create(memberId, event.getId()));
+        em.flush();
+
+        // WHEN
+        var found = notificationRepository.findByIdAndMemberId(saved.getId(), memberId);
+        var notFound = notificationRepository.findByIdAndMemberId(saved.getId(), memberId + 999L);
+
+        // THEN
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(saved.getId());
+        assertThat(notFound).isEmpty();
+    }
+
+    @Test
+    @DisplayName("eventId와 memberId로 알림 존재 여부를 확인한다 — 존재하면 true, 없으면 false")
+    void existsByEventIdAndMemberId_존재하면_true() {
+        // GIVEN
+        NotificationEvent event = notificationEventRepository.save(
+            NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, "{}")
+        );
+        notificationRepository.save(Notification.create(memberId, event.getId()));
+        em.flush();
+
+        // WHEN
+        boolean exists = notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId);
+        boolean notExists = notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId + 999L);
+
+        // THEN
+        assertThat(exists).isTrue();
+        assertThat(notExists).isFalse();
+    }
+
+    @Test
+    @DisplayName("memberId의 모든 읽지 않은 알림을 읽음 처리한다")
+    void markAllReadByMemberId_읽음처리() {
+        // GIVEN
+        NotificationEvent event1 = notificationEventRepository.save(
+            NotificationEvent.create(NotificationEventType.TICKET_OPEN, "{}")
+        );
+        NotificationEvent event2 = notificationEventRepository.save(
+            NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, "{}")
+        );
+        Notification notification1 = notificationRepository.save(Notification.create(memberId, event1.getId()));
+        Notification notification2 = notificationRepository.save(Notification.create(memberId, event2.getId()));
+        em.flush();
+
+        // WHEN
+        notificationRepository.markAllReadByMemberId(memberId);
+        em.flush();
+        em.clear();
+
+        // THEN
+        var result1 = notificationRepository.findByIdAndMemberId(notification1.getId(), memberId);
+        var result2 = notificationRepository.findByIdAndMemberId(notification2.getId(), memberId);
+        assertThat(result1).isPresent();
+        assertThat(result1.get().isAlreadyRead()).isTrue();
+        assertThat(result2).isPresent();
+        assertThat(result2.get().isAlreadyRead()).isTrue();
+    }
 }
