@@ -1,5 +1,8 @@
 package com.sportsify.chat.domain.model.chatRoom;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
+
 import java.util.Objects;
 
 public final class MemberId {
@@ -7,7 +10,7 @@ public final class MemberId {
 
     private MemberId(Long value) {
         if (value == null || value <= 0L) {
-            throw new IllegalArgumentException("ChatRoomId must be positive");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "ChatRoomId must be positive");
         }
         this.value = value;
     }

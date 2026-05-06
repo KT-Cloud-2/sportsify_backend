@@ -94,7 +94,7 @@ public class ChatRoomMember {
      * 초대 수락 또는 LEFT 상태에서 재입장
      */
     public void accept(LocalDateTime now) {
-        if (this.status == MemberStatus.BANNED || this.status == MemberStatus.DELETED) {
+        if (this.status == MemberStatus.BANNED) {
             throw new IllegalStateException("this member cannot join");
         }
         if (this.status == MemberStatus.JOINED) {

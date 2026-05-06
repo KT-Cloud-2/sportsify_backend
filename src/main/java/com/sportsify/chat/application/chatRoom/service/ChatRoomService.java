@@ -3,8 +3,8 @@ package com.sportsify.chat.application.chatRoom.service;
 import com.sportsify.chat.application.chatRoom.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
-import com.sportsify.chat.domain.repository.ChatRoomMemberRepo;
-import com.sportsify.chat.domain.repository.ChatRoomRepo;
+import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
+import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
@@ -25,8 +25,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class ChatRoomService {
 
-    private final ChatRoomRepo chatRoomRepo;
-    private final ChatRoomMemberRepo chatRoomMemberRepo;
+    private final ChatRoomRepository chatRoomRepo;
+    private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final AdvisoryLockAdaptor advisoryLockAdaptor;
 
@@ -142,15 +142,17 @@ public class ChatRoomService {
      */
     @Transactional(readOnly = true)
     public ChatRoomListResponse getRoomsByGameId(ChatRoomGetByGameRequest request, Long gameId) {
-        List<ChatRoomResponse> chatRooms = chatRoomRepo.findActiveByGameId(GameId.of(gameId), request.cursor(), request.limit() + 1)
-                .stream().map(ChatRoomResponse::from).toList();
+        List<ChatRoom> chatRooms = chatRoomRepo.findActiveByGameId(GameId.of(gameId), request.cursor(), request.limit() + 1);
         if (chatRooms.isEmpty()) {
             return new ChatRoomListResponse(List.of(), null, false, 0);
         }
         boolean hasNext = chatRooms.size() > request.limit();
-        List<ChatRoomResponse> paged = hasNext ? chatRooms.subList(0, request.limit()) : chatRooms;
-        Long nextCursor = hasNext ? paged.getLast().roomId() : null;
-        return new ChatRoomListResponse(paged, nextCursor, hasNext, paged.size());
+        List<ChatRoom> paged = hasNext ? chatRooms.subList(0, request.limit()) : chatRooms;
+        Map<ChatRoomId, Long> participantCounts = getParticipantCounts(paged);
+        Long nextCursor = hasNext ? paged.getLast().getId().value() : null;
+        List<ChatRoomGetByGameResponse> response = paged.stream().
+                map(room -> ChatRoomGetByGameResponse.from(room, participantCounts.getOrDefault(room.getId(), 0L))).toList();
+        return new ChatRoomListResponse(response, nextCursor, hasNext, paged.size());
     }
 
     /**
@@ -166,7 +168,8 @@ public class ChatRoomService {
         Optional<ChatRoomMember> membership = memberId != null
                 ? chatRoomMemberRepo.findByRoomAndMember(room.getId(), MemberId.of(memberId))
                 : Optional.empty();
-        return ChatRoomDetailResponse.from(room, currentParticipants, ChatRoomMemberStatusResponse.from(membership));
+        ChatRoomMemberStatusResponse chatRoomMemberStatusResponse = membership.map(ChatRoomMemberStatusResponse::from).orElse(null);
+        return ChatRoomDetailResponse.from(room, currentParticipants, chatRoomMemberStatusResponse);
     }
 
 
@@ -223,7 +226,7 @@ public class ChatRoomService {
      * select for update lock
      */
     private ChatRoom findActiveRoomForUpdate(Long roomId) {
-        ChatRoom room = chatRoomRepo.findByIdForUpdate(ChatRoomId.of(roomId))
+        ChatRoom room = chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(roomId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId));
         if (room.getStatus() == ChatRoomStatus.DELETED) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId);
@@ -237,8 +240,16 @@ public class ChatRoomService {
     private ChatRoomType parseType(String type) {
         try {
             return ChatRoomType.valueOf(type);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "type=" + type);
         }
+    }
+
+    /**
+     * room 참여자 일괄 검색
+     */
+    private Map<ChatRoomId, Long> getParticipantCounts(List<ChatRoom> rooms) {
+        List<ChatRoomId> roomIds = rooms.stream().map(ChatRoom::getId).toList();
+        return chatRoomMemberRepo.countActiveByRooms(roomIds); // IN 절을 사용하는 쿼리로 구현
     }
 }

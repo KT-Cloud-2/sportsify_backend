@@ -3,7 +3,9 @@ package com.sportsify.chat.infrastructure.persistence.chatRoomMember;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
-import com.sportsify.chat.domain.repository.ChatRoomMemberRepo;
+import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
+import com.sportsify.chat.domain.model.message.MessageId;
+import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -13,12 +15,12 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
-public class ChatRoomMemberAdaptor implements ChatRoomMemberRepo {
+public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
 
-    private final ChatRoomMemberJpaRepo jpaRepo;
+    private final ChatRoomMemberJpaRepository jpaRepo;
     private final ChatRoomMemberMapper mapper;
 
-    public ChatRoomMemberAdaptor(ChatRoomMemberJpaRepo jpaRepo, ChatRoomMemberMapper mapper) {
+    public ChatRoomMemberAdaptor(ChatRoomMemberJpaRepository jpaRepo, ChatRoomMemberMapper mapper) {
         this.jpaRepo = jpaRepo;
         this.mapper = mapper;
     }
@@ -79,8 +81,8 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepo {
     }
 
     @Override
-    public Optional<ChatRoomMember> findByRoomAndMemberWithStatus(ChatRoomId roomId, MemberId memberId, List<String> statuses) {
-        return jpaRepo.findByRoomIdAndMemberId(roomId.value(), memberId.value(), statuses)
+    public Optional<ChatRoomMember> findByRoomAndMemberWithStatus(ChatRoomId roomId, MemberId memberId, List<MemberStatus> statuses) {
+        return jpaRepo.findByRoomIdAndMemberId(roomId.value(), memberId.value(), statuses.stream().map(MemberStatus::name).toList())
                 .map(mapper::toDomain);
     }
 
@@ -130,4 +132,17 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepo {
     public void leaveAllMembersByRoom(ChatRoomId roomId, LocalDateTime now) {
         jpaRepo.leaveAllActiveByRoomId(roomId.value(), now);
     }
+
+    @Override
+    public Optional<ChatRoomMember> findByRoomAndMemberForUpdate(ChatRoomId roomId, MemberId memberId) {
+        return jpaRepo.findByRoomIdAndMemberIdForUpdate(roomId.value(), memberId.value())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, LocalDateTime now) {
+        return jpaRepo.updateLastReadMessageIfGreater(roomId.value(), memberId.value(), messageId.value(), now) != 0;
+    }
+
+
 }

@@ -1,9 +1,10 @@
 package com.sportsify.chat.infrastructure.persistence.message;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
+import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.model.message.MessageId;
-import com.sportsify.chat.domain.repository.MessageRepo;
+import com.sportsify.chat.domain.repository.MessageRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
@@ -15,12 +16,12 @@ import java.util.stream.Collectors;
  * MessageRepository(도메인 포트) 의 JPA 어댑터 구현체.
  */
 @Repository
-public class MessageRepositoryAdaptor implements MessageRepo {
+public class MessageRepositoryAdaptor implements MessageRepository {
 
-    private final MessageJpaRepo jpaRepository;
+    private final MessageJpaRepository jpaRepository;
     private final MessageMapper mapper;
 
-    public MessageRepositoryAdaptor(MessageJpaRepo jpaRepository,
+    public MessageRepositoryAdaptor(MessageJpaRepository jpaRepository,
                                     MessageMapper mapper) {
         this.jpaRepository = jpaRepository;
         this.mapper = mapper;
@@ -48,6 +49,11 @@ public class MessageRepositoryAdaptor implements MessageRepo {
     }
 
     @Override
+    public Optional<Message> findByIdForUpdate(MessageId id) {
+        return jpaRepository.findByIdForUpdate(id.value()).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Message> findByRoomBefore(ChatRoomId roomId, Long beforeMessageId, int limit) {
         if (limit <= 0) {
             throw new IllegalArgumentException("limit must be positive");
@@ -58,6 +64,21 @@ public class MessageRepositoryAdaptor implements MessageRepo {
             rows = jpaRepository.findLatest(roomId.value(), pageable);
         } else {
             rows = jpaRepository.findBefore(roomId.value(), beforeMessageId, pageable);
+        }
+        return rows.stream().map(mapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Message> findByRoomAndMemberBefore(ChatRoomId roomId, MemberId memberId, Long beforeMessageId, int limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        PageRequest pageable = PageRequest.of(0, limit);
+        List<MessageJpaEntity> rows;
+        if (beforeMessageId == null) {
+            rows = jpaRepository.findLatestBySenderAndRoom(roomId.value(), memberId.value(), pageable);
+        } else {
+            rows = jpaRepository.findBeforeBySenderAndRoom(roomId.value(), memberId.value(), beforeMessageId, pageable);
         }
         return rows.stream().map(mapper::toDomain).collect(Collectors.toList());
     }

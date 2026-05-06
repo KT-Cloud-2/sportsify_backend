@@ -1,6 +1,9 @@
 package com.sportsify.chat.domain.model.message;
 
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
+
 import java.util.Objects;
 
 /**
@@ -15,10 +18,10 @@ public final class MessageContent {
 
     private MessageContent(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("MessageContent must not be blank");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "MessageContent must not be blank");
         }
         if (value.length() > MAX_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "MessageContent must be <= " + MAX_LENGTH + " characters but" + value.length());
         }
         this.value = value;

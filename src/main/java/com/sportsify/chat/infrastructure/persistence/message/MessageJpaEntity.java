@@ -8,9 +8,9 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "messages",
+@Table(name = "chat_messages",
         indexes = {
-                @Index(name = "idx_messages_room_id_createdAt", columnList = "room_id, id"),
+                @Index(name = "idx_messages_room_id_id", columnList = "room_id, id"),
                 @Index(name = "idx_messages_sender", columnList = "sender_id")
         })
 public class MessageJpaEntity {

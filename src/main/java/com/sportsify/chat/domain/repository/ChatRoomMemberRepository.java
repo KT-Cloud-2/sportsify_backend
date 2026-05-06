@@ -3,6 +3,8 @@ package com.sportsify.chat.domain.repository;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
+import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
+import com.sportsify.chat.domain.model.message.MessageId;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,7 +14,7 @@ import java.util.Optional;
 /**
  * ChatRoomMember Aggregate 영속화 포트
  */
-public interface ChatRoomMemberRepo {
+public interface ChatRoomMemberRepository {
 
     ChatRoomMember save(ChatRoomMember member);
 
@@ -22,7 +24,7 @@ public interface ChatRoomMemberRepo {
 
     Optional<ChatRoomMember> findByRoomAndMember(ChatRoomId roomId, MemberId memberId);
 
-    Optional<ChatRoomMember> findByRoomAndMemberWithStatus(ChatRoomId roomId, MemberId memberId, List<String> statuses);
+    Optional<ChatRoomMember> findByRoomAndMemberWithStatus(ChatRoomId roomId, MemberId memberId, List<MemberStatus> statuses);
 
 
     List<ChatRoomMember> findActiveByRoom(ChatRoomId roomId);
@@ -37,4 +39,8 @@ public interface ChatRoomMemberRepo {
     boolean existsJoinedByRoomAndMember(ChatRoomId roomId, MemberId memberId);
 
     void leaveAllMembersByRoom(ChatRoomId roomId, LocalDateTime now);
+
+    Optional<ChatRoomMember> findByRoomAndMemberForUpdate(ChatRoomId roomId, MemberId memberId);
+
+    boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, LocalDateTime now);
 }

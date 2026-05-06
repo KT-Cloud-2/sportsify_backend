@@ -1,10 +1,7 @@
 package com.sportsify.chat.infrastructure.persistence.chatRoom;
 
-import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
-import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
-import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
-import com.sportsify.chat.domain.model.chatRoom.GameId;
-import com.sportsify.chat.domain.repository.ChatRoomRepo;
+import com.sportsify.chat.domain.model.chatRoom.*;
+import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
@@ -15,12 +12,12 @@ import java.util.Optional;
  * ChatRoomRepo(도메인 포트) 의 JPA 어댑터 구현체.
  */
 @Repository
-public class ChatRoomAdaptor implements ChatRoomRepo {
+public class ChatRoomAdaptor implements ChatRoomRepository {
 
-    private final ChatRoomJpaRepo jpaRepository;
+    private final ChatRoomJpaRepository jpaRepository;
     private final ChatRoomMapper mapper;
 
-    public ChatRoomAdaptor(ChatRoomJpaRepo jpaRepository,
+    public ChatRoomAdaptor(ChatRoomJpaRepository jpaRepository,
                            ChatRoomMapper mapper) {
         this.jpaRepository = jpaRepository;
         this.mapper = mapper;
@@ -48,8 +45,13 @@ public class ChatRoomAdaptor implements ChatRoomRepo {
     }
 
     @Override
-    public Optional<ChatRoom> findByIdForUpdate(ChatRoomId id) {
-        return jpaRepository.findByIdForUpdate(id.value()).map(mapper::toDomain);
+    public Optional<ChatRoom> findByIdForUpdateWrite(ChatRoomId id) {
+        return jpaRepository.findByIdForUpdateWrite(id.value()).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<ChatRoom> findByIdForUpdateRead(ChatRoomId id) {
+        return jpaRepository.findByIdForUpdateRead(id.value()).map(mapper::toDomain);
     }
 
 
@@ -85,6 +87,11 @@ public class ChatRoomAdaptor implements ChatRoomRepo {
         List<Long> ids = roomIds.stream().map(ChatRoomId::value).toList();
         return jpaRepository.findActiveByRoomIds(ids, type.name(), cursor, PageRequest.of(0, limit))
                 .stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public boolean existByIdandStatus(ChatRoomId id, ChatRoomStatus status) {
+        return jpaRepository.existsByIdAndStatus(id.value(), status.name());
     }
 
 }

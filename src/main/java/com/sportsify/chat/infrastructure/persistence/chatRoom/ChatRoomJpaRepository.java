@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface ChatRoomJpaRepo extends JpaRepository<ChatRoomJpaEntity, Long> {
+public interface ChatRoomJpaRepository extends JpaRepository<ChatRoomJpaEntity, Long> {
 
     @Query("SELECT r FROM ChatRoomJpaEntity r " +
             "WHERE r.gameId = :gameId " +
@@ -33,7 +33,11 @@ public interface ChatRoomJpaRepo extends JpaRepository<ChatRoomJpaEntity, Long> 
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM ChatRoomJpaEntity r WHERE r.id = :id")
-    Optional<ChatRoomJpaEntity> findByIdForUpdate(@Param("id") Long id);
+    Optional<ChatRoomJpaEntity> findByIdForUpdateWrite(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("SELECT r FROM ChatRoomJpaEntity r WHERE r.id = :id")
+    Optional<ChatRoomJpaEntity> findByIdForUpdateRead(@Param("id") Long id);
 
     @Query("SELECT r FROM ChatRoomJpaEntity r " +
             "WHERE r.id IN :roomIds " +
@@ -47,4 +51,6 @@ public interface ChatRoomJpaRepo extends JpaRepository<ChatRoomJpaEntity, Long> 
             @Param("cursor") Long cursor,
             Pageable pageable
     );
+
+    boolean existsByIdAndStatus(Long id, String status);
 }

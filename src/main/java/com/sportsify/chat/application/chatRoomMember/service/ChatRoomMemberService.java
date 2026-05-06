@@ -4,8 +4,8 @@ import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberResponse;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
-import com.sportsify.chat.domain.repository.ChatRoomMemberRepo;
-import com.sportsify.chat.domain.repository.ChatRoomRepo;
+import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
+import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
@@ -23,8 +23,8 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class ChatRoomMemberService {
-    private final ChatRoomRepo chatRoomRepo;
-    private final ChatRoomMemberRepo chatRoomMemberRepo;
+    private final ChatRoomRepository chatRoomRepo;
+    private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final AdvisoryLockAdaptor advisoryLockAdaptor;
 
@@ -34,7 +34,7 @@ public class ChatRoomMemberService {
     @Transactional
     public ChatRoomMemberResponse join(Long roomId, Long memberId) {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<MemberStatus> accessStatuses = List.of(MemberStatus.JOINED, MemberStatus.INVITED, MemberStatus.BANNED, MemberStatus.LEFT);
+        List<MemberStatus> accessStatuses = List.of(MemberStatus.JOINED, MemberStatus.INVITED, MemberStatus.BANNED, MemberStatus.LEFT, MemberStatus.DELETED);
         ChatRoom room = findChatRoomWithId(roomId);
         MemberId id = MemberId.of(memberId);
         String locKey = AdvisoryLockKeys.directRoomCreationForMemberJoin(room.getId(), id);
@@ -72,9 +72,13 @@ public class ChatRoomMemberService {
      */
     @Transactional
     public ChatRoomMemberResponse leave(Long roomId, Long memberId) {
+        ChatRoomId chatRoomId = ChatRoomId.of(roomId);
+        if (chatRoomRepo.findById(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value())).getStatus().equals(ChatRoomStatus.ACTIVE)) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Archived room");
+        }
         LocalDateTime now = LocalDateTime.now(clock);
         List<MemberStatus> accessStatuses = List.of(MemberStatus.JOINED, MemberStatus.LEFT, MemberStatus.BANNED);
-        ChatRoomMember member = findMemberWithStatus(ChatRoomId.of(roomId), memberId, accessStatuses)
+        ChatRoomMember member = findMemberWithStatus(chatRoomId, memberId, accessStatuses)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find this user: " + memberId));
         return switch (member.getStatus()) {
             case LEFT -> throw new BusinessException(ErrorCode.CONFLICT, "Already left room");
@@ -174,7 +178,7 @@ public class ChatRoomMemberService {
 
     private Optional<ChatRoomMember> findMemberWithStatus(ChatRoomId roomId, Long memberId, List<MemberStatus> statuses) {
         MemberId id = MemberId.of(memberId);
-        return chatRoomMemberRepo.findByRoomAndMemberWithStatus(roomId, id, statuses.stream().map(MemberStatus::name).toList());
+        return chatRoomMemberRepo.findByRoomAndMemberWithStatus(roomId, id, statuses);
 
     }
 
@@ -183,6 +187,9 @@ public class ChatRoomMemberService {
         Optional<ChatRoom> room = chatRoomRepo.findById(chatroomId);
         if (room.isEmpty() || room.get().getStatus().equals(ChatRoomStatus.DELETED)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find this room " + roomId);
+        }
+        if (room.get().getStatus().equals(ChatRoomStatus.ACTIVE)) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Archived room");
         }
         return room.get();
     }

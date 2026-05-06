@@ -3,9 +3,14 @@ package com.sportsify.chat.domain.model.message;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
+import com.sportsify.chat.domain.model.message.event.DomainEvent;
+import com.sportsify.chat.domain.model.message.event.MessageDeleteEvent;
+import com.sportsify.chat.domain.model.message.event.MessageSentEvent;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -18,8 +23,9 @@ public class Message {
     private final MemberId senderId;
     private final MessageType type; //TEXT, IMAGE, FILE, SYSTEM
     private final LocalDateTime createdAt;
+    private final List<DomainEvent> domainEvents = new ArrayList<>();
+    private final MessageContent content;
     private MessageId id;
-    private MessageContent content;
     private MessageStatus status;   // ACTIVE, DELETED
 
     private Message(MessageId id,
@@ -46,7 +52,9 @@ public class Message {
                                MessageContent content,
                                MessageType type,
                                LocalDateTime now) {
-        return new Message(null, roomId, senderId, content, type, MessageStatus.ACTIVE, now);
+        Message msg = new Message(null, roomId, senderId, content, type, MessageStatus.ACTIVE, now);
+        msg.domainEvents.add(MessageSentEvent.from(msg, now));
+        return msg;
     }
 
     /**
@@ -74,6 +82,12 @@ public class Message {
         return new Message(id, roomId, senderId, content, type, status, createdAt);
     }
 
+    public List<DomainEvent> pullDomainEvents() {
+        List<DomainEvent> events = List.copyOf(domainEvents);
+        domainEvents.clear();
+        return events;
+    }
+
     /**
      * id 저장
      */
@@ -87,7 +101,7 @@ public class Message {
     /**
      * 메시지를 논리 삭제
      */
-    public void softDelete(MemberId senderId) {
+    public void softDelete(MemberId senderId, LocalDateTime now) {
         Objects.requireNonNull(senderId, "senderId");
         if (!senderId.equals(this.senderId)) {
             throw new IllegalStateException("Cannot delete message because senderId does not match");
@@ -96,24 +110,10 @@ public class Message {
             return;
         }
         this.status = MessageStatus.DELETED;
+        this.domainEvents.add(MessageDeleteEvent.from(this, now));
     }
 
-    /**
-     * 본문 수정
-     */
-    public void edit(MessageContent newContent, MemberId senderId) {
-        if (!senderId.equals(this.senderId)) {
-            throw new IllegalStateException("Cannot edit message because senderId does not match");
-        }
-        if (this.type == MessageType.SYSTEM) {
-            throw new IllegalStateException("System message cannot be edited");
-        }
-        if (this.status == MessageStatus.DELETED) {
-            throw new IllegalStateException("Deleted message cannot be edited");
-        }
-        Objects.requireNonNull(newContent, "newContent");
-        this.content = newContent;
-    }
+
 
     /* -------------------- 상태값 체크 -------------------- */
 

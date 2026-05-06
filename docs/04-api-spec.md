@@ -1530,21 +1530,24 @@ POST /api/payments/{paymentId}/refund
 
 ### 엔드포인트 목록
 
-| method | path                                  | auth required | 설명                    |
-|--------|---------------------------------------|---------------|-----------------------|
-| POST   | /api/chat/create                      | O             | 채팅방 생성                |
-| GET    | /api/chat/rooms                       | O             | 내 채팅방 목록 조회           |
-| GET    | /api/chat/rooms/game/{gameId}         | N             | 게임별 채팅방 조회            |
-| GET    | /api/chat/rooms/{roomId}              | O/N           | 채팅방 상세 조회             |
-| PATCH  | /api/chat/rooms/{roomId}              | O             | 채팅방 정보 수정             |
-| POST   | /api/chat/rooms/{roomId}/join         | O             | 채팅방 입장                |
-| POST   | /api/chat/rooms/{roomId}/leave        | O             | 채팅방 상세 나가기            |
-| POST   | /api/chat/rooms/{roomId}/invite       | O             | 채팅방 상세 초대             |
-| PATCH  | /api/chat/rooms/{roomId}/notification | O             | 채팅방 알림 설정 변경          |
-| GET    | /api/chat/history/{roomId}            | O             | 채팅 이력 조회              |
-| WS     | /ws/chat (STOMP)                      | O/N           | WebSocket 연결 / 메시지 전송 |
-| DELETE | /api/chat/messages/{messageId}        | O             | 메시지 삭제                |
-| POST   | /api/chat/message/upload              | O             | 메시지 첨부 파일 업로드         |
+| method | path                                       | auth required | 설명                    |
+|--------|--------------------------------------------|---------------|-----------------------|
+| POST   | /api/chat/create                           | O             | 채팅방 생성                |
+| GET    | /api/chat/rooms                            | O             | 내 채팅방 목록 조회           |
+| GET    | /api/chat/rooms/game/{gameId}              | N             | 게임별 채팅방 조회            |
+| GET    | /api/chat/rooms/{roomId}                   | O/N           | 채팅방 상세 조회             |
+| PATCH  | /api/chat/rooms/{roomId}                   | O             | 채팅방 정보 수정             |
+| DELETE | /api/chat/rooms/{roomId}                   | O             | 채팅방 삭제                |
+| POST   | /api/chat/rooms/{roomId}/join              | O             | 채팅방 입장                |
+| POST   | /api/chat/rooms/{roomId}/leave             | O             | 채팅방 상세 나가기            |
+| POST   | /api/chat/rooms/{roomId}/invite            | O             | 채팅방 상세 초대             |
+| PATCH  | /api/chat/rooms/{roomId}/notification      | O             | 채팅방 알림 설정 변경          |
+| POST   | /api/chat/rooms/{roomId}/ban               | O             | 채팅방 멤버 ban            |
+| GET    | /api/chat/messages/history/{roomId}        | O             | 채팅 이력 조회              |
+| WS     | /ws/chat (STOMP)                           | O/N           | WebSocket 연결 / 메시지 전송 |
+| DELETE | /api/chat/messages/{messageId}             | O             | 메시지 삭제                |
+| GET    | /api/chat/messages/getMessages/{messageId} | O             | 메시지 삭제                |
+| POST   | /api/chat/message/upload                   | O             | 메시지 첨부 파일 업로드         |
 
 ---
 
@@ -1851,7 +1854,38 @@ Validation / Business Rules
 
 ---
 
-### 5-6. 채팅방 입장
+### 5-6. 채팅방 삭제
+
+```
+DELETE /api/chat/rooms/{roomId}
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터     | 타입   | 필수 | 설명     |
+|----------|------|----|--------|
+| `roomId` | Long | Y  | 채팅방 ID |
+
+Response Body
+
+```
+""
+```
+
+Response Field
+
+void
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 채팅방의 생성자 멤버만 가능.
+- 변경 후 `chat.room.delete` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+
+---
+
+### 5-7. 채팅방 입장
 
 ```
 POST /api/chat/rooms/{roomId}/join
@@ -1899,7 +1933,7 @@ Validation / Business Rules
 
 ---
 
-### 5-7. 채팅방 나가기
+### 5-8. 채팅방 나가기
 
 ```
 POST /api/chat/rooms/{roomId}/leave
@@ -1945,7 +1979,7 @@ Validation / Business Rules
 
 ---
 
-### 5-8. 참여자 초대
+### 5-9. 참여자 초대
 
 ```
 POST /api/chat/rooms/{roomId}/invite
@@ -1961,38 +1995,29 @@ Path Parameter
 
 Request Body
 
-| 필드           | 타입     | 필수 | 설명                    |
-|--------------|--------|----|-----------------------|
-| `inviteeIds` | Long[] | Y  | 초대할 사용자 ID 목록 (1~50명) |
+| 필드          | 타입   | 필수 | 설명         |
+|-------------|------|----|------------|
+| `inviteeId` | Long | Y  | 초대할 사용자 ID |
 
 Response Body
 
 ```
 {
-  "success": true,
-  "data": {
-    "invited": [
-      { "memberId": 12, "status": "INVITED" },
-      { "memberId": 13, "status": "INVITED" }
-    ],
-    "skipped": [
-      { "memberId": 14, "reason": "ALREADY_JOINED" }
-    ]
-  }
+  "roomId": 24,
+  "memberId": 466,
+  "status": "INVITED",
+  "joinedAt: "2026-04-27T14:22:15Z"
 }
 ```
 
 Response Field
 
-| 필드          | 타입       | 설명                      |
-|-------------|----------|-------------------------|
-| `success`   | String   | 성공여부                    |
-| `memberId`  | Long     | 사용자 ID                  |
-| `invited`   | List     | 초대된 사용자 그룹              |
-| `status`    | String   | 사용자의 채팅방에서의 현 상태        |
-| `updatedAt` | DateTime | 사용자의 채팅방에서의 마지막 업데이트 날짜 |
-| `skipped`   | List     | 초대되지 못한 사용자 그룹          |
-| `reason`    | String   | 초대되지 못한 이유              |
+| 필드         | 타입       | 설명               |
+|------------|----------|------------------|
+| `roomId`   | Long     | 채팅방 ID           |
+| `memberId` | Long     | 사용자 ID           |
+| `status`   | String   | 사용자의 채팅방에서의 현 상태 |
+| `joinedAt` | DateTime | 사용자의 채팅방에서의 참가일  |
 
 Validation / Business Rules
 
@@ -2003,7 +2028,7 @@ Validation / Business Rules
 
 ---
 
-### 5-9. 알림 설정 변경
+### 5-10. 알림 설정 변경
 
 ```
 PATCH /api/chat/rooms/{roomId}/notification
@@ -2052,10 +2077,56 @@ Validation / Business Rules
 
 ---
 
-### 5-10. 채팅 이력 조회
+### 5-11. 채팅방 멤버 ban
 
 ```
-GET /api/chat/history/{roomId}
+POST /api/chat/rooms/{roomId}/ban
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터     | 타입   | 필수 | 설명     |
+|----------|------|----|--------|
+| `roomId` | Long | Y  | 채팅방 ID |
+
+Request Parameter
+
+| 필드         | 타입   | 필수 | 설명             |
+|------------|------|----|----------------|
+| `targetId` | Long | Y  | ban할 채팅방 멤버 ID |
+
+Response Body
+
+```
+{
+    "roomId": 201,
+    "memberId": 9,
+    "status": "BANNED",
+    "updatedAt": "2026-04-27T15:20:00Z"
+}
+```
+
+Response Field
+
+| 필드          | 타입       | 설명                      |
+|-------------|----------|-------------------------|
+| `roomId`    | Long     | 채팅방 ID                  |
+| `memberId`  | Long     | 채팅방 멤버 ID               |
+| `status`    | String   | 사용자의 채팅방에서의 상태          |
+| `updatedAt` | DateTime | 사용자의 채팅방에서의 마지막 업데이트 날짜 |
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 활성 멤버만 가능.
+
+---
+
+### 5-12. 채팅 이력 조회
+
+```
+GET /api/chat/messages/history/{roomId}
 ```
 
 Auth Required: **O**
@@ -2070,7 +2141,7 @@ Query Parameter
 
 | 파라미터     | 타입      | 필수 | 설명                                    |
 |----------|---------|----|---------------------------------------|
-| `before` | Long    | N  | 이 메시지 ID 보다 과거의 것만 조회. 미지정 시 최신 메시지부터 |
+| `cursor` | Long    | N  | 이 메시지 ID 보다 과거의 것만 조회. 미지정 시 최신 메시지부터 |
 | `limit`  | Integer | N  | 페이지 크기 (기본 30, 최대 100)                |
 
 Response Body
@@ -2099,7 +2170,8 @@ Response Body
       }
     ],
     "nextCursor": 9980,
-    "hasNext": true
+    "hasNext": true,
+    "totalCount": 200
   }
 }
 ```
@@ -2117,6 +2189,7 @@ Response Field
 | `createdAt`  | DateTime     | 생성 시각                                |
 | `nextCursor` | Long \| null | 다음 페이지 커서                            |
 | `hasNext`    | Boolean      | 다음 페이지 존재 여부                         |
+| `totalCount` | int          | 검색된 item 수                           |
 
 Validation / Business Rules
 
@@ -2127,9 +2200,9 @@ Validation / Business Rules
 
 ---
 
-### 5-11. WebSocket (STOMP)
+### 5-13. WebSocket (STOMP)
 
-### 5-11-1. 연결 (CONNECT)
+### 5-13-1. 연결 (CONNECT)
 
 ```
 WS  /ws/chat   (STOMP over WebSocket, SockJS fallback 지원)
@@ -2158,7 +2231,7 @@ CONNECT 헤더
 }
 ```
 
-### 5-11-2. 구독 destination (SUBSCRIBE)
+### 5-13-2. 구독 destination (SUBSCRIBE)
 
 | Destination                      | 설명                                 |
 |----------------------------------|------------------------------------|
@@ -2170,9 +2243,9 @@ CONNECT 헤더
 
 구독 시점에 서버가 `roomId` 에 대한 멤버 권한을 검증한다. 비멤버가 비공개 방을 구독하면 `ERROR` 프레임 반환.
 
-### 5-11-3. 발신 destination (SEND)
+### 5-13-3. 발신 destination (SEND)
 
-#### 5-11-3-1. 메시지 전송
+#### 5-13-3-1. 메시지 전송
 
 ```
 SEND  /app/chat.send
@@ -2241,7 +2314,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-11-3-2. 읽음 상태 갱신
+#### 5-13-3-2. 읽음 상태 갱신
 
 ```
 SEND  /app/chat.read
@@ -2287,7 +2360,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-11-3-3. 타이핑 인디케이터
+#### 5-13-3-3. 타이핑 인디케이터
 
 ```
 SEND  /app/chat.typing
@@ -2326,7 +2399,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-11-3-4. 서버 발신 이벤트 종류 (`/topic/rooms/{roomId}` 구독자에게 푸시)
+#### 5-13-3-4. 서버 발신 이벤트 종류 (`/topic/rooms/{roomId}` 구독자에게 푸시)
 
 | event             | 발생 시점       | 페이로드 핵심 필드                                              |
 |-------------------|-------------|---------------------------------------------------------|
@@ -2352,7 +2425,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-11-3-5. DISCONNECT
+#### 5-13-3-5. DISCONNECT
 
 - STOMP `DISCONNECT` 또는 TCP 연결 종료 시 서버는 다음을 수행한다:
     - in-memory `userId ↔ session` 매핑에서 해당 sessionId 제거.
@@ -2365,7 +2438,7 @@ Validation / Business Rules
 
 ---
 
-### 5-12. 메시지 삭제
+### 5-14. 메시지 삭제
 
 ```
 DELETE /api/chat/messages/{messageId}
@@ -2383,13 +2456,12 @@ Response Body
 
 ```
 {
-  "success": true,
-  "data": {
+
     "messageId": 9981,
     "roomId": 201,
     "status": "DELETED",
     "updatedAt": "2026-04-27T15:30:00Z"
-  }
+
 }
 ```
 
@@ -2402,7 +2474,81 @@ Validation / Business Rules
 
 ---
 
-### 5-13. 메시지 첨부 파일 업로드
+### 5-15. 채팅방 메시지 조회
+
+```
+GET /api/chat/messages/getMessages/{roomId}
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터     | 타입   | 필수 | 설명     |
+|----------|------|----|--------|
+| `roomId` | Long | Y  | 채팅방 ID |
+
+Query Parameter
+
+| 파라미터     | 타입      | 필수 | 설명                                    |
+|----------|---------|----|---------------------------------------|
+| `cursor` | Long    | N  | 이 메시지 ID 보다 과거의 것만 조회. 미지정 시 최신 메시지부터 |
+| `limit`  | Integer | N  | 페이지 크기 (기본 30, 최대 100)                |
+
+Response Body
+
+```
+{
+
+    "items": [
+      {
+        "messageId": 9981,
+        "roomId": 201,
+        "type": "TEXT",
+        "content": "방금 홈런!!",
+        "status": "ACTIVE",
+        "createdAt": "2026-04-27T14:22:15Z"
+      },
+      {
+        "messageId": 9980,
+        "roomId": 201,
+        "type": "IMAGE",
+        "content": "https://cdn.example.com/chat/9980.png",
+        "status": "ACTIVE",
+        "createdAt": "2026-04-27T14:21:00Z"
+      }
+    ],
+    "nextCursor": 9980,
+    "hasNext": true
+  
+}
+```
+
+Response Field
+
+| 필드           | 타입           | 설명                                   |
+|--------------|--------------|--------------------------------------|
+| `messageId`  | Long         | 메시지 ID                               |
+| `roomId`     | Long         | 채팅방 ID                               |
+| `senderId`   | Long         | 발신자 ID (시스템 메시지는 0)                  |
+| `type`       | String       | `TEXT` / `IMAGE` / `FILE` / `SYSTEM` |
+| `content`    | String       | 텍스트 본문 또는 파일 URL                     |
+| `status`     | String       | `ACTIVE` / `DELETED`                 |
+| `createdAt`  | DateTime     | 생성 시각                                |
+| `nextCursor` | Long \| null | 다음 페이지 커서                            |
+| `hasNext`    | Boolean      | 다음 페이지 존재 여부                         |
+| `totalCount` | int          | 검색된 item 수                           |
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 방의 멤버 (`DM`/`GROUP` 비공개 방의 경우)만 조회 가능.
+- `GAME`  공개 방은 비멤버도 조회 가능하도록 옵션 가능 (정책에 따라 결정).
+- 정렬: `messageId DESC` (최신순).
+- `DELETED` 메시지는 `content` 가 `"[삭제된 메시지입니다]"` 로 마스킹되어 반환.
+
+---
+
+### 5-16. 메시지 첨부 파일 업로드
 
 ```
 POST /api/chat/messages/upload
@@ -2773,64 +2919,74 @@ GET /api/notifications/history
 
 ## 부록 A. 전체 엔드포인트 요약
 
-| method | path                                             | auth required | 설명                       |
-|--------|--------------------------------------------------|---------------|--------------------------|
-| GET    | /oauth2/authorization/{registrationId}           | N             | 소셜 로그인 (Google / Kakao)  |
-| GET    | /oauth2/callback                                 | N             | 소셜 로그인 콜백 (토큰 발급)        |
-| POST   | /api/auth/token/refresh                          | N             | 액세스 토큰 갱신                |
-| POST   | /api/auth/logout                                 | O             | 로그아웃                     |
-| GET    | /api/members/me                                  | O             | 내 정보 조회                  |
-| PATCH  | /api/members/me/nickname                         | O             | 내 정보 수정 (닉네임)            |
-| DELETE | /api/members/me                                  | O             | 회원 탈퇴                    |
-| POST   | /api/members/me/favorite-teams                   | O             | 선호 팀 추가                  |
-| GET    | /api/members/me/favorite-teams                   | O             | 선호 팀 목록 조회               |
-| PATCH  | /api/members/me/favorite-teams/{teamId}/priority | O             | 선호 팀 우선순위 수정             |
-| DELETE | /api/members/me/favorite-teams/{teamId}          | O             | 선호 팀 삭제                  |
-| GET    | /api/members/me/activity/monthly                 | O             | 월별 응원 활동 통계              |
-| GET    | /api/teams                                       | N             | 팀 목록 조회                  |
-| GET    | /api/teams/{teamId}                              | N             | 팀 상세 조회                  |
-| GET    | /api/games                                       | N             | 경기 목록 조회                 |
-| GET    | /api/games/{gameId}                              | N             | 경기 상세 조회                 |
-| GET    | /api/games/{gameId}/seats                        | N             | 좌석 목록 조회                 |
-| GET    | /api/tickets                                     | O             | 내 예매 내역 조회               |
-| GET    | /api/tickets/{ticketId}                          | O             | 예매 상세 조회                 |
-| POST   | /api/tickets/reserve                             | O             | 티켓 예매 (좌석 선점)            |
-| POST   | /api/tickets/queue/enter                         | O             | 대기열 입장                   |
-| GET    | /api/tickets/queue/position                      | O             | 대기열 순번 조회 (폴링)           |
-| GET    | /api/tickets/queue/sse                           | O             | 대기열 순번 SSE 스트리밍          |
-| DELETE | /api/tickets/queue/leave                         | O             | 대기열 명시적 이탈               |
-| POST   | /api/tickets/{ticketId}/cancel                   | O             | 티켓 취소                    |
-| POST   | /api/payments/request                            | O             | 결제 요청 등록                 |
-| POST   | /api/payments/verify                             | O             | 결제 검증                    |
-| POST   | /api/payments/webhook                            | N             | PG Webhook 수신            |
-| GET    | /api/payments                                    | O             | 내 결제 내역 조회               |
-| GET    | /api/payments/{paymentId}                        | O             | 결제 상세 조회                 |
-| POST   | /api/payments/{paymentId}/refund                 | O             | 환불 요청                    |
-| GET    | /api/chat/rooms                                  | O             | 내가 참여한 채팅방 목록 조회         |
-| GET    | /api/chat/rooms/public                           | N             | 공개 채팅방 목록 조회 (GAME/TEAM) |
-| GET    | /api/chat/rooms/team/{teamName}                  | N             | 팀별 채팅방 조회                |
-| WS     | /ws/chat (STOMP)                                 | O             | WebSocket 연결 / 메시지 전송    |
-| GET    | /api/chat/intensity/{gameId}                     | N             | 응원 열기 지수 조회              |
-| GET    | /api/chat/history/{roomId}                       | O             | 채팅 이력 조회                 |
-| GET    | /api/notifications/settings                      | O             | 알림 설정 조회                 |
-| PUT    | /api/notifications/settings                      | O             | 알림 설정 변경                 |
-| GET    | /api/notifications/channels                      | O             | 알림 채널 목록 조회              |
-| POST   | /api/notifications/channels                      | O             | 알림 채널 추가                 |
-| PUT    | /api/notifications/channels/{channel}            | O             | 알림 채널 수정                 |
-| DELETE | /api/notifications/channels/{channel}            | O             | 알림 채널 삭제                 |
-| GET    | /api/notifications/history                       | O             | 알림 발송 이력 조회              |
-| POST   | /api/admin/teams                                 | O (ADMIN)     | 팀 등록                     |
-| PUT    | /api/admin/teams/{teamId}                        | O (ADMIN)     | 팀 수정                     |
-| DELETE | /api/admin/teams/{teamId}                        | O (ADMIN)     | 팀 비활성화                   |
-| POST   | /api/admin/games                                 | O (ADMIN)     | 경기 등록                    |
-| PUT    | /api/admin/games/{gameId}                        | O (ADMIN)     | 경기 수정                    |
-| PATCH  | /api/admin/games/{gameId}/status                 | O (ADMIN)     | 경기 상태 변경                 |
-| DELETE | /api/admin/games/{gameId}                        | O (ADMIN)     | 경기 삭제 (soft delete)      |
-| POST   | /api/admin/games/{gameId}/seats/bulk             | O (ADMIN)     | 좌석 일괄 생성                 |
-| PATCH  | /api/admin/games/{gameId}/seats/price            | O (ADMIN)     | 좌석 등급 가격 수정              |
-| PATCH  | /api/admin/games/{gameId}/seats/{seatId}/status  | O (ADMIN)     | 좌석 상태 수동 변경              |
-| POST   | /api/admin/chat/rooms                            | O (ADMIN)     | 채팅방 생성                   |
-| POST   | /api/admin/notifications/dlq/retry               | O (ADMIN)     | DLQ 알림 재처리               |
+| method | path                                             | auth required | 설명                      |
+|--------|--------------------------------------------------|---------------|-------------------------|
+| GET    | /oauth2/authorization/{registrationId}           | N             | 소셜 로그인 (Google / Kakao) |
+| GET    | /oauth2/callback                                 | N             | 소셜 로그인 콜백 (토큰 발급)       |
+| POST   | /api/auth/token/refresh                          | N             | 액세스 토큰 갱신               |
+| POST   | /api/auth/logout                                 | O             | 로그아웃                    |
+| GET    | /api/members/me                                  | O             | 내 정보 조회                 |
+| PATCH  | /api/members/me/nickname                         | O             | 내 정보 수정 (닉네임)           |
+| DELETE | /api/members/me                                  | O             | 회원 탈퇴                   |
+| POST   | /api/members/me/favorite-teams                   | O             | 선호 팀 추가                 |
+| GET    | /api/members/me/favorite-teams                   | O             | 선호 팀 목록 조회              |
+| PATCH  | /api/members/me/favorite-teams/{teamId}/priority | O             | 선호 팀 우선순위 수정            |
+| DELETE | /api/members/me/favorite-teams/{teamId}          | O             | 선호 팀 삭제                 |
+| GET    | /api/members/me/activity/monthly                 | O             | 월별 응원 활동 통계             |
+| GET    | /api/teams                                       | N             | 팀 목록 조회                 |
+| GET    | /api/teams/{teamId}                              | N             | 팀 상세 조회                 |
+| GET    | /api/games                                       | N             | 경기 목록 조회                |
+| GET    | /api/games/{gameId}                              | N             | 경기 상세 조회                |
+| GET    | /api/games/{gameId}/seats                        | N             | 좌석 목록 조회                |
+| GET    | /api/tickets                                     | O             | 내 예매 내역 조회              |
+| GET    | /api/tickets/{ticketId}                          | O             | 예매 상세 조회                |
+| POST   | /api/tickets/reserve                             | O             | 티켓 예매 (좌석 선점)           |
+| POST   | /api/tickets/queue/enter                         | O             | 대기열 입장                  |
+| GET    | /api/tickets/queue/position                      | O             | 대기열 순번 조회 (폴링)          |
+| GET    | /api/tickets/queue/sse                           | O             | 대기열 순번 SSE 스트리밍         |
+| DELETE | /api/tickets/queue/leave                         | O             | 대기열 명시적 이탈              |
+| POST   | /api/tickets/{ticketId}/cancel                   | O             | 티켓 취소                   |
+| POST   | /api/payments/request                            | O             | 결제 요청 등록                |
+| POST   | /api/payments/verify                             | O             | 결제 검증                   |
+| POST   | /api/payments/webhook                            | N             | PG Webhook 수신           |
+| GET    | /api/payments                                    | O             | 내 결제 내역 조회              |
+| GET    | /api/payments/{paymentId}                        | O             | 결제 상세 조회                |
+| POST   | /api/payments/{paymentId}/refund                 | O             | 환불 요청                   |
+| POST   | /api/chat/create                                 | O             | 채팅방 생성                  |
+| GET    | /api/chat/rooms                                  | O             | 내 채팅방 목록 조회             |
+| GET    | /api/chat/rooms/game/{gameId}                    | N             | 게임별 채팅방 조회              |
+| GET    | /api/chat/rooms/{roomId}                         | O/N           | 채팅방 상세 조회               |
+| PATCH  | /api/chat/rooms/{roomId}                         | O             | 채팅방 정보 수정               |
+| DELETE | /api/chat/rooms/{roomId}                         | O             | 채팅방 삭제                  |
+| POST   | /api/chat/rooms/{roomId}/join                    | O             | 채팅방 입장                  |
+| POST   | /api/chat/rooms/{roomId}/leave                   | O             | 채팅방 상세 나가기              |
+| POST   | /api/chat/rooms/{roomId}/invite                  | O             | 채팅방 상세 초대               |
+| PATCH  | /api/chat/rooms/{roomId}/notification            | O             | 채팅방 알림 설정 변경            |
+| POST   | /api/chat/rooms/{roomId}/ban                     | O             | 채팅방 멤버 ban              |
+| GET    | /api/chat/messages/history/{roomId}              | O             | 채팅 이력 조회                |
+| WS     | /ws/chat (STOMP)                                 | O/N           | WebSocket 연결 / 메시지 전송   |
+| DELETE | /api/chat/messages/{messageId}                   | O             | 메시지 삭제                  |
+| GET    | /api/chat/messages/getMessages/{messageId}       | O             | 메시지 삭제                  |
+| POST   | /api/chat/message/upload                         | O             | 메시지 첨부 파일 업로드           |
+| GET    | /api/notifications/settings                      | O             | 알림 설정 조회                |
+| PUT    | /api/notifications/settings                      | O             | 알림 설정 변경                |
+| GET    | /api/notifications/channels                      | O             | 알림 채널 목록 조회             |
+| POST   | /api/notifications/channels                      | O             | 알림 채널 추가                |
+| PUT    | /api/notifications/channels/{channel}            | O             | 알림 채널 수정                |
+| DELETE | /api/notifications/channels/{channel}            | O             | 알림 채널 삭제                |
+| GET    | /api/notifications/history                       | O             | 알림 발송 이력 조회             |
+| POST   | /api/admin/teams                                 | O (ADMIN)     | 팀 등록                    |
+| PUT    | /api/admin/teams/{teamId}                        | O (ADMIN)     | 팀 수정                    |
+| DELETE | /api/admin/teams/{teamId}                        | O (ADMIN)     | 팀 비활성화                  |
+| POST   | /api/admin/games                                 | O (ADMIN)     | 경기 등록                   |
+| PUT    | /api/admin/games/{gameId}                        | O (ADMIN)     | 경기 수정                   |
+| PATCH  | /api/admin/games/{gameId}/status                 | O (ADMIN)     | 경기 상태 변경                |
+| DELETE | /api/admin/games/{gameId}                        | O (ADMIN)     | 경기 삭제 (soft delete)     |
+| POST   | /api/admin/games/{gameId}/seats/bulk             | O (ADMIN)     | 좌석 일괄 생성                |
+| PATCH  | /api/admin/games/{gameId}/seats/price            | O (ADMIN)     | 좌석 등급 가격 수정             |
+| PATCH  | /api/admin/games/{gameId}/seats/{seatId}/status  | O (ADMIN)     | 좌석 상태 수동 변경             |
+| POST   | /api/admin/chat/rooms                            | O (ADMIN)     | 채팅방 생성                  |
+| POST   | /api/admin/notifications/dlq/retry               | O (ADMIN)     | DLQ 알림 재처리              |
 
 ---
 

@@ -1,5 +1,8 @@
 package com.sportsify.chat.domain.model.message;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
+
 import java.util.Objects;
 
 
@@ -13,7 +16,7 @@ public final class MessageId {
 
     private MessageId(Long value) {
         if (value == null || value <= 0L) {
-            throw new IllegalArgumentException("MessageId must be positive");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "MessageId must be positive");
         }
         this.value = value;
     }

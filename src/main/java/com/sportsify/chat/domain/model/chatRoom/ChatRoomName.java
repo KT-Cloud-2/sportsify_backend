@@ -1,6 +1,9 @@
 package com.sportsify.chat.domain.model.chatRoom;
 
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
+
 import java.util.Objects;
 
 /**
@@ -15,11 +18,11 @@ public final class ChatRoomName {
 
     private ChatRoomName(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("ChatRoomName must not be blank");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "ChatRoomName must not be blank");
         }
         String trimmed = value.trim();
         if (trimmed.length() > MAX_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "ChatRoomName must be <= " + MAX_LENGTH +
                             " characters but " + trimmed.length());
         }
