@@ -13,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@Tag(name = "Auth", description = "인증 API (토큰 갱신, 로그아웃)")
+@Tag(name = "인증", description = "인증 API (토큰 갱신, 로그아웃)")
 public interface AuthApi {
 
     @SwaggerApi(

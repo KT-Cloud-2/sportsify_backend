@@ -1,6 +1,5 @@
 package com.sportsify.member.presentation.api;
 
-import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.swagger.AuthRequiredApi;
 import com.sportsify.common.swagger.CommonApiResponses;
 import com.sportsify.common.swagger.SwaggerApi;
@@ -15,7 +14,7 @@ import java.util.List;
 
 import static com.sportsify.common.exception.ErrorCode.*;
 
-@Tag(name = "Member", description = "회원 정보 API")
+@Tag(name = "회원", description = "회원 정보 API")
 @AuthRequiredApi
 @CommonApiResponses
 public interface MemberApi {
@@ -31,9 +30,11 @@ public interface MemberApi {
             @RequestBody UpdateNicknameRequest request
     );
 
-    @SwaggerApi(summary = "회원 탈퇴", description = "회원 상태를 WITHDRAWN으로 변경합니다.",
+    @SwaggerApi(
+            summary = "회원 탈퇴", description = "회원 상태를 WITHDRAWN으로 변경합니다.",
             responseCode = "204", responseDescription = "성공 (본문 없음)",
-            error = MEMBER_NOT_FOUND)
+            error = MEMBER_NOT_FOUND
+    )
     ResponseEntity<Void> withdraw(Long memberId);
 
     @SwaggerApi(summary = "선호 팀 추가",

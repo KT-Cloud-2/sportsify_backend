@@ -81,15 +81,15 @@ management:
 springdoc:
   api-docs:
     enabled: true
+  swagger-ui:
+    tags-sorter: alpha
 
-# MQTT — 구현 시 활성화
-#mqtt:
-#  broker:
-#    url: tcp://localhost:1883
-#  client:
-#    id: sportsify-local
-#  username: local
-#  password: local
+mqtt:
+  enabled: false
+  broker-url: tcp://localhost:1883
+  client-id: sportsify-local
+  username: ""
+  password: ""
 
 logging:
   level:
