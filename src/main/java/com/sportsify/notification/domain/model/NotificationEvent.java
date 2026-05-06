@@ -53,5 +53,6 @@ public class NotificationEvent {
 
     public void markFailed() {
         this.status = NotificationEventStatus.FAILED;
+        this.publishedAt = LocalDateTime.now();
     }
 }

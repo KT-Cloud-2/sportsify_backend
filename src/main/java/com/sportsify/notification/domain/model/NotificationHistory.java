@@ -25,7 +25,7 @@ public class NotificationHistory {
     private NotificationChannelType channelType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(nullable = false)
     private NotificationSendStatus status;
 
     @Column(name = "error_message")
