@@ -17,13 +17,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationEventRepository eventRepository;
     private final SseEmitterManager sseEmitterManager;
 
+    @Transactional(readOnly = true)
     public Page<NotificationResult> getNotifications(Long memberId, Pageable pageable) {
         return notificationRepository.findByMemberIdOrderByCreatedAtDesc(memberId, pageable)
                 .map(n -> {

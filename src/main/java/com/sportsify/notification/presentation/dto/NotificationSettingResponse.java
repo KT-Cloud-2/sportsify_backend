@@ -5,13 +5,15 @@ import com.sportsify.notification.application.dto.NotificationSettingResult;
 public record NotificationSettingResponse(
         boolean ticketOpenAlert,
         boolean gameStartAlert,
-        boolean paymentAlert
+        boolean paymentAlert,
+        boolean chatMentionAlert
 ) {
     public static NotificationSettingResponse from(NotificationSettingResult result) {
         return new NotificationSettingResponse(
                 result.ticketOpenAlert(),
                 result.gameStartAlert(),
-                result.paymentAlert()
+                result.paymentAlert(),
+                result.chatMentionAlert()
         );
     }
 }

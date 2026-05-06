@@ -17,12 +17,12 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class NotificationSettingService {
 
     private final NotificationSettingRepository settingRepository;
     private final NotificationChannelRepository channelRepository;
 
+    @Transactional(readOnly = true)
     public NotificationSettingResult getSetting(Long memberId) {
         NotificationSetting setting = settingRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND));
@@ -30,13 +30,14 @@ public class NotificationSettingService {
     }
 
     @Transactional
-    public NotificationSettingResult updateSetting(Long memberId, boolean ticketOpenAlert, boolean gameStartAlert, boolean paymentAlert) {
+    public NotificationSettingResult updateSetting(Long memberId, boolean ticketOpenAlert, boolean gameStartAlert, boolean paymentAlert, boolean chatMentionAlert) {
         NotificationSetting setting = settingRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND));
-        setting.update(ticketOpenAlert, gameStartAlert, paymentAlert);
+        setting.update(ticketOpenAlert, gameStartAlert, paymentAlert, chatMentionAlert);
         return NotificationSettingResult.from(setting);
     }
 
+    @Transactional(readOnly = true)
     public List<NotificationChannelResult> getChannels(Long memberId) {
         return channelRepository.findByMemberIdAndEnabledTrue(memberId)
                 .stream()
