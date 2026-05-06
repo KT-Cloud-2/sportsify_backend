@@ -16,8 +16,8 @@ import java.util.List;
 @Configuration
 public class RedisStreamsConfig {
 
-    private static final String GROUP = "notification-group";
-    private static final List<String> STREAM_KEYS = List.of(
+    public static final String NOTIFICATION_GROUP = "notification-group";
+    static final List<String> STREAM_KEYS = List.of(
             "ticket.opened", "payment.completed", "game.starting", "chat.mentioned"
     );
 
@@ -42,7 +42,7 @@ public class RedisStreamsConfig {
     private void initConsumerGroups(StringRedisTemplate redisTemplate) {
         for (String streamKey : STREAM_KEYS) {
             try {
-                redisTemplate.opsForStream().createGroup(streamKey, ReadOffset.from("0"), GROUP);
+                redisTemplate.opsForStream().createGroup(streamKey, ReadOffset.from("0"), NOTIFICATION_GROUP);
             } catch (Exception e) {
                 log.debug("Consumer group already exists for stream={}", streamKey);
             }

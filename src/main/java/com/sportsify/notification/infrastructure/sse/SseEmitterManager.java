@@ -1,4 +1,4 @@
-package com.sportsify.notification.application.sse;
+package com.sportsify.notification.infrastructure.sse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class SseEmitterManager {
 
-    private static final long SSE_TIMEOUT_MS = 30 * 60 * 1000L; // 30분
+    private static final long SSE_TIMEOUT_MS = 30 * 60 * 1000L;
     private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     public SseEmitter subscribe(Long memberId) {

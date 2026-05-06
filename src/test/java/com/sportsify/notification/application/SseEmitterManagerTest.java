@@ -1,6 +1,6 @@
 package com.sportsify.notification.application;
 
-import com.sportsify.notification.application.sse.SseEmitterManager;
+import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;

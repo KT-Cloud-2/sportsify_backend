@@ -1,7 +1,8 @@
-package com.sportsify.notification.application.consumer;
+package com.sportsify.notification.infrastructure.consumer;
 
 import com.sportsify.notification.application.service.NotificationEventProcessor;
 import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class NotificationStreamConsumer {
 
-    private static final String GROUP = "notification-group";
     private static final Map<String, NotificationEventType> STREAM_TO_EVENT = Map.of(
             "ticket.opened", NotificationEventType.TICKET_OPEN,
             "payment.completed", NotificationEventType.PAYMENT_COMPLETED,
@@ -40,7 +40,7 @@ public class NotificationStreamConsumer {
             NotificationEventType eventType = entry.getValue();
 
             container.receive(
-                    Consumer.from(GROUP, consumerName),
+                    Consumer.from(RedisStreamsConfig.NOTIFICATION_GROUP, consumerName),
                     StreamOffset.create(streamKey, ReadOffset.lastConsumed()),
                     message -> handleMessage(streamKey, eventType, message)
             );
@@ -50,7 +50,7 @@ public class NotificationStreamConsumer {
     private void handleMessage(String streamKey, NotificationEventType eventType, ObjectRecord<String, String> message) {
         try {
             processor.process(eventType, message.getValue());
-            redisTemplate.opsForStream().acknowledge(streamKey, GROUP, message.getId());
+            redisTemplate.opsForStream().acknowledge(streamKey, RedisStreamsConfig.NOTIFICATION_GROUP, message.getId());
             log.info("Stream ACK streamKey={} id={}", streamKey, message.getId());
         } catch (Exception e) {
             log.error("Stream processing failed streamKey={} id={} error={}", streamKey, message.getId(), e.getMessage());

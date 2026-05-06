@@ -49,6 +49,12 @@ public class NotificationEvent {
         return event;
     }
 
+    public static NotificationEvent withId(Long id, NotificationEventType eventType, String payload) {
+        NotificationEvent event = create(eventType, payload);
+        event.id = id;
+        return event;
+    }
+
     public void markPublished() {
         this.status = NotificationEventStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
@@ -56,6 +62,5 @@ public class NotificationEvent {
 
     public void markFailed() {
         this.status = NotificationEventStatus.FAILED;
-        this.publishedAt = LocalDateTime.now();
     }
 }

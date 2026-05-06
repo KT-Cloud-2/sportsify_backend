@@ -1,7 +1,7 @@
 package com.sportsify.notification.application.service;
 
 import com.sportsify.notification.application.sender.NotificationSender;
-import com.sportsify.notification.application.sse.SseEmitterManager;
+import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.*;
 import lombok.extern.slf4j.Slf4j;
@@ -49,35 +49,43 @@ public class NotificationEventProcessor {
     @Transactional
     public void process(NotificationEventType eventType, String payload) {
         NotificationEvent event = eventRepository.save(NotificationEvent.create(eventType, payload));
-
         List<Long> targetMemberIds = resolveTargetMemberIds(eventType);
+
         if (targetMemberIds.isEmpty()) {
             event.markPublished();
             return;
         }
 
-        boolean anyFailed = false;
-        for (Long memberId : targetMemberIds) {
-            if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) {
-                continue;
-            }
-            Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
-            sseEmitterManager.send(memberId, eventType.name());
-
-            List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
-            for (NotificationChannel channel : channels) {
-                boolean sent = sendWithRetry(notification.getId(), channel, eventType.name(), payload);
-                if (!sent) {
-                    anyFailed = true;
-                }
-            }
-        }
+        boolean anyFailed = processForMembers(event, targetMemberIds, payload);
 
         if (anyFailed) {
             event.markFailed();
         } else {
             event.markPublished();
         }
+    }
+
+    private boolean processForMembers(NotificationEvent event, List<Long> memberIds, String payload) {
+        boolean anyFailed = false;
+        for (Long memberId : memberIds) {
+            boolean failed = processForMember(event, memberId, payload);
+            if (failed) {
+                anyFailed = true;
+            }
+        }
+        return anyFailed;
+    }
+
+    private boolean processForMember(NotificationEvent event, Long memberId, String payload) {
+        if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) {
+            return false;
+        }
+        Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
+        sseEmitterManager.send(memberId, event.getEventType().name());
+
+        List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
+        return channels.stream()
+                .anyMatch(channel -> !sendWithRetry(notification.getId(), channel, event.getEventType().name(), payload));
     }
 
     private List<Long> resolveTargetMemberIds(NotificationEventType eventType) {

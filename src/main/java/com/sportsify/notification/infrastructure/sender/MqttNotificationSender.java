@@ -1,5 +1,6 @@
-package com.sportsify.notification.application.sender;
+package com.sportsify.notification.infrastructure.sender;
 
+import com.sportsify.notification.application.sender.NotificationSender;
 import com.sportsify.notification.domain.model.NotificationChannelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

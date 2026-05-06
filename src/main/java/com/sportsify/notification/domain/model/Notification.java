@@ -42,6 +42,12 @@ public class Notification {
         return notification;
     }
 
+    public static Notification withId(Long id, Long memberId, Long eventId) {
+        Notification notification = create(memberId, eventId);
+        notification.id = id;
+        return notification;
+    }
+
     public void markRead() {
         this.read = true;
     }

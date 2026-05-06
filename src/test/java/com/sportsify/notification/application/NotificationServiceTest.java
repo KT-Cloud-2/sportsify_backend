@@ -3,7 +3,7 @@ package com.sportsify.notification.application;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.notification.application.service.NotificationService;
-import com.sportsify.notification.application.sse.SseEmitterManager;
+import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.model.NotificationEventType;

@@ -2,7 +2,7 @@ package com.sportsify.notification.application;
 
 import com.sportsify.notification.application.sender.NotificationSender;
 import com.sportsify.notification.application.service.NotificationEventProcessor;
-import com.sportsify.notification.application.sse.SseEmitterManager;
+import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -137,24 +137,10 @@ class NotificationEventProcessorTest {
     }
 
     private NotificationEvent notificationEventWithId(Long id, NotificationEventType type) {
-        NotificationEvent event = NotificationEvent.create(type, "{}");
-        setId(event, id);
-        return event;
+        return NotificationEvent.withId(id, type, "{}");
     }
 
     private Notification notificationWithId(Long id, Long memberId, Long eventId) {
-        Notification notification = Notification.create(memberId, eventId);
-        setId(notification, id);
-        return notification;
-    }
-
-    private void setId(Object entity, Long id) {
-        try {
-            var field = entity.getClass().getDeclaredField("id");
-            field.setAccessible(true);
-            field.set(entity, id);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return Notification.withId(id, memberId, eventId);
     }
 }
