@@ -50,14 +50,17 @@ spring:
             user-name-attribute: id
 
   mail:
-    host: localhost
-    port: 1025
+    host: smtp.gmail.com # 1
+    port: 587 # 2
+    username: ${mail.username} # 3
+    password: ${mail.password} # 4
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true # 5
+          timeout: 5000 # 6
           starttls:
-            enable: false
+            enable: true # 7
 
 jwt:
   secret: ${JWT_SECRET}

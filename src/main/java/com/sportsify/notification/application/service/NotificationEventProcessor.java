@@ -1,0 +1,111 @@
+package com.sportsify.notification.application.service;
+
+import com.sportsify.notification.application.sender.NotificationSender;
+import com.sportsify.notification.application.sse.SseEmitterManager;
+import com.sportsify.notification.domain.model.*;
+import com.sportsify.notification.domain.repository.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+public class NotificationEventProcessor {
+
+    private static final int MAX_RETRY = 3;
+
+    private final NotificationEventRepository eventRepository;
+    private final NotificationRepository notificationRepository;
+    private final NotificationSettingRepository settingRepository;
+    private final NotificationChannelRepository channelRepository;
+    private final NotificationHistoryRepository historyRepository;
+    private final SseEmitterManager sseEmitterManager;
+    private final Map<NotificationChannelType, NotificationSender> senderMap;
+
+    public NotificationEventProcessor(
+            NotificationEventRepository eventRepository,
+            NotificationRepository notificationRepository,
+            NotificationSettingRepository settingRepository,
+            NotificationChannelRepository channelRepository,
+            NotificationHistoryRepository historyRepository,
+            SseEmitterManager sseEmitterManager,
+            List<NotificationSender> senders
+    ) {
+        this.eventRepository = eventRepository;
+        this.notificationRepository = notificationRepository;
+        this.settingRepository = settingRepository;
+        this.channelRepository = channelRepository;
+        this.historyRepository = historyRepository;
+        this.sseEmitterManager = sseEmitterManager;
+        this.senderMap = senders.stream()
+                .collect(Collectors.toMap(NotificationSender::channelType, Function.identity()));
+    }
+
+    @Transactional
+    public void process(NotificationEventType eventType, String payload) {
+        NotificationEvent event = eventRepository.save(NotificationEvent.create(eventType, payload));
+
+        List<Long> targetMemberIds = resolveTargetMemberIds(eventType);
+        if (targetMemberIds.isEmpty()) {
+            event.markPublished();
+            return;
+        }
+
+        boolean anyFailed = false;
+        for (Long memberId : targetMemberIds) {
+            if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) {
+                continue;
+            }
+            Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
+            sseEmitterManager.send(memberId, eventType.name());
+
+            List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
+            for (NotificationChannel channel : channels) {
+                boolean sent = sendWithRetry(notification.getId(), channel, eventType.name(), payload);
+                if (!sent) {
+                    anyFailed = true;
+                }
+            }
+        }
+
+        if (anyFailed) {
+            event.markFailed();
+        } else {
+            event.markPublished();
+        }
+    }
+
+    private List<Long> resolveTargetMemberIds(NotificationEventType eventType) {
+        return switch (eventType) {
+            case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue();
+            case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue();
+            case PAYMENT_COMPLETED -> settingRepository.findMemberIdsByPaymentAlertTrue();
+            case CHAT_MENTION -> List.of();
+        };
+    }
+
+    private boolean sendWithRetry(Long notificationId, NotificationChannel channel, String subject, String body) {
+        NotificationSender sender = senderMap.get(channel.getChannelType());
+        if (sender == null) {
+            return true;
+        }
+        for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
+            try {
+                sender.send(channel.getChannelTarget(), subject, body);
+                historyRepository.save(NotificationHistory.sent(notificationId, channel.getChannelType()));
+                return true;
+            } catch (Exception e) {
+                log.warn("알림 발송 실패 attempt={}/{} channel={} error={}", attempt, MAX_RETRY, channel.getChannelType(), e.getMessage());
+                if (attempt == MAX_RETRY) {
+                    historyRepository.save(NotificationHistory.failed(notificationId, channel.getChannelType(), e.getMessage()));
+                }
+            }
+        }
+        return false;
+    }
+}

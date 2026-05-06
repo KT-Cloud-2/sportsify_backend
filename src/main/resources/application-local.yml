@@ -49,15 +49,17 @@ spring:
             user-name-attribute: id
 
   mail:
-    host: localhost
-    port: 1025
+    host: smtp.gmail.com # 1
+    port: 587 # 2
+    username: ${MAIL_USERNAME} # 3
+    password: ${MAIL_PASSWORD} # 4
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true # 5
+          timeout: 5000 # 6
           starttls:
-            enable: false
-
+            enable: true # 7
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-32-chars}
   access-token-expiry-ms: 900000

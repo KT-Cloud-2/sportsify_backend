@@ -60,6 +60,7 @@ dependencies {
 
     // MQTT (알림 도메인) — 구현 시 활성화
     implementation 'org.springframework.integration:spring-integration-mqtt'
+    implementation 'org.eclipse.paho:org.eclipse.paho.mqttv5.client:1.2.5'
 
     // Actuator (Prometheus 연동)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'

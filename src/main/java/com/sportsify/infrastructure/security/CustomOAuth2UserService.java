@@ -3,6 +3,8 @@ package com.sportsify.infrastructure.security;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
+import com.sportsify.notification.domain.model.NotificationSetting;
+import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final MemberJpaRepository memberRepository;
+    private final NotificationSettingRepository notificationSettingRepository;
 
     @Override
     @Transactional
@@ -29,10 +32,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         OAuth2UserInfo info = OAuth2UserInfo.of(registrationId, oAuth2User.getAttributes());
 
+        boolean isNewMember = memberRepository.findByProviderAndProviderId(info.provider(), info.providerId()).isEmpty();
         Member member = memberRepository.findByProviderAndProviderId(info.provider(), info.providerId())
                 .orElseGet(() -> memberRepository.save(
                         Member.create(info.email(), info.nickname(), info.provider(), info.providerId())
                 ));
+        if (isNewMember) {
+            notificationSettingRepository.save(NotificationSetting.createDefault(member.getId()));
+        }
 
         member.updateLastLoginAt();
 
