@@ -4,11 +4,14 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notification_history")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationHistory {
@@ -31,7 +34,8 @@ public class NotificationHistory {
     @Column(name = "error_message")
     private String errorMessage;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public static NotificationHistory sent(Long notificationId, NotificationChannelType channelType) {
@@ -39,7 +43,6 @@ public class NotificationHistory {
         history.notificationId = notificationId;
         history.channelType = channelType;
         history.status = NotificationSendStatus.SENT;
-        history.createdAt = LocalDateTime.now();
         return history;
     }
 
@@ -49,7 +52,6 @@ public class NotificationHistory {
         history.channelType = channelType;
         history.status = NotificationSendStatus.FAILED;
         history.errorMessage = errorMessage;
-        history.createdAt = LocalDateTime.now();
         return history;
     }
 }

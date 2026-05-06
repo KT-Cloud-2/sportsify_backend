@@ -4,12 +4,15 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notifications",
     uniqueConstraints = @UniqueConstraint(columnNames = {"event_id", "member_id"}))
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Notification {
@@ -27,7 +30,8 @@ public class Notification {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public static Notification create(Long memberId, Long eventId) {
@@ -35,7 +39,6 @@ public class Notification {
         notification.memberId = memberId;
         notification.eventId = eventId;
         notification.read = false;
-        notification.createdAt = LocalDateTime.now();
         return notification;
     }
 

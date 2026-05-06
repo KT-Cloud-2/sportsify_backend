@@ -4,12 +4,15 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notification_channels",
     uniqueConstraints = @UniqueConstraint(columnNames = {"member_id", "channel_type"}))
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationChannel {
@@ -31,7 +34,8 @@ public class NotificationChannel {
     @Column(name = "is_enabled", nullable = false)
     private boolean enabled;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -43,7 +47,6 @@ public class NotificationChannel {
         channel.channelType = channelType;
         channel.channelTarget = channelTarget;
         channel.enabled = true;
-        channel.createdAt = LocalDateTime.now();
         return channel;
     }
 

@@ -6,11 +6,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notification_events")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationEvent {
@@ -31,7 +34,8 @@ public class NotificationEvent {
     @Column(nullable = false)
     private NotificationEventStatus status;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "published_at")
@@ -42,7 +46,6 @@ public class NotificationEvent {
         event.eventType = eventType;
         event.payload = payload;
         event.status = NotificationEventStatus.PENDING;
-        event.createdAt = LocalDateTime.now();
         return event;
     }
 
