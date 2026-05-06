@@ -1806,109 +1806,49 @@ GET /api/chat/history/{roomId}
 
 | method | path | auth required | 설명 |
 | --- | --- | --- | --- |
+| GET | /api/notifications | O | 알림 목록 조회 (페이징) |
+| PATCH | /api/notifications/{notificationId}/read | O | 단건 읽음 처리 |
+| PATCH | /api/notifications/read-all | O | 전체 읽음 처리 |
+| GET | /api/notifications/stream | O | SSE 실시간 알림 구독 |
 | GET | /api/notifications/settings | O | 알림 설정 조회 |
 | PUT | /api/notifications/settings | O | 알림 설정 변경 |
 | GET | /api/notifications/channels | O | 알림 채널 목록 조회 |
-| POST | /api/notifications/channels | O | 알림 채널 추가 |
-| PUT | /api/notifications/channels/{channel} | O | 알림 채널 수정 |
-| DELETE | /api/notifications/channels/{channel} | O | 알림 채널 삭제 |
-| GET | /api/notifications/history | O | 알림 발송 이력 조회 |
+| POST | /api/notifications/channels | O | 알림 채널 등록 |
+| DELETE | /api/notifications/channels/{channelId} | O | 알림 채널 삭제 |
+| PATCH | /api/notifications/channels/{channelId}/toggle | O | 알림 채널 활성화/비활성화 토글 |
 
 ---
 
-### 6-1. 알림 설정 조회
+### 6-1. 알림 목록 조회
 
 ```
-GET /api/notifications/settings
+GET /api/notifications
 ```
 
-#### Response Body
+#### Query Parameter
 
-```json
-{
-  "success": true,
-  "data": {
-    "ticketOpenAlert": true,
-    "gameStartAlert": true,
-    "paymentAlert": true
-  }
-}
-```
-
-#### Response Field
-
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `ticketOpenAlert` | Boolean | 티켓 오픈 알림 ON/OFF |
-| `gameStartAlert` | Boolean | 경기 시작 알림 ON/OFF |
-| `paymentAlert` | Boolean | 결제 알림 ON/OFF |
-
----
-
-### 6-2. 알림 설정 변경
-
-```
-PUT /api/notifications/settings
-```
-
-변경할 필드만 포함해도 됨. 미포함 필드는 기존 값 유지.
-
-#### Request Body
-
-```json
-{
-  "ticketOpenAlert": true,
-  "gameStartAlert": false,
-  "paymentAlert": true
-}
-```
-
-#### Request Field
-
-| 필드 | 타입 | 필수 | 설명 |
+| 파라미터 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| `ticketOpenAlert` | Boolean | N | 티켓 오픈 알림 ON/OFF |
-| `gameStartAlert` | Boolean | N | 경기 시작 알림 ON/OFF |
-| `paymentAlert` | Boolean | N | 결제 알림 ON/OFF |
+| `page` | Integer | N | 페이지 번호 (기본 0) |
+| `size` | Integer | N | 페이지 크기 (기본 20) |
 
 #### Response Body
 
 ```json
 {
-  "success": true,
-  "data": {
-    "ticketOpenAlert": true,
-    "gameStartAlert": false,
-    "paymentAlert": true
-  }
-}
-```
-
----
-
-### 6-3. 알림 채널 목록 조회
-
-```
-GET /api/notifications/channels
-```
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": [
+  "content": [
     {
-      "channel": "EMAIL",
-      "channelTarget": "user@example.com",
-      "isEnabled": true
-    },
-    {
-      "channel": "DISCORD",
-      "channelTarget": "https://discord.com/api/webhooks/xxx/yyy",
-      "isEnabled": false
+      "id": 1001,
+      "eventType": "PAYMENT_COMPLETED",
+      "payload": "{\"paymentId\":7001,\"memberId\":1}",
+      "read": false,
+      "createdAt": "2025-04-21T10:05:30"
     }
-  ]
+  ],
+  "totalElements": 42,
+  "totalPages": 3,
+  "size": 20,
+  "number": 0
 }
 ```
 
@@ -1916,119 +1856,25 @@ GET /api/notifications/channels
 
 | 필드 | 타입 | 설명 |
 | --- | --- | --- |
-| `channel` | String | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
-| `channelTarget` | String | 수신 대상 (이메일 / 전화번호 / 웹훅 URL 등) |
-| `isEnabled` | Boolean | 채널 활성화 여부 |
+| `id` | Long | 알림 ID |
+| `eventType` | String | 이벤트 종류 (`TICKET_OPEN` \| `GAME_START` \| `PAYMENT_COMPLETED` \| `CHAT_MENTION`) |
+| `payload` | String | 이벤트 원본 페이로드 (JSON 문자열) |
+| `read` | Boolean | 읽음 여부 |
+| `createdAt` | String (ISO8601) | 알림 생성 시각 |
 
 ---
 
-### 6-4. 알림 채널 추가
+### 6-2. 단건 읽음 처리
 
 ```
-POST /api/notifications/channels
-```
-
-#### Request Body
-
-```json
-{
-  "channel": "DISCORD",
-  "channelTarget": "https://discord.com/api/webhooks/xxx/yyy",
-  "isEnabled": true
-}
-```
-
-#### Request Field
-
-| 필드 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| `channel` | String | Y | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
-| `channelTarget` | String | Y | 수신 대상 |
-| `isEnabled` | Boolean | N | 활성화 여부 (기본 `true`) |
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "channel": "DISCORD",
-    "channelTarget": "https://discord.com/api/webhooks/xxx/yyy",
-    "isEnabled": true
-  }
-}
-```
-
-#### Http Status / Error Code
-
-| 에러 코드 | HTTP Status | 설명 |
-| --- | --- | --- |
-| `CHANNEL_ALREADY_EXISTS` | 409 | 이미 등록된 채널 종류 |
-| `INVALID_CHANNEL_TARGET` | 400 | 채널 대상 형식 오류 |
-
----
-
-### 6-5. 알림 채널 수정
-
-```
-PUT /api/notifications/channels/{channel}
+PATCH /api/notifications/{notificationId}/read
 ```
 
 #### Path Variable
 
 | 변수 | 타입 | 설명 |
 | --- | --- | --- |
-| `channel` | String | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
-
-#### Request Body
-
-```json
-{
-  "channelTarget": "new@example.com",
-  "isEnabled": true
-}
-```
-
-#### Request Field
-
-| 필드 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| `channelTarget` | String | N | 변경할 수신 대상 |
-| `isEnabled` | Boolean | N | 변경할 활성화 여부 |
-
-#### Response Body
-
-```json
-{
-  "success": true,
-  "data": {
-    "channel": "EMAIL",
-    "channelTarget": "new@example.com",
-    "isEnabled": true
-  }
-}
-```
-
-#### Http Status / Error Code
-
-| 에러 코드 | HTTP Status | 설명 |
-| --- | --- | --- |
-| `CHANNEL_NOT_FOUND` | 404 | 등록되지 않은 채널 |
-| `INVALID_CHANNEL_TARGET` | 400 | 채널 대상 형식 오류 |
-
----
-
-### 6-6. 알림 채널 삭제
-
-```
-DELETE /api/notifications/channels/{channel}
-```
-
-#### Path Variable
-
-| 변수 | 타입 | 설명 |
-| --- | --- | --- |
-| `channel` | String | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
+| `notificationId` | Long | 읽음 처리할 알림 ID |
 
 #### Response
 
@@ -2040,46 +1886,63 @@ HTTP 204 No Content
 
 | 에러 코드 | HTTP Status | 설명 |
 | --- | --- | --- |
-| `CHANNEL_NOT_FOUND` | 404 | 등록되지 않은 채널 |
+| `NOTIFICATION_NOT_FOUND` | 404 | 알림 없음 또는 다른 회원의 알림 |
+| `NOTIFICATION_ALREADY_READ` | 400 | 이미 읽은 알림 |
 
 ---
 
-### 6-7. 알림 발송 이력 조회
+### 6-3. 전체 읽음 처리
 
 ```
-GET /api/notifications/history
+PATCH /api/notifications/read-all
 ```
 
-#### Query Parameter
+#### Response
 
-| 파라미터 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| `channel` | String | N | 채널 필터 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
-| `type` | String | N | 알림 종류 필터 (`TICKET_OPEN` \| `GAME_START` \| `PAYMENT` \| `MENTION`) |
-| `cursor` | String | N | 페이지네이션 커서 |
-| `limit` | Integer | N | 페이지 크기 (기본 20) |
+```
+HTTP 204 No Content
+```
+
+---
+
+### 6-4. SSE 실시간 알림 구독
+
+```
+GET /api/notifications/stream
+```
+
+`Content-Type: text/event-stream` 으로 SSE 연결을 수립한다. 서버에서 알림 이벤트 발생 시 아래 형식으로 push된다.
+
+#### SSE Event
+
+```
+event: notification
+data: PAYMENT_COMPLETED
+```
+
+| 필드 | 설명 |
+| --- | --- |
+| `event` | 항상 `notification` |
+| `data` | `NotificationEventType` 문자열 |
+
+---
+
+### 6-5. 알림 설정 조회
+
+```
+GET /api/notifications/settings
+```
+
+설정이 없으면 모든 항목 `true`로 자동 생성하여 반환한다.
 
 #### Response Body
 
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "historyId": 50001,
-        "channel": "EMAIL",
-        "type": "PAYMENT",
-        "title": "결제가 완료되었습니다",
-        "content": "KIA vs 삼성 | S석 22번 좌석 예매가 완료되었습니다.",
-        "status": "SENT",
-        "sentAt": "2025-04-21T10:05:30Z"
-      }
-    ],
-    "nextCursor": "eyJpZCI6NTAwMDB9",
-    "hasNext": false,
-    "totalCount": 15
-  }
+  "ticketOpenAlert": true,
+  "gameStartAlert": true,
+  "paymentAlert": true,
+  "chatMentionAlert": true
 }
 ```
 
@@ -2087,13 +1950,187 @@ GET /api/notifications/history
 
 | 필드 | 타입 | 설명 |
 | --- | --- | --- |
-| `historyId` | Long | 이력 ID |
-| `channel` | String | 발송 채널 |
-| `type` | String | 알림 종류 |
-| `title` | String | 알림 제목 |
-| `content` | String | 알림 내용 |
-| `status` | String | 발송 결과 (`SENT` \| `FAILED`) |
-| `sentAt` | String (ISO8601) | 실제 발송 시각 |
+| `ticketOpenAlert` | Boolean | 티켓 오픈 알림 ON/OFF |
+| `gameStartAlert` | Boolean | 경기 시작 알림 ON/OFF |
+| `paymentAlert` | Boolean | 결제 완료 알림 ON/OFF |
+| `chatMentionAlert` | Boolean | 채팅 @멘션 알림 ON/OFF |
+
+---
+
+### 6-6. 알림 설정 변경
+
+```
+PUT /api/notifications/settings
+```
+
+4개 필드 모두 필수. 전체 교체 방식으로 동작한다.
+
+#### Request Body
+
+```json
+{
+  "ticketOpenAlert": true,
+  "gameStartAlert": false,
+  "paymentAlert": true,
+  "chatMentionAlert": true
+}
+```
+
+#### Request Field
+
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `ticketOpenAlert` | Boolean | Y | 티켓 오픈 알림 ON/OFF |
+| `gameStartAlert` | Boolean | Y | 경기 시작 알림 ON/OFF |
+| `paymentAlert` | Boolean | Y | 결제 완료 알림 ON/OFF |
+| `chatMentionAlert` | Boolean | Y | 채팅 @멘션 알림 ON/OFF |
+
+#### Response Body
+
+```json
+{
+  "ticketOpenAlert": true,
+  "gameStartAlert": false,
+  "paymentAlert": true,
+  "chatMentionAlert": true
+}
+```
+
+---
+
+### 6-7. 알림 채널 목록 조회
+
+```
+GET /api/notifications/channels
+```
+
+활성화(`enabled = true`)된 채널만 반환한다.
+
+#### Response Body
+
+```json
+[
+  {
+    "id": 10,
+    "channelType": "EMAIL",
+    "channelTarget": "user@example.com",
+    "enabled": true
+  },
+  {
+    "id": 11,
+    "channelType": "MQTT",
+    "channelTarget": "device/topic/user-1",
+    "enabled": true
+  }
+]
+```
+
+#### Response Field
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `id` | Long | 채널 ID |
+| `channelType` | String | 채널 종류 (`EMAIL` \| `MQTT`) |
+| `channelTarget` | String | 수신 대상 (이메일 주소 / MQTT 토픽) |
+| `enabled` | Boolean | 채널 활성화 여부 |
+
+---
+
+### 6-8. 알림 채널 등록
+
+```
+POST /api/notifications/channels
+```
+
+#### Request Body
+
+```json
+{
+  "channelType": "EMAIL",
+  "channelTarget": "user@example.com"
+}
+```
+
+#### Request Field
+
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `channelType` | String | Y | 채널 종류 (`EMAIL` \| `MQTT`) |
+| `channelTarget` | String | Y | 수신 대상 |
+
+#### Response Body
+
+```json
+{
+  "id": 10,
+  "channelType": "EMAIL",
+  "channelTarget": "user@example.com",
+  "enabled": true
+}
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_CHANNEL_ALREADY_EXISTS` | 409 | 동일 채널 종류가 이미 등록됨 |
+
+---
+
+### 6-9. 알림 채널 삭제
+
+```
+DELETE /api/notifications/channels/{channelId}
+```
+
+#### Path Variable
+
+| 변수 | 타입 | 설명 |
+| --- | --- | --- |
+| `channelId` | Long | 삭제할 채널 ID |
+
+#### Response
+
+```
+HTTP 204 No Content
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_CHANNEL_NOT_FOUND` | 404 | 채널 없음 또는 다른 회원의 채널 |
+
+---
+
+### 6-10. 알림 채널 토글
+
+```
+PATCH /api/notifications/channels/{channelId}/toggle
+```
+
+#### Path Variable
+
+| 변수 | 타입 | 설명 |
+| --- | --- | --- |
+| `channelId` | Long | 토글할 채널 ID |
+
+#### Response Body
+
+```json
+{
+  "id": 10,
+  "channelType": "EMAIL",
+  "channelTarget": "user@example.com",
+  "enabled": false
+}
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_CHANNEL_NOT_FOUND` | 404 | 채널 없음 또는 다른 회원의 채널 |
 
 ---
 
@@ -2138,13 +2175,16 @@ GET /api/notifications/history
 | WS | /ws/chat (STOMP) | O | WebSocket 연결 / 메시지 전송 |
 | GET | /api/chat/intensity/{gameId} | N | 응원 열기 지수 조회 |
 | GET | /api/chat/history/{roomId} | O | 채팅 이력 조회 |
+| GET | /api/notifications | O | 알림 목록 조회 |
+| PATCH | /api/notifications/{notificationId}/read | O | 단건 읽음 처리 |
+| PATCH | /api/notifications/read-all | O | 전체 읽음 처리 |
+| GET | /api/notifications/stream | O | SSE 실시간 알림 구독 |
 | GET | /api/notifications/settings | O | 알림 설정 조회 |
 | PUT | /api/notifications/settings | O | 알림 설정 변경 |
 | GET | /api/notifications/channels | O | 알림 채널 목록 조회 |
-| POST | /api/notifications/channels | O | 알림 채널 추가 |
-| PUT | /api/notifications/channels/{channel} | O | 알림 채널 수정 |
-| DELETE | /api/notifications/channels/{channel} | O | 알림 채널 삭제 |
-| GET | /api/notifications/history | O | 알림 발송 이력 조회 |
+| POST | /api/notifications/channels | O | 알림 채널 등록 |
+| DELETE | /api/notifications/channels/{channelId} | O | 알림 채널 삭제 |
+| PATCH | /api/notifications/channels/{channelId}/toggle | O | 알림 채널 토글 |
 | POST | /api/admin/teams | O (ADMIN) | 팀 등록 |
 | PUT | /api/admin/teams/{teamId} | O (ADMIN) | 팀 수정 |
 | DELETE | /api/admin/teams/{teamId} | O (ADMIN) | 팀 비활성화 |
