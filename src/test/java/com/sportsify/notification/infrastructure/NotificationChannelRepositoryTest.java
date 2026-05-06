@@ -57,6 +57,7 @@ class NotificationChannelRepositoryTest extends RepositoryTestSupport {
     @Test
     @DisplayName("isEnabled=true인 채널만 조회된다")
     void findByMemberIdAndEnabledTrue_활성채널만() {
+        // GIVEN
         notificationChannelRepository.save(
             NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "a@test.com")
         );
@@ -66,9 +67,29 @@ class NotificationChannelRepositoryTest extends RepositoryTestSupport {
         mqtt.toggle();
         notificationChannelRepository.save(mqtt);
 
+        // WHEN
         var channels = notificationChannelRepository.findByMemberIdAndEnabledTrue(memberId);
 
+        // THEN
         assertThat(channels).hasSize(1);
         assertThat(channels.get(0).getChannelType()).isEqualTo(NotificationChannelType.EMAIL);
+    }
+
+    @Test
+    @DisplayName("memberId와 channelType으로 채널 존재 여부를 확인한다")
+    void existsByMemberIdAndChannelType_존재하면_true() {
+        // GIVEN
+        notificationChannelRepository.save(
+            NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "a@test.com")
+        );
+        em.flush();
+
+        // WHEN
+        boolean exists = notificationChannelRepository.existsByMemberIdAndChannelType(memberId, NotificationChannelType.EMAIL);
+        boolean notExists = notificationChannelRepository.existsByMemberIdAndChannelType(memberId, NotificationChannelType.MQTT);
+
+        // THEN
+        assertThat(exists).isTrue();
+        assertThat(notExists).isFalse();
     }
 }

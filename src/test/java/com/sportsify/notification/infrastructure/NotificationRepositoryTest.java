@@ -48,12 +48,14 @@ class NotificationRepositoryTest extends RepositoryTestSupport {
     @Test
     @DisplayName("동일한 eventId + memberId로 알림을 두 번 저장하면 DataIntegrityViolationException이 발생한다")
     void save_중복알림_예외() {
+        // GIVEN
         NotificationEvent event = notificationEventRepository.save(
             NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, "{}")
         );
         notificationRepository.save(Notification.create(memberId, event.getId()));
         em.flush();
 
+        // WHEN / THEN
         assertThatThrownBy(() -> {
             notificationRepository.save(Notification.create(memberId, event.getId()));
             em.flush();
@@ -63,6 +65,7 @@ class NotificationRepositoryTest extends RepositoryTestSupport {
     @Test
     @DisplayName("memberId로 알림 목록을 최신순으로 페이징 조회한다")
     void findByMemberIdOrderByCreatedAtDesc_페이징() {
+        // GIVEN
         NotificationEvent event1 = notificationEventRepository.save(
             NotificationEvent.create(NotificationEventType.TICKET_OPEN, "{}")
         );
@@ -72,9 +75,11 @@ class NotificationRepositoryTest extends RepositoryTestSupport {
         notificationRepository.save(Notification.create(memberId, event1.getId()));
         notificationRepository.save(Notification.create(memberId, event2.getId()));
 
+        // WHEN
         Page<Notification> page = notificationRepository
             .findByMemberIdOrderByCreatedAtDesc(memberId, PageRequest.of(0, 10));
 
+        // THEN
         assertThat(page.getTotalElements()).isEqualTo(2);
     }
 
