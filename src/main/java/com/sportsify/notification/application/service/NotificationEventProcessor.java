@@ -85,7 +85,7 @@ public class NotificationEventProcessor {
             case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue();
             case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue();
             case PAYMENT_COMPLETED -> settingRepository.findMemberIdsByPaymentAlertTrue();
-            case CHAT_MENTION -> List.of();
+            case CHAT_MENTION -> settingRepository.findMemberIdsByChatMentionAlertTrue();
         };
     }
 

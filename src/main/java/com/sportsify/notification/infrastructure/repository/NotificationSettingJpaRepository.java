@@ -17,4 +17,7 @@ public interface NotificationSettingJpaRepository extends JpaRepository<Notifica
 
     @Query("SELECT s.memberId FROM NotificationSetting s WHERE s.paymentAlert = true")
     List<Long> findMemberIdsByPaymentAlertTrue();
+
+    @Query("SELECT s.memberId FROM NotificationSetting s WHERE s.chatMentionAlert = true")
+    List<Long> findMemberIdsByChatMentionAlertTrue();
 }

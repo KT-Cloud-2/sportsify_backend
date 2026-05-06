@@ -36,4 +36,9 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
     public List<Long> findMemberIdsByPaymentAlertTrue() {
         return jpaRepository.findMemberIdsByPaymentAlertTrue();
     }
+
+    @Override
+    public List<Long> findMemberIdsByChatMentionAlertTrue() {
+        return jpaRepository.findMemberIdsByChatMentionAlertTrue();
+    }
 }

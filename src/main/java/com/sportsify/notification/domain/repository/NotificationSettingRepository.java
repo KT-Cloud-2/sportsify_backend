@@ -10,4 +10,5 @@ public interface NotificationSettingRepository {
     List<Long> findMemberIdsByTicketOpenAlertTrue();
     List<Long> findMemberIdsByGameStartAlertTrue();
     List<Long> findMemberIdsByPaymentAlertTrue();
+    List<Long> findMemberIdsByChatMentionAlertTrue();
 }

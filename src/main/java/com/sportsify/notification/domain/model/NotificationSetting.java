@@ -29,6 +29,9 @@ public class NotificationSetting {
     @Column(name = "payment_alert", nullable = false)
     private boolean paymentAlert;
 
+    @Column(name = "chat_mention_alert", nullable = false)
+    private boolean chatMentionAlert;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -38,13 +41,15 @@ public class NotificationSetting {
         setting.ticketOpenAlert = true;
         setting.gameStartAlert = true;
         setting.paymentAlert = true;
+        setting.chatMentionAlert = true;
         return setting;
     }
 
-    public void update(boolean ticketOpenAlert, boolean gameStartAlert, boolean paymentAlert) {
+    public void update(boolean ticketOpenAlert, boolean gameStartAlert, boolean paymentAlert, boolean chatMentionAlert) {
         this.ticketOpenAlert = ticketOpenAlert;
         this.gameStartAlert = gameStartAlert;
         this.paymentAlert = paymentAlert;
+        this.chatMentionAlert = chatMentionAlert;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -53,7 +58,7 @@ public class NotificationSetting {
             case TICKET_OPEN -> ticketOpenAlert;
             case GAME_START -> gameStartAlert;
             case PAYMENT_COMPLETED -> paymentAlert;
-            case CHAT_MENTION -> true;
+            case CHAT_MENTION -> chatMentionAlert;
         };
     }
 }
