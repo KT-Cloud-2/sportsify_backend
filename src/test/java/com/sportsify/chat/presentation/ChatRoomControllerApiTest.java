@@ -45,10 +45,9 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new CreateChatRoomRequest("GAME", "한화 VS LG", "https://img.png", GAME_ID, List.of(2L))))
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.roomId").value(ROOM_ID))
-                .andExpect(jsonPath("$.data.type").value("GAME"))
-                .andExpect(jsonPath("$.data.name").value("한화 VS LG"));
+                .andExpect(jsonPath("$.roomId").value(ROOM_ID))
+                .andExpect(jsonPath("$.type").value("GAME"))
+                .andExpect(jsonPath("$.name").value("한화 VS LG"));
     }
 
     @Test
@@ -63,9 +62,8 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new ChatRoomGetRequest("GAME", null, 20)))
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.totalCount").value(1))
-                .andExpect(jsonPath("$.data.items[0].roomId").value(ROOM_ID));
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.items[0].roomId").value(ROOM_ID));
     }
 
     @Test
@@ -78,9 +76,8 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(get("/api/chat/rooms/game/{gameId}", GAME_ID)
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.totalCount").value(1))
-                .andExpect(jsonPath("$.data.items[0].roomId").value(ROOM_ID));
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.items[0].roomId").value(ROOM_ID));
     }
 
     @Test
@@ -92,9 +89,8 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(get("/api/chat/rooms/{roomId}", ROOM_ID)
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.roomId").value(ROOM_ID))
-                .andExpect(jsonPath("$.data.currentParticipants").value(5));
+                .andExpect(jsonPath("$.roomId").value(ROOM_ID))
+                .andExpect(jsonPath("$.currentParticipants").value(5));
     }
 
     @Test
@@ -108,9 +104,8 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new ChatRoomUpdateRequest("새로운 채팅방", "https://new.png")))
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.roomId").value(ROOM_ID))
-                .andExpect(jsonPath("$.data.name").value("새로운 채팅방"));
+                .andExpect(jsonPath("$.roomId").value(ROOM_ID))
+                .andExpect(jsonPath("$.name").value("새로운 채팅방"));
     }
 
     @Test

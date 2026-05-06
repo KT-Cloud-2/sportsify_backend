@@ -1,10 +1,6 @@
 package com.sportsify.chat.presentation;
 
-import com.sportsify.chat.application.message.dto.MessageDeleteResponse;
-import com.sportsify.chat.application.message.dto.MessageListResponse;
-import com.sportsify.chat.application.message.dto.MessagePageNationRequest;
-import com.sportsify.chat.application.message.dto.MessageSummaryResponse;
-import com.sportsify.chat.application.message.dto.MessageResponse;
+import com.sportsify.chat.application.message.dto.*;
 import com.sportsify.chat.application.message.service.MessageService;
 import com.sportsify.chat.presentation.message.controller.MessageController;
 import com.sportsify.support.WebMvcTestSupport;
@@ -20,20 +16,20 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(MessageController.class)
 class MessageControllerApiTest extends WebMvcTestSupport {
 
-    @MockitoBean
-    private MessageService messageService;
-
     private static final Long MEMBER_ID = 1L;
     private static final Long ROOM_ID = 10L;
     private static final Long MESSAGE_ID = 100L;
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 6, 12, 0);
+    @MockitoBean
+    private MessageService messageService;
 
     // ──────────────────────── GET /api/chat/messages/history/{roomId} ────────────────────────
 
@@ -51,10 +47,9 @@ class MessageControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new MessagePageNationRequest(null, 20))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.items.length()").value(1))
-                .andExpect(jsonPath("$.data.hasNext").value(false))
-                .andExpect(jsonPath("$.data.totalCount").value(1));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.totalCount").value(1));
     }
 
     // ──────────────────────── DELETE /api/chat/messages/{messageId} ────────────────────────
@@ -69,10 +64,9 @@ class MessageControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(delete("/api/chat/messages/{messageId}", MESSAGE_ID)
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.messageId").value(MESSAGE_ID))
-                .andExpect(jsonPath("$.data.roomId").value(ROOM_ID))
-                .andExpect(jsonPath("$.data.status").value("DELETED"));
+                .andExpect(jsonPath("$.messageId").value(MESSAGE_ID))
+                .andExpect(jsonPath("$.roomId").value(ROOM_ID))
+                .andExpect(jsonPath("$.status").value("DELETED"));
     }
 
     // ──────────────────────── GET /api/chat/messages/getMessages/{roomId} ────────────────────────
@@ -91,10 +85,9 @@ class MessageControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new MessagePageNationRequest(null, 20))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.items.length()").value(1))
-                .andExpect(jsonPath("$.data.nextCursor").value(MESSAGE_ID))
-                .andExpect(jsonPath("$.data.hasNext").value(true))
-                .andExpect(jsonPath("$.data.totalCount").value(1));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.nextCursor").value(MESSAGE_ID))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.totalCount").value(1));
     }
 }

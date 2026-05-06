@@ -73,7 +73,7 @@ public class ChatRoomMemberService {
     @Transactional
     public ChatRoomMemberResponse leave(Long roomId, Long memberId) {
         ChatRoomId chatRoomId = ChatRoomId.of(roomId);
-        if (chatRoomRepo.findById(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value())).getStatus().equals(ChatRoomStatus.ACTIVE)) {
+        if (chatRoomRepo.findById(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value())).getStatus().equals(ChatRoomStatus.ARCHIVED)) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Archived room");
         }
         LocalDateTime now = LocalDateTime.now(clock);
@@ -188,7 +188,7 @@ public class ChatRoomMemberService {
         if (room.isEmpty() || room.get().getStatus().equals(ChatRoomStatus.DELETED)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find this room " + roomId);
         }
-        if (room.get().getStatus().equals(ChatRoomStatus.ACTIVE)) {
+        if (room.get().getStatus().equals(ChatRoomStatus.ARCHIVED)) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Archived room");
         }
         return room.get();
