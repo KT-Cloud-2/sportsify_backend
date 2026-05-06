@@ -336,10 +336,11 @@ CREATE TABLE notification_settings
 (
     id                BIGSERIAL PRIMARY KEY,
     member_id         BIGINT  NOT NULL,
-    ticket_open_alert BOOLEAN NOT NULL DEFAULT TRUE,
-    game_start_alert  BOOLEAN NOT NULL DEFAULT TRUE,
-    payment_alert     BOOLEAN NOT NULL DEFAULT TRUE,
-    updated_at        TIMESTAMP,
+    ticket_open_alert   BOOLEAN NOT NULL DEFAULT TRUE,
+    game_start_alert    BOOLEAN NOT NULL DEFAULT TRUE,
+    payment_alert       BOOLEAN NOT NULL DEFAULT TRUE,
+    chat_mention_alert  BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at          TIMESTAMP,
     CONSTRAINT fk_ns_member FOREIGN KEY (member_id) REFERENCES members (id),
     CONSTRAINT uq_ns_member UNIQUE (member_id)
 );
