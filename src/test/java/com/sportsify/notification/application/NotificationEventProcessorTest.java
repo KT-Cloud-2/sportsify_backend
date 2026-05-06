@@ -105,6 +105,37 @@ class NotificationEventProcessorTest {
         verify(historyRepository).save(argThat(h -> h.getStatus() == NotificationSendStatus.FAILED));
     }
 
+    @Test
+    @DisplayName("chatMentionAlert가 ON인 회원에게 CHAT_MENTION 알림이 발송된다")
+    void process_채팅멘션알림ON_발송됨() {
+        NotificationEvent event = notificationEventWithId(20L, NotificationEventType.CHAT_MENTION);
+        Notification notification = notificationWithId(200L, 1L, 20L);
+
+        given(eventRepository.save(any())).willReturn(event);
+        given(settingRepository.findMemberIdsByChatMentionAlertTrue()).willReturn(List.of(1L));
+        given(notificationRepository.existsByEventIdAndMemberId(20L, 1L)).willReturn(false);
+        given(notificationRepository.save(any())).willReturn(notification);
+        given(channelRepository.findByMemberIdAndEnabledTrue(1L)).willReturn(List.of());
+
+        processor.process(NotificationEventType.CHAT_MENTION, "{\"roomId\":3}");
+
+        verify(notificationRepository).save(any());
+        verify(sseEmitterManager).send(1L, "CHAT_MENTION");
+    }
+
+    @Test
+    @DisplayName("chatMentionAlert가 OFF인 회원에게 CHAT_MENTION 알림이 발송되지 않는다")
+    void process_채팅멘션알림OFF_스킵() {
+        NotificationEvent event = notificationEventWithId(21L, NotificationEventType.CHAT_MENTION);
+        given(eventRepository.save(any())).willReturn(event);
+        given(settingRepository.findMemberIdsByChatMentionAlertTrue()).willReturn(List.of());
+
+        processor.process(NotificationEventType.CHAT_MENTION, "{}");
+
+        verify(notificationRepository, never()).save(any());
+        verify(sseEmitterManager, never()).send(any(), any());
+    }
+
     private NotificationEvent notificationEventWithId(Long id, NotificationEventType type) {
         NotificationEvent event = NotificationEvent.create(type, "{}");
         setId(event, id);

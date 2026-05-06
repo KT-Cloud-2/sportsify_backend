@@ -25,18 +25,20 @@ class NotificationSettingTest {
     void update_티켓알림OFF() {
         NotificationSetting setting = NotificationSetting.createDefault(1L);
 
-        setting.update(false, true, true);
+        setting.update(false, true, true, true);
 
         assertThat(setting.isEnabledFor(NotificationEventType.TICKET_OPEN)).isFalse();
         assertThat(setting.isEnabledFor(NotificationEventType.GAME_START)).isTrue();
     }
 
     @Test
-    @DisplayName("CHAT_MENTION은 설정과 무관하게 항상 true이다")
-    void isEnabledFor_채팅멘션_항상true() {
+    @DisplayName("chatMentionAlert를 OFF하면 CHAT_MENTION isEnabledFor가 false를 반환한다")
+    void update_채팅멘션알림OFF() {
         NotificationSetting setting = NotificationSetting.createDefault(1L);
-        setting.update(false, false, false);
 
-        assertThat(setting.isEnabledFor(NotificationEventType.CHAT_MENTION)).isTrue();
+        setting.update(true, true, true, false);
+
+        assertThat(setting.isEnabledFor(NotificationEventType.CHAT_MENTION)).isFalse();
+        assertThat(setting.isEnabledFor(NotificationEventType.TICKET_OPEN)).isTrue();
     }
 }

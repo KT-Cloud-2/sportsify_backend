@@ -87,7 +87,7 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
     void findMemberIdsByTicketOpenAlertTrue_비활성화된_멤버_미포함() {
         // GIVEN
         NotificationSetting setting = NotificationSetting.createDefault(memberId);
-        setting.update(false, true, true);
+        setting.update(false, true, true, true);
         notificationSettingRepository.save(setting);
         em.flush();
 
@@ -103,7 +103,7 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
     void findMemberIdsByGameStartAlertTrue_비활성화된_멤버_미포함() {
         // GIVEN
         NotificationSetting setting = NotificationSetting.createDefault(memberId);
-        setting.update(true, false, true);
+        setting.update(true, false, true, true);
         notificationSettingRepository.save(setting);
         em.flush();
 
@@ -119,12 +119,43 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
     void findMemberIdsByPaymentAlertTrue_비활성화된_멤버_미포함() {
         // GIVEN
         NotificationSetting setting = NotificationSetting.createDefault(memberId);
-        setting.update(true, true, false);
+        setting.update(true, true, false, true);
         notificationSettingRepository.save(setting);
         em.flush();
 
         // WHEN
         List<Long> memberIds = notificationSettingRepository.findMemberIdsByPaymentAlertTrue();
+
+        // THEN
+        assertThat(memberIds).doesNotContain(memberId);
+    }
+
+    @Test
+    @DisplayName("chatMentionAlert가 true인 memberId 목록을 조회한다")
+    void findMemberIdsByChatMentionAlertTrue_알림활성화된_멤버_조회() {
+        // GIVEN
+        NotificationSetting setting = NotificationSetting.createDefault(memberId);
+        notificationSettingRepository.save(setting);
+        em.flush();
+
+        // WHEN
+        List<Long> memberIds = notificationSettingRepository.findMemberIdsByChatMentionAlertTrue();
+
+        // THEN
+        assertThat(memberIds).contains(memberId);
+    }
+
+    @Test
+    @DisplayName("chatMentionAlert가 false이면 목록에 포함되지 않는다")
+    void findMemberIdsByChatMentionAlertTrue_비활성화된_멤버_미포함() {
+        // GIVEN
+        NotificationSetting setting = NotificationSetting.createDefault(memberId);
+        setting.update(true, true, true, false);
+        notificationSettingRepository.save(setting);
+        em.flush();
+
+        // WHEN
+        List<Long> memberIds = notificationSettingRepository.findMemberIdsByChatMentionAlertTrue();
 
         // THEN
         assertThat(memberIds).doesNotContain(memberId);
