@@ -4,6 +4,7 @@ import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.notification.application.dto.NotificationChannelResult;
 import com.sportsify.notification.application.dto.NotificationSettingResult;
+import com.sportsify.notification.application.dto.UpdateNotificationSettingCommand;
 import com.sportsify.notification.domain.model.NotificationChannel;
 import com.sportsify.notification.domain.model.NotificationChannelType;
 import com.sportsify.notification.domain.model.NotificationSetting;
@@ -22,18 +23,18 @@ public class NotificationSettingService {
     private final NotificationSettingRepository settingRepository;
     private final NotificationChannelRepository channelRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public NotificationSettingResult getSetting(Long memberId) {
         NotificationSetting setting = settingRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND));
+                .orElseGet(() -> settingRepository.save(NotificationSetting.createDefault(memberId)));
         return NotificationSettingResult.from(setting);
     }
 
     @Transactional
-    public NotificationSettingResult updateSetting(Long memberId, boolean ticketOpenAlert, boolean gameStartAlert, boolean paymentAlert, boolean chatMentionAlert) {
+    public NotificationSettingResult updateSetting(Long memberId, UpdateNotificationSettingCommand command) {
         NotificationSetting setting = settingRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND));
-        setting.update(ticketOpenAlert, gameStartAlert, paymentAlert, chatMentionAlert);
+                .orElseGet(() -> settingRepository.save(NotificationSetting.createDefault(memberId)));
+        setting.update(command.ticketOpenAlert(), command.gameStartAlert(), command.paymentAlert(), command.chatMentionAlert());
         return NotificationSettingResult.from(setting);
     }
 

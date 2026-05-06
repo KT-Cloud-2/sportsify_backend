@@ -1,9 +1,8 @@
-package com.sportsify.notification.application;
+package com.sportsify.notification.infrastructure;
 
 import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

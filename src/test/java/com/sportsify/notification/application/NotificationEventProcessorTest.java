@@ -1,8 +1,8 @@
 package com.sportsify.notification.application;
 
+import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.sender.NotificationSender;
 import com.sportsify.notification.application.service.NotificationEventProcessor;
-import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +26,7 @@ class NotificationEventProcessorTest {
     @Mock private NotificationSettingRepository settingRepository;
     @Mock private NotificationChannelRepository channelRepository;
     @Mock private NotificationHistoryRepository historyRepository;
-    @Mock private SseEmitterManager sseEmitterManager;
+    @Mock private SseNotificationPort sseNotificationPort;
     @Mock private NotificationSender emailSender;
 
     private NotificationEventProcessor processor;
@@ -36,7 +36,7 @@ class NotificationEventProcessorTest {
         given(emailSender.channelType()).willReturn(NotificationChannelType.EMAIL);
         processor = new NotificationEventProcessor(
             eventRepository, notificationRepository, settingRepository,
-            channelRepository, historyRepository, sseEmitterManager,
+            channelRepository, historyRepository, sseNotificationPort,
             List.of(emailSender)
         );
     }
@@ -120,7 +120,7 @@ class NotificationEventProcessorTest {
         processor.process(NotificationEventType.CHAT_MENTION, "{\"roomId\":3}");
 
         verify(notificationRepository).save(any());
-        verify(sseEmitterManager).send(1L, "CHAT_MENTION");
+        verify(sseNotificationPort).send(1L, "CHAT_MENTION");
     }
 
     @Test
@@ -133,7 +133,7 @@ class NotificationEventProcessorTest {
         processor.process(NotificationEventType.CHAT_MENTION, "{}");
 
         verify(notificationRepository, never()).save(any());
-        verify(sseEmitterManager, never()).send(any(), any());
+        verify(sseNotificationPort, never()).send(any(), any());
     }
 
     private NotificationEvent notificationEventWithId(Long id, NotificationEventType type) {

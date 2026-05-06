@@ -1,5 +1,6 @@
 package com.sportsify.notification.presentation.controller;
 
+import com.sportsify.notification.application.dto.UpdateNotificationSettingCommand;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.application.service.NotificationSettingService;
 import com.sportsify.notification.presentation.api.NotificationApi;
@@ -72,10 +73,12 @@ public class NotificationController implements NotificationApi {
         return ResponseEntity.ok(NotificationSettingResponse.from(
                 notificationSettingService.updateSetting(
                         memberId,
-                        request.ticketOpenAlert(),
-                        request.gameStartAlert(),
-                        request.paymentAlert(),
-                        request.chatMentionAlert()
+                        new UpdateNotificationSettingCommand(
+                                request.ticketOpenAlert(),
+                                request.gameStartAlert(),
+                                request.paymentAlert(),
+                                request.chatMentionAlert()
+                        )
                 )
         ));
     }

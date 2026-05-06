@@ -1,6 +1,7 @@
 package com.sportsify.notification.presentation;
 
 import com.sportsify.notification.application.dto.NotificationSettingResult;
+import com.sportsify.notification.application.dto.UpdateNotificationSettingCommand;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.application.service.NotificationSettingService;
 import com.sportsify.notification.presentation.controller.NotificationController;
@@ -13,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -43,7 +43,7 @@ class NotificationSettingControllerApiTest extends WebMvcTestSupport {
     @DisplayName("PUT /api/notifications/settings — 정상 요청 시 200 반환")
     void updateSetting_정상요청_200() throws Exception {
         String token = bearerToken(1L, "USER");
-        given(notificationSettingService.updateSetting(any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean()))
+        given(notificationSettingService.updateSetting(any(), any(UpdateNotificationSettingCommand.class)))
                 .willReturn(new NotificationSettingResult(true, false, true, true));
 
         mockMvc.perform(put("/api/notifications/settings")

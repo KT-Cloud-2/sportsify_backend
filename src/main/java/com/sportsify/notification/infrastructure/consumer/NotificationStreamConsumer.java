@@ -12,19 +12,18 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class NotificationStreamConsumer {
 
-    private static final Map<String, NotificationEventType> STREAM_TO_EVENT = Map.of(
-            "ticket.opened", NotificationEventType.TICKET_OPEN,
-            "payment.completed", NotificationEventType.PAYMENT_COMPLETED,
-            "game.starting", NotificationEventType.GAME_START,
-            "chat.mentioned", NotificationEventType.CHAT_MENTION
-    );
+    private static final Map<String, NotificationEventType> STREAM_TO_EVENT =
+            Arrays.stream(NotificationEventType.values())
+                    .collect(Collectors.toMap(NotificationEventType::getStreamKey, e -> e));
 
     private final StreamMessageListenerContainer<String, ObjectRecord<String, String>> container;
     private final StringRedisTemplate redisTemplate;

@@ -3,7 +3,7 @@ package com.sportsify.notification.application.service;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.notification.application.dto.NotificationResult;
-import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
+import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
@@ -15,22 +15,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationEventRepository eventRepository;
-    private final SseEmitterManager sseEmitterManager;
+    private final SseNotificationPort sseNotificationPort;
 
     @Transactional(readOnly = true)
     public Page<NotificationResult> getNotifications(Long memberId, Pageable pageable) {
-        return notificationRepository.findByMemberIdOrderByCreatedAtDesc(memberId, pageable)
-                .map(n -> {
-                    NotificationEvent event = eventRepository.findById(n.getEventId())
-                            .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
-                    return NotificationResult.of(n, event);
-                });
+        Page<Notification> notifications = notificationRepository.findByMemberIdOrderByCreatedAtDesc(memberId, pageable);
+        Map<Long, NotificationEvent> eventMap = buildEventMap(notifications.getContent());
+        return notifications.map(n -> toResult(n, eventMap));
     }
 
     @Transactional
@@ -49,6 +51,22 @@ public class NotificationService {
     }
 
     public SseEmitter subscribe(Long memberId) {
-        return sseEmitterManager.subscribe(memberId);
+        return sseNotificationPort.subscribe(memberId);
+    }
+
+    private Map<Long, NotificationEvent> buildEventMap(List<Notification> notifications) {
+        List<Long> eventIds = notifications.stream()
+                .map(Notification::getEventId)
+                .toList();
+        return eventRepository.findAllById(eventIds).stream()
+                .collect(Collectors.toMap(NotificationEvent::getId, Function.identity()));
+    }
+
+    private NotificationResult toResult(Notification notification, Map<Long, NotificationEvent> eventMap) {
+        NotificationEvent event = eventMap.get(notification.getEventId());
+        if (event == null) {
+            throw new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND);
+        }
+        return NotificationResult.of(notification, event);
     }
 }

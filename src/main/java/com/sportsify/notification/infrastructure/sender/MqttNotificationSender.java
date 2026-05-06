@@ -1,5 +1,7 @@
 package com.sportsify.notification.infrastructure.sender;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.notification.application.sender.NotificationSender;
 import com.sportsify.notification.domain.model.NotificationChannelType;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +35,8 @@ public class MqttNotificationSender implements NotificationSender {
             mqttClient.publish(target, message);
             log.info("MQTT published topic={}", target);
         } catch (MqttException e) {
-            throw new RuntimeException("MQTT 발송 실패 target=" + target, e);
+            log.error("MQTT 발송 실패 target={} error={}", target, e.getMessage());
+            throw new BusinessException(ErrorCode.NOTIFICATION_SEND_FAILED);
         }
     }
 }

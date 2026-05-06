@@ -43,6 +43,7 @@ public class NotificationHistory {
         history.notificationId = notificationId;
         history.channelType = channelType;
         history.status = NotificationSendStatus.SENT;
+        history.errorMessage = "";
         return history;
     }
 

@@ -2,8 +2,8 @@ package com.sportsify.notification.application;
 
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
+import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.service.NotificationService;
-import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.model.NotificationEventType;
@@ -34,7 +34,7 @@ class NotificationServiceTest {
     private NotificationEventRepository eventRepository;
 
     @Mock
-    private SseEmitterManager sseEmitterManager;
+    private SseNotificationPort sseNotificationPort;
 
     @Test
     @DisplayName("읽지 않은 알림을 읽음 처리한다")
@@ -44,7 +44,7 @@ class NotificationServiceTest {
 
         notificationService.markRead(1L, 1L);
 
-        assertThat(notification.isRead()).isTrue();
+        assertThat(notification.isAlreadyRead()).isTrue();
     }
 
     @Test

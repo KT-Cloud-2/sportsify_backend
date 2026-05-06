@@ -13,18 +13,20 @@ import java.time.LocalDateTime;
 @Table(name = "notifications",
     uniqueConstraints = @UniqueConstraint(columnNames = {"event_id", "member_id"}))
 @EntityListeners(AuditingEntityListener.class)
-@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Getter
     private Long id;
 
     @Column(name = "member_id", nullable = false)
+    @Getter
     private Long memberId;
 
     @Column(name = "event_id", nullable = false)
+    @Getter
     private Long eventId;
 
     @Column(name = "is_read", nullable = false)
@@ -32,6 +34,7 @@ public class Notification {
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
+    @Getter
     private LocalDateTime createdAt;
 
     public static Notification create(Long memberId, Long eventId) {

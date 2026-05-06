@@ -1,7 +1,7 @@
 package com.sportsify.notification.application.service;
 
+import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.sender.NotificationSender;
-import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.*;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -24,7 +25,7 @@ public class NotificationEventProcessor {
     private final NotificationSettingRepository settingRepository;
     private final NotificationChannelRepository channelRepository;
     private final NotificationHistoryRepository historyRepository;
-    private final SseEmitterManager sseEmitterManager;
+    private final SseNotificationPort sseNotificationPort;
     private final Map<NotificationChannelType, NotificationSender> senderMap;
 
     public NotificationEventProcessor(
@@ -33,7 +34,7 @@ public class NotificationEventProcessor {
             NotificationSettingRepository settingRepository,
             NotificationChannelRepository channelRepository,
             NotificationHistoryRepository historyRepository,
-            SseEmitterManager sseEmitterManager,
+            SseNotificationPort sseNotificationPort,
             List<NotificationSender> senders
     ) {
         this.eventRepository = eventRepository;
@@ -41,7 +42,7 @@ public class NotificationEventProcessor {
         this.settingRepository = settingRepository;
         this.channelRepository = channelRepository;
         this.historyRepository = historyRepository;
-        this.sseEmitterManager = sseEmitterManager;
+        this.sseNotificationPort = sseNotificationPort;
         this.senderMap = senders.stream()
                 .collect(Collectors.toMap(NotificationSender::channelType, Function.identity()));
     }
@@ -60,9 +61,9 @@ public class NotificationEventProcessor {
 
         if (anyFailed) {
             event.markFailed();
-        } else {
-            event.markPublished();
+            return;
         }
+        event.markPublished();
     }
 
     private boolean processForMembers(NotificationEvent event, List<Long> memberIds, String payload) {
@@ -81,7 +82,7 @@ public class NotificationEventProcessor {
             return false;
         }
         Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
-        sseEmitterManager.send(memberId, event.getEventType().name());
+        sseNotificationPort.send(memberId, event.getEventType().name());
 
         List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
         return channels.stream()
@@ -98,10 +99,14 @@ public class NotificationEventProcessor {
     }
 
     private boolean sendWithRetry(Long notificationId, NotificationChannel channel, String subject, String body) {
-        NotificationSender sender = senderMap.get(channel.getChannelType());
-        if (sender == null) {
+        Optional<NotificationSender> sender = Optional.ofNullable(senderMap.get(channel.getChannelType()));
+        if (sender.isEmpty()) {
             return true;
         }
+        return attemptSend(notificationId, channel, subject, body, sender.get());
+    }
+
+    private boolean attemptSend(Long notificationId, NotificationChannel channel, String subject, String body, NotificationSender sender) {
         for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
             try {
                 sender.send(channel.getChannelTarget(), subject, body);

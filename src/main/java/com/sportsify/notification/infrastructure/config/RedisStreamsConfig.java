@@ -1,5 +1,6 @@
 package com.sportsify.notification.infrastructure.config;
 
+import com.sportsify.notification.domain.model.NotificationEventType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -17,9 +19,9 @@ import java.util.List;
 public class RedisStreamsConfig {
 
     public static final String NOTIFICATION_GROUP = "notification-group";
-    static final List<String> STREAM_KEYS = List.of(
-            "ticket.opened", "payment.completed", "game.starting", "chat.mentioned"
-    );
+    public static final List<String> STREAM_KEYS = Arrays.stream(NotificationEventType.values())
+            .map(NotificationEventType::getStreamKey)
+            .toList();
 
     @Bean
     public StreamMessageListenerContainer<String, ObjectRecord<String, String>> streamListenerContainer(

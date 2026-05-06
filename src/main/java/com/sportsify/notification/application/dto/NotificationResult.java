@@ -18,7 +18,7 @@ public record NotificationResult(
                 notification.getId(),
                 event.getEventType(),
                 event.getPayload(),
-                notification.isRead(),
+                notification.isAlreadyRead(),
                 notification.getCreatedAt()
         );
     }
