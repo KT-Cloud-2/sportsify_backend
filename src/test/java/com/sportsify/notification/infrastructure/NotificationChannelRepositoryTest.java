@@ -41,11 +41,13 @@ class NotificationChannelRepositoryTest extends RepositoryTestSupport {
     @Test
     @DisplayName("동일한 memberId + channelType으로 채널을 두 번 등록하면 DataIntegrityViolationException이 발생한다")
     void save_중복채널_예외() {
+        // GIVEN
         notificationChannelRepository.save(
             NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "a@test.com")
         );
         em.flush();
 
+        // WHEN & THEN
         assertThatThrownBy(() -> {
             notificationChannelRepository.save(
                 NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "b@test.com")

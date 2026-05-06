@@ -4,7 +4,7 @@ import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import com.sportsify.notification.domain.model.NotificationSetting;
-import com.sportsify.notification.infrastructure.repository.NotificationSettingRepositoryAdapter;
+import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import com.sportsify.support.RepositoryTestSupport;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class NotificationSettingRepositoryTest extends RepositoryTestSupport {
 
     @Autowired
-    private NotificationSettingRepositoryAdapter notificationSettingRepository;
+    private NotificationSettingRepository notificationSettingRepository;
 
     @Autowired
     private MemberJpaRepository memberJpaRepository;
