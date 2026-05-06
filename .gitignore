@@ -58,3 +58,4 @@ src/main/resources/db/seed/**
 docker-volumes/
 postgres-data/
 redis-data/
+docs/docs-export.html

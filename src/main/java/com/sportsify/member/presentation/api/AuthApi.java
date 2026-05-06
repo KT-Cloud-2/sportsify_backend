@@ -1,7 +1,6 @@
 package com.sportsify.member.presentation.api;
 
 import com.sportsify.common.exception.ErrorCode;
-import com.sportsify.common.response.CommonResponse;
 import com.sportsify.common.swagger.AuthRequiredApi;
 import com.sportsify.common.swagger.CommonApiResponses;
 import com.sportsify.common.swagger.SwaggerApi;
@@ -31,7 +30,7 @@ public interface AuthApi {
     )
     @CommonApiResponses
     @SwaggerApiError(ErrorCode.INVALID_REFRESH_TOKEN)
-    ResponseEntity<CommonResponse<TokenRefreshResponse>> refresh(
+    ResponseEntity<TokenRefreshResponse> refresh(
             @RequestBody TokenRefreshRequest request
     );
 

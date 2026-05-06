@@ -1,6 +1,5 @@
 package com.sportsify.member.presentation.controller;
 
-import com.sportsify.common.response.CommonResponse;
 import com.sportsify.member.application.service.AuthService;
 import com.sportsify.member.presentation.api.AuthApi;
 import com.sportsify.member.presentation.dto.LogoutRequest;
@@ -20,13 +19,10 @@ public class AuthController implements AuthApi {
     private final AuthService authService;
 
     @PostMapping("/token/refresh")
-    public ResponseEntity<CommonResponse<TokenRefreshResponse>> refresh(
+    public ResponseEntity<TokenRefreshResponse> refresh(
             @Valid @RequestBody TokenRefreshRequest request
     ) {
-        TokenRefreshResponse response = TokenRefreshResponse.from(
-                authService.refresh(request.refreshToken())
-        );
-        return ResponseEntity.ok(CommonResponse.ok(response));
+        return ResponseEntity.ok(TokenRefreshResponse.from(authService.refresh(request.refreshToken())));
     }
 
     @PostMapping("/logout")

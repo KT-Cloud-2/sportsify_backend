@@ -47,9 +47,8 @@ class MemberControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(get("/api/members/me")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.memberId").value(1))
-                .andExpect(jsonPath("$.data.nickname").value("응원왕"));
+                .andExpect(jsonPath("$.memberId").value(1))
+                .andExpect(jsonPath("$.nickname").value("응원왕"));
     }
 
     @Test
@@ -68,7 +67,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(get("/api/members/me")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
     // ──────────────────────── PATCH /api/members/me/nickname ────────────────────────
@@ -84,7 +83,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("새닉네임")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.nickname").value("새닉네임"));
+                .andExpect(jsonPath("$.nickname").value("새닉네임"));
     }
 
     @Test
@@ -95,7 +94,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("A")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @Test
@@ -109,7 +108,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("중복닉네임")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("NICKNAME_DUPLICATE"));
+                .andExpect(jsonPath("$.code").value("NICKNAME_DUPLICATE"));
     }
 
     // ──────────────────────── DELETE /api/members/me ────────────────────────
@@ -133,7 +132,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(delete("/api/members/me")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
     // ──────────────────────── POST /api/members/me/favorite-teams ────────────────────────
@@ -149,7 +148,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(3L, 1)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.teamName").value("KIA 타이거즈"));
+                .andExpect(jsonPath("$.teamName").value("KIA 타이거즈"));
     }
 
     @Test
@@ -163,7 +162,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(3L, null)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_ALREADY_EXISTS"));
+                .andExpect(jsonPath("$.code").value("FAVORITE_TEAM_ALREADY_EXISTS"));
     }
 
     @Test
@@ -177,7 +176,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(99L, null)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("TEAM_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("TEAM_NOT_FOUND"));
     }
 
     // ──────────────────────── GET /api/members/me/favorite-teams ────────────────────────
@@ -194,7 +193,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(get("/api/members/me/favorite-teams")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2));
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     // ──────────────────────── PATCH .../favorite-teams/{teamId}/priority ────────────────────────
@@ -210,7 +209,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(2)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.priority").value(2));
+                .andExpect(jsonPath("$.priority").value(2));
     }
 
     @Test
@@ -224,7 +223,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(99)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_PRIORITY"));
+                .andExpect(jsonPath("$.code").value("INVALID_PRIORITY"));
     }
 
     @Test
@@ -238,7 +237,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(1)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("FAVORITE_TEAM_NOT_FOUND"));
     }
 
     // ──────────────────────── DELETE .../favorite-teams/{teamId} ────────────────────────
@@ -262,6 +261,6 @@ class MemberControllerApiTest extends WebMvcTestSupport {
         mockMvc.perform(delete("/api/members/me/favorite-teams/{teamId}", 99L)
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("FAVORITE_TEAM_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("FAVORITE_TEAM_NOT_FOUND"));
     }
 }
