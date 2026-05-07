@@ -49,7 +49,8 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 1L,
                 OrderStatus.PENDING,
                 LocalDateTime.now(),
-                List.of(mock(ReservationSeatsResponseDto.ReservationSeatDto.class))
+                List.of(mock(ReservationSeatsResponseDto.ReservationSeatDto.class)),
+                LocalDateTime.now()
         );
 
         when(reservationService.reserveSeat(any())).thenReturn(resDto);

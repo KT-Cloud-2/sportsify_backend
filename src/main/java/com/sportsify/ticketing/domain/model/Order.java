@@ -36,6 +36,9 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderSeat> orderSeats = new ArrayList<>();
 
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -48,15 +51,23 @@ public class Order {
     private Order(Member member) {
         this.member = member;
         this.status = OrderStatus.PENDING;
+        this.expiresAt = LocalDateTime.now().plusMinutes(15);
     }
 
     public static Order create(Member member) {
         return new Order(member);
     }
 
-
     public void addOrderSeat(OrderSeat orderSeat) {
         this.orderSeats.add(orderSeat);
+    }
+
+    public void updateStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+    public void updateExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
 }

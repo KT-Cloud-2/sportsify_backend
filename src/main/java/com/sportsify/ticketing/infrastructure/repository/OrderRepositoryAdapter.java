@@ -2,9 +2,13 @@ package com.sportsify.ticketing.infrastructure.repository;
 
 
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
@@ -15,5 +19,10 @@ public class OrderRepositoryAdapter implements OrderRepository {
     @Override
     public void save(Order order) {
         jpaRepository.save(order);
+    }
+
+    @Override
+    public List<Order> findByStatusAndExpiresAtBefore(OrderStatus status, LocalDateTime expiresAt) {
+        return jpaRepository.findByStatusAndExpiresAtBefore(status, expiresAt);
     }
 }

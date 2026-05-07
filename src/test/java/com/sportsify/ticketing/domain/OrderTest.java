@@ -8,6 +8,8 @@ import com.sportsify.ticketing.domain.model.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -18,11 +20,18 @@ class OrderTest {
     void createOrderWithPendingStatus() {
         Member member = Member.create("test@test.com", "닉네임", OAuthProvider.GOOGLE, "g-1");
 
+
+        LocalDateTime before = LocalDateTime.now().plusMinutes(15).minusSeconds(1);
         Order order = Order.create(member);
+        LocalDateTime after = LocalDateTime.now().plusMinutes(15).plusSeconds(1);
+
 
         assertThat(order.getMember()).isEqualTo(member);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
         assertThat(order.getOrderSeats().size()).isEqualTo(0);
+        assertThat(order.getExpiresAt())
+                .isAfterOrEqualTo(before)
+                .isBeforeOrEqualTo(after);
     }
 
     @Test

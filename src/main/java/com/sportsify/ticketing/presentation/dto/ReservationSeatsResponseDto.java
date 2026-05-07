@@ -14,7 +14,8 @@ public record ReservationSeatsResponseDto(
         Long memberId,
         OrderStatus status,
         LocalDateTime reservedAt,
-        List<ReservationSeatDto> seats
+        List<ReservationSeatDto> seats,
+        LocalDateTime expiresAt
 ) {
     public static ReservationSeatsResponseDto from(Order order, Long gameId) {
         List<ReservationSeatDto> seats = order.getOrderSeats().stream()
@@ -27,7 +28,8 @@ public record ReservationSeatsResponseDto(
                 order.getMember().getId(),
                 order.getStatus(),
                 order.getCreatedAt(),
-                seats
+                seats,
+                order.getExpiresAt()
         );
     }
 
@@ -36,16 +38,14 @@ public record ReservationSeatsResponseDto(
             Long seatId,
             String seatGrade,
             String seatSection,
-            Integer price,
-            LocalDateTime expiresAt
+            Integer price
     ) {
         public static ReservationSeatDto from(OrderSeat orderSeat) {
             return new ReservationSeatDto(
                     orderSeat.getSeatId(),
                     orderSeat.getSeatGradeName(),
                     orderSeat.getSectionName(),
-                    orderSeat.getSeatPrice(),
-                    orderSeat.getExpiresAt()
+                    orderSeat.getSeatPrice()
             );
         }
     }

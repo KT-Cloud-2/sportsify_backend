@@ -34,9 +34,6 @@ public class OrderSeat {
     @Column(length = 30)
     private OrderSeatStatus status;
 
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
-
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -46,15 +43,14 @@ public class OrderSeat {
         this.order = order;
         this.gameSeat = gameSeat;
         this.status = OrderSeatStatus.HOLDING;
-        this.expiresAt = LocalDateTime.now().plusMinutes(15);
     }
 
     public static OrderSeat create(Order order, GameSeat gameSeat) {
         return new OrderSeat(order, gameSeat);
     }
 
-    public void updateExpiresAt(LocalDateTime expiresAt) {
-        this.expiresAt = expiresAt;
+    public void updateStatus(OrderSeatStatus status) {
+        this.status = status;
     }
 
     public Long getSeatId() {
