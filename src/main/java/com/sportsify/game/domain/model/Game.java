@@ -97,4 +97,8 @@ public class Game {
     public boolean isOnSale() {
         return this.status == GameStatus.ON_SALE;
     }
+
+    public void updateStatus(GameStatus status) {
+        this.status = status;
+    }
 }
