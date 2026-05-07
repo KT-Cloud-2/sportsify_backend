@@ -11,8 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,6 +28,8 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
     private EntityManager em;
 
     private Long memberId;
+
+    private static final PageRequest ALL = PageRequest.of(0, 1000);
 
     @BeforeEach
     void setUp() {
@@ -46,10 +48,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByTicketOpenAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByTicketOpenAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).contains(memberId);
+        assertThat(memberIds.getContent()).contains(memberId);
     }
 
     @Test
@@ -61,10 +63,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByGameStartAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByGameStartAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).contains(memberId);
+        assertThat(memberIds.getContent()).contains(memberId);
     }
 
     @Test
@@ -76,10 +78,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByPaymentAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByPaymentAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).contains(memberId);
+        assertThat(memberIds.getContent()).contains(memberId);
     }
 
     @Test
@@ -92,10 +94,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByTicketOpenAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByTicketOpenAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).doesNotContain(memberId);
+        assertThat(memberIds.getContent()).doesNotContain(memberId);
     }
 
     @Test
@@ -108,10 +110,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByGameStartAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByGameStartAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).doesNotContain(memberId);
+        assertThat(memberIds.getContent()).doesNotContain(memberId);
     }
 
     @Test
@@ -124,10 +126,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByPaymentAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByPaymentAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).doesNotContain(memberId);
+        assertThat(memberIds.getContent()).doesNotContain(memberId);
     }
 
     @Test
@@ -139,10 +141,10 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByChatMentionAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByChatMentionAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).contains(memberId);
+        assertThat(memberIds.getContent()).contains(memberId);
     }
 
     @Test
@@ -155,9 +157,9 @@ class NotificationSettingRepositoryTest extends RepositoryTestSupport {
         em.flush();
 
         // WHEN
-        List<Long> memberIds = notificationSettingRepository.findMemberIdsByChatMentionAlertTrue();
+        Slice<Long> memberIds = notificationSettingRepository.findMemberIdsByChatMentionAlertTrue(ALL);
 
         // THEN
-        assertThat(memberIds).doesNotContain(memberId);
+        assertThat(memberIds.getContent()).doesNotContain(memberId);
     }
 }

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.SliceImpl;
 
 import java.util.List;
 
@@ -46,7 +47,8 @@ class NotificationEventProcessorTest {
     void process_알림설정OFF_스킵() {
         NotificationEvent event = NotificationEvent.create(NotificationEventType.TICKET_OPEN, "{}");
         given(eventRepository.save(any())).willReturn(event);
-        given(settingRepository.findMemberIdsByTicketOpenAlertTrue()).willReturn(List.of());
+        given(settingRepository.findMemberIdsByTicketOpenAlertTrue(any()))
+                .willReturn(new SliceImpl<>(List.of()));
 
         processor.process(NotificationEventType.TICKET_OPEN, "{}");
 
@@ -58,7 +60,8 @@ class NotificationEventProcessorTest {
     void process_중복알림_스킵() {
         NotificationEvent event = notificationEventWithId(10L, NotificationEventType.PAYMENT_COMPLETED);
         given(eventRepository.save(any())).willReturn(event);
-        given(settingRepository.findMemberIdsByPaymentAlertTrue()).willReturn(List.of(1L));
+        given(settingRepository.findMemberIdsByPaymentAlertTrue(any()))
+                .willReturn(new SliceImpl<>(List.of(1L)));
         given(notificationRepository.existsByEventIdAndMemberId(10L, 1L)).willReturn(true);
 
         processor.process(NotificationEventType.PAYMENT_COMPLETED, "{}");
@@ -74,7 +77,8 @@ class NotificationEventProcessorTest {
         NotificationChannel channel = NotificationChannel.create(1L, NotificationChannelType.EMAIL, "a@test.com");
 
         given(eventRepository.save(any())).willReturn(event);
-        given(settingRepository.findMemberIdsByPaymentAlertTrue()).willReturn(List.of(1L));
+        given(settingRepository.findMemberIdsByPaymentAlertTrue(any()))
+                .willReturn(new SliceImpl<>(List.of(1L)));
         given(notificationRepository.existsByEventIdAndMemberId(10L, 1L)).willReturn(false);
         given(notificationRepository.save(any())).willReturn(notification);
         given(channelRepository.findByMemberIdAndEnabledTrue(1L)).willReturn(List.of(channel));
@@ -93,7 +97,8 @@ class NotificationEventProcessorTest {
         NotificationChannel channel = NotificationChannel.create(1L, NotificationChannelType.EMAIL, "a@test.com");
 
         given(eventRepository.save(any())).willReturn(event);
-        given(settingRepository.findMemberIdsByPaymentAlertTrue()).willReturn(List.of(1L));
+        given(settingRepository.findMemberIdsByPaymentAlertTrue(any()))
+                .willReturn(new SliceImpl<>(List.of(1L)));
         given(notificationRepository.existsByEventIdAndMemberId(10L, 1L)).willReturn(false);
         given(notificationRepository.save(any())).willReturn(notification);
         given(channelRepository.findByMemberIdAndEnabledTrue(1L)).willReturn(List.of(channel));
@@ -112,7 +117,8 @@ class NotificationEventProcessorTest {
         Notification notification = notificationWithId(200L, 1L, 20L);
 
         given(eventRepository.save(any())).willReturn(event);
-        given(settingRepository.findMemberIdsByChatMentionAlertTrue()).willReturn(List.of(1L));
+        given(settingRepository.findMemberIdsByChatMentionAlertTrue(any()))
+                .willReturn(new SliceImpl<>(List.of(1L)));
         given(notificationRepository.existsByEventIdAndMemberId(20L, 1L)).willReturn(false);
         given(notificationRepository.save(any())).willReturn(notification);
         given(channelRepository.findByMemberIdAndEnabledTrue(1L)).willReturn(List.of());
@@ -128,7 +134,8 @@ class NotificationEventProcessorTest {
     void process_채팅멘션알림OFF_스킵() {
         NotificationEvent event = notificationEventWithId(21L, NotificationEventType.CHAT_MENTION);
         given(eventRepository.save(any())).willReturn(event);
-        given(settingRepository.findMemberIdsByChatMentionAlertTrue()).willReturn(List.of());
+        given(settingRepository.findMemberIdsByChatMentionAlertTrue(any()))
+                .willReturn(new SliceImpl<>(List.of()));
 
         processor.process(NotificationEventType.CHAT_MENTION, "{}");
 

@@ -21,6 +21,8 @@ import java.util.List;
 public class RedisStreamsConfig {
 
     public static final String NOTIFICATION_GROUP = "notification-group";
+    public static final int STREAM_MAX_LEN = 10_000;
+
     public static final List<String> STREAM_KEYS = Arrays.stream(NotificationEventType.values())
             .map(NotificationEventType::getStreamKey)
             .toList();
@@ -34,7 +36,7 @@ public class RedisStreamsConfig {
 
         var options = StreamMessageListenerContainer.StreamMessageListenerContainerOptions
                 .builder()
-                .pollTimeout(Duration.ofMillis(100))
+                .pollTimeout(Duration.ofMillis(2000))
                 .targetType(String.class)
                 .build();
 

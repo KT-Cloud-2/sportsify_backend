@@ -5,7 +5,10 @@ import com.sportsify.notification.application.sender.NotificationSender;
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class NotificationEventProcessor {
 
     private static final int MAX_RETRY = 3;
+    private static final int CHUNK_SIZE = 500;
 
     private final NotificationEventRepository eventRepository;
     private final NotificationRepository notificationRepository;
@@ -48,25 +52,53 @@ public class NotificationEventProcessor {
     }
 
     @Transactional
-    public void process(NotificationEventType eventType, String payload) {
-        NotificationEvent event = eventRepository.save(NotificationEvent.create(eventType, payload));
-        List<Long> targetMemberIds = resolveTargetMemberIds(eventType);
-
-        if (targetMemberIds.isEmpty()) {
-            event.markPublished();
-            return;
-        }
-
-        boolean anyFailed = processForMembers(event, targetMemberIds, payload);
-
-        if (anyFailed) {
-            event.markFailed();
-            return;
-        }
-        event.markPublished();
+    public NotificationEvent saveEvent(NotificationEventType eventType, String payload) {
+        return eventRepository.save(NotificationEvent.create(eventType, payload));
     }
 
-    private boolean processForMembers(NotificationEvent event, List<Long> memberIds, String payload) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markEventStatus(Long eventId, boolean anyFailed) {
+        eventRepository.findById(eventId).ifPresent(event -> {
+            if (anyFailed) {
+                event.markFailed();
+            } else {
+                event.markPublished();
+            }
+        });
+    }
+
+    public void process(NotificationEventType eventType, String payload) {
+        NotificationEvent event = saveEvent(eventType, payload);
+
+        boolean anyFailed = dispatchInChunks(event, eventType, payload);
+        markEventStatus(event.getId(), anyFailed);
+    }
+
+    private boolean dispatchInChunks(NotificationEvent event, NotificationEventType eventType, String payload) {
+        boolean anyFailed = false;
+        int page = 0;
+        Slice<Long> chunk;
+
+        do {
+            chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, CHUNK_SIZE));
+            boolean chunkFailed = processChunk(event, chunk.getContent(), payload);
+            if (chunkFailed) {
+                anyFailed = true;
+            }
+            page++;
+        } while (chunk.hasNext());
+
+        if (page == 1 && chunk.getContent().isEmpty()) {
+            return false;
+        }
+        return anyFailed;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean processChunk(NotificationEvent event, List<Long> memberIds, String payload) {
+        if (memberIds.isEmpty()) {
+            return false;
+        }
         boolean anyFailed = false;
         for (Long memberId : memberIds) {
             boolean failed = processForMember(event, memberId, payload);
@@ -89,12 +121,12 @@ public class NotificationEventProcessor {
                 .anyMatch(channel -> !sendWithRetry(notification.getId(), channel, event.getEventType().name(), payload));
     }
 
-    private List<Long> resolveTargetMemberIds(NotificationEventType eventType) {
+    private Slice<Long> resolveTargetMemberIds(NotificationEventType eventType, PageRequest pageable) {
         return switch (eventType) {
-            case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue();
-            case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue();
-            case PAYMENT_COMPLETED -> settingRepository.findMemberIdsByPaymentAlertTrue();
-            case CHAT_MENTION -> settingRepository.findMemberIdsByChatMentionAlertTrue();
+            case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue(pageable);
+            case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue(pageable);
+            case PAYMENT_COMPLETED -> settingRepository.findMemberIdsByPaymentAlertTrue(pageable);
+            case CHAT_MENTION -> settingRepository.findMemberIdsByChatMentionAlertTrue(pageable);
         };
     }
 

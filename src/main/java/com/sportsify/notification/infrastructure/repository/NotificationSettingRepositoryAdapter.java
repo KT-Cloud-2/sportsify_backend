@@ -3,8 +3,10 @@ package com.sportsify.notification.infrastructure.repository;
 import com.sportsify.notification.domain.model.NotificationSetting;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
-import java.util.List;
+
 import java.util.Optional;
 
 @Repository
@@ -23,22 +25,22 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
     }
 
     @Override
-    public List<Long> findMemberIdsByTicketOpenAlertTrue() {
-        return jpaRepository.findMemberIdsByTicketOpenAlertTrue();
+    public Slice<Long> findMemberIdsByTicketOpenAlertTrue(Pageable pageable) {
+        return jpaRepository.findMemberIdsByTicketOpenAlertTrue(pageable);
     }
 
     @Override
-    public List<Long> findMemberIdsByGameStartAlertTrue() {
-        return jpaRepository.findMemberIdsByGameStartAlertTrue();
+    public Slice<Long> findMemberIdsByGameStartAlertTrue(Pageable pageable) {
+        return jpaRepository.findMemberIdsByGameStartAlertTrue(pageable);
     }
 
     @Override
-    public List<Long> findMemberIdsByPaymentAlertTrue() {
-        return jpaRepository.findMemberIdsByPaymentAlertTrue();
+    public Slice<Long> findMemberIdsByPaymentAlertTrue(Pageable pageable) {
+        return jpaRepository.findMemberIdsByPaymentAlertTrue(pageable);
     }
 
     @Override
-    public List<Long> findMemberIdsByChatMentionAlertTrue() {
-        return jpaRepository.findMemberIdsByChatMentionAlertTrue();
+    public Slice<Long> findMemberIdsByChatMentionAlertTrue(Pageable pageable) {
+        return jpaRepository.findMemberIdsByChatMentionAlertTrue(pageable);
     }
 }
