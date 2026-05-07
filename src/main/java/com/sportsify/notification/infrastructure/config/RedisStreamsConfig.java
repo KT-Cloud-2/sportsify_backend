@@ -1,5 +1,7 @@
 package com.sportsify.notification.infrastructure.config;
 
+import com.sportsify.common.exception.InfrastructureErrorCode;
+import com.sportsify.common.exception.InfrastructureException;
 import com.sportsify.notification.domain.model.NotificationEventType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -51,7 +53,7 @@ public class RedisStreamsConfig {
                     continue;
                 }
                 log.error("Consumer group 생성 실패 stream={} error={}", streamKey, e.getMessage(), e);
-                throw new IllegalStateException("Redis Streams consumer group 초기화 실패: " + streamKey, e);
+                throw new InfrastructureException(InfrastructureErrorCode.REDIS_STREAMS_INIT_FAILED, e);
             }
         }
     }

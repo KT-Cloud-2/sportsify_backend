@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
                 .body(ErrorDetail.of(ErrorCode.INVALID_INPUT.getCode(), ErrorCode.INVALID_INPUT.getMessage(), detail));
     }
 
+    @ExceptionHandler(InfrastructureException.class)
+    public ResponseEntity<ErrorDetail> handleInfrastructureException(InfrastructureException e) {
+        return ResponseEntity.internalServerError()
+                .body(ErrorDetail.of(ErrorCode.INTERNAL_ERROR.getCode(), e.getErrorCode().getMessage(), null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetail> handleException(Exception e) {
         return ResponseEntity.internalServerError()
