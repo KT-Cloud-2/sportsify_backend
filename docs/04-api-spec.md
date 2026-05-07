@@ -2517,6 +2517,18 @@ Validation / Business Rules
 
 ### 엔드포인트 목록
 
+| method | path | auth required | 설명 |
+| --- | --- | --- | --- |
+| GET | /api/notifications | O | 알림 목록 조회 (페이징) |
+| PATCH | /api/notifications/{notificationId}/read | O | 단건 읽음 처리 |
+| PATCH | /api/notifications/read-all | O | 전체 읽음 처리 |
+| GET | /api/notifications/stream | O | SSE 실시간 알림 구독 |
+| GET | /api/notifications/settings | O | 알림 설정 조회 |
+| PUT | /api/notifications/settings | O | 알림 설정 변경 |
+| GET | /api/notifications/channels | O | 알림 채널 목록 조회 |
+| POST | /api/notifications/channels | O | 알림 채널 등록 |
+| DELETE | /api/notifications/channels/{channelId} | O | 알림 채널 삭제 |
+| PATCH | /api/notifications/channels/{channelId}/toggle | O | 알림 채널 활성화/비활성화 토글 |
 | method | path                                  | auth required | 설명          |
 |--------|---------------------------------------|---------------|-------------|
 | GET    | /api/notifications/settings           | O             | 알림 설정 조회    |
@@ -2529,16 +2541,36 @@ Validation / Business Rules
 
 ---
 
-### 6-1. 알림 설정 조회
+### 6-1. 알림 목록 조회
 
 ```
-GET /api/notifications/settings
+GET /api/notifications
 ```
+
+#### Query Parameter
+
+| 파라미터 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `page` | Integer | N | 페이지 번호 (기본 0) |
+| `size` | Integer | N | 페이지 크기 (기본 20) |
 
 #### Response Body
 
 ```json
 {
+  "content": [
+    {
+      "id": 1001,
+      "eventType": "PAYMENT_COMPLETED",
+      "payload": "{\"paymentId\":7001,\"memberId\":1}",
+      "read": false,
+      "createdAt": "2025-04-21T10:05:30"
+    }
+  ],
+  "totalElements": 42,
+  "totalPages": 3,
+  "size": 20,
+  "number": 0
   "ticketOpenAlert": true,
   "gameStartAlert": true,
   "paymentAlert": true
@@ -2547,6 +2579,13 @@ GET /api/notifications/settings
 
 #### Response Field
 
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `id` | Long | 알림 ID |
+| `eventType` | String | 이벤트 종류 (`TICKET_OPEN` \| `GAME_START` \| `PAYMENT_COMPLETED` \| `CHAT_MENTION`) |
+| `payload` | String | 이벤트 원본 페이로드 (JSON 문자열) |
+| `read` | Boolean | 읽음 여부 |
+| `createdAt` | String (ISO8601) | 알림 생성 시각 |
 | 필드                | 타입      | 설명              |
 |-------------------|---------|-----------------|
 | `ticketOpenAlert` | Boolean | 티켓 오픈 알림 ON/OFF |
@@ -2555,34 +2594,48 @@ GET /api/notifications/settings
 
 ---
 
-### 6-2. 알림 설정 변경
+### 6-2. 단건 읽음 처리
 
 ```
-PUT /api/notifications/settings
+PATCH /api/notifications/{notificationId}/read
 ```
 
-변경할 필드만 포함해도 됨. 미포함 필드는 기존 값 유지.
+#### Path Variable
 
-#### Request Body
+| 변수 | 타입 | 설명 |
+| --- | --- | --- |
+| `notificationId` | Long | 읽음 처리할 알림 ID |
 
-```json
-{
-  "ticketOpenAlert": true,
-  "gameStartAlert": false,
-  "paymentAlert": true
-}
+#### Response
+
+```
+HTTP 204 No Content
 ```
 
-#### Request Field
+#### Http Status / Error Code
 
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_NOT_FOUND` | 404 | 알림 없음 또는 다른 회원의 알림 |
+| `NOTIFICATION_ALREADY_READ` | 400 | 이미 읽은 알림 |
 | 필드                | 타입      | 필수 | 설명              |
 |-------------------|---------|----|-----------------|
 | `ticketOpenAlert` | Boolean | N  | 티켓 오픈 알림 ON/OFF |
 | `gameStartAlert`  | Boolean | N  | 경기 시작 알림 ON/OFF |
 | `paymentAlert`    | Boolean | N  | 결제 알림 ON/OFF    |
 
-#### Response Body
+---
 
+### 6-3. 전체 읽음 처리
+
+```
+PATCH /api/notifications/read-all
+```
+
+#### Response
+
+```
+HTTP 204 No Content
 ```json
 {
   "ticketOpenAlert": true,
@@ -2593,16 +2646,44 @@ PUT /api/notifications/settings
 
 ---
 
-### 6-3. 알림 채널 목록 조회
+### 6-4. SSE 실시간 알림 구독
 
 ```
-GET /api/notifications/channels
+GET /api/notifications/stream
 ```
+
+`Content-Type: text/event-stream` 으로 SSE 연결을 수립한다. 서버에서 알림 이벤트 발생 시 아래 형식으로 push된다.
+
+#### SSE Event
+
+```
+event: notification
+data: PAYMENT_COMPLETED
+```
+
+| 필드 | 설명 |
+| --- | --- |
+| `event` | 항상 `notification` |
+| `data` | `NotificationEventType` 문자열 |
+
+---
+
+### 6-5. 알림 설정 조회
+
+```
+GET /api/notifications/settings
+```
+
+설정이 없으면 모든 항목 `true`로 자동 생성하여 반환한다.
 
 #### Response Body
 
 ```json
 {
+  "ticketOpenAlert": true,
+  "gameStartAlert": true,
+  "paymentAlert": true,
+  "chatMentionAlert": true
   "data": [
     {
       "channel": "EMAIL",
@@ -2620,6 +2701,12 @@ GET /api/notifications/channels
 
 #### Response Field
 
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `ticketOpenAlert` | Boolean | 티켓 오픈 알림 ON/OFF |
+| `gameStartAlert` | Boolean | 경기 시작 알림 ON/OFF |
+| `paymentAlert` | Boolean | 결제 완료 알림 ON/OFF |
+| `chatMentionAlert` | Boolean | 채팅 @멘션 알림 ON/OFF |
 | 필드              | 타입      | 설명                                              |
 |-----------------|---------|-------------------------------------------------|
 | `channel`       | String  | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
@@ -2628,24 +2715,33 @@ GET /api/notifications/channels
 
 ---
 
-### 6-4. 알림 채널 추가
+### 6-6. 알림 설정 변경
 
 ```
-POST /api/notifications/channels
+PUT /api/notifications/settings
 ```
+
+4개 필드 모두 필수. 전체 교체 방식으로 동작한다.
 
 #### Request Body
 
 ```json
 {
-  "channel": "DISCORD",
-  "channelTarget": "https://discord.com/api/webhooks/xxx/yyy",
-  "isEnabled": true
+  "ticketOpenAlert": true,
+  "gameStartAlert": false,
+  "paymentAlert": true,
+  "chatMentionAlert": true
 }
 ```
 
 #### Request Field
 
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `ticketOpenAlert` | Boolean | Y | 티켓 오픈 알림 ON/OFF |
+| `gameStartAlert` | Boolean | Y | 경기 시작 알림 ON/OFF |
+| `paymentAlert` | Boolean | Y | 결제 완료 알림 ON/OFF |
+| `chatMentionAlert` | Boolean | Y | 채팅 @멘션 알림 ON/OFF |
 | 필드              | 타입      | 필수 | 설명                                              |
 |-----------------|---------|----|-------------------------------------------------|
 | `channel`       | String  | Y  | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
@@ -2656,6 +2752,13 @@ POST /api/notifications/channels
 
 ```json
 {
+  "ticketOpenAlert": true,
+  "gameStartAlert": false,
+  "paymentAlert": true,
+  "chatMentionAlert": true
+}
+```
+
   "channel": "DISCORD",
   "channelTarget": "https://discord.com/api/webhooks/xxx/yyy",
   "isEnabled": true  
@@ -2671,14 +2774,49 @@ POST /api/notifications/channels
 
 ---
 
-### 6-5. 알림 채널 수정
+### 6-7. 알림 채널 목록 조회
 
 ```
-PUT /api/notifications/channels/{channel}
+GET /api/notifications/channels
 ```
 
-#### Path Variable
+활성화(`enabled = true`)된 채널만 반환한다.
 
+#### Response Body
+
+```json
+[
+  {
+    "id": 10,
+    "channelType": "EMAIL",
+    "channelTarget": "user@example.com",
+    "enabled": true
+  },
+  {
+    "id": 11,
+    "channelType": "MQTT",
+    "channelTarget": "device/topic/user-1",
+    "enabled": true
+  }
+]
+```
+
+#### Response Field
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `id` | Long | 채널 ID |
+| `channelType` | String | 채널 종류 (`EMAIL` \| `MQTT`) |
+| `channelTarget` | String | 수신 대상 (이메일 주소 / MQTT 토픽) |
+| `enabled` | Boolean | 채널 활성화 여부 |
+
+---
+
+### 6-8. 알림 채널 등록
+
+```
+POST /api/notifications/channels
+```
 | 변수        | 타입     | 설명                                              |
 |-----------|--------|-------------------------------------------------|
 | `channel` | String | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
@@ -2687,13 +2825,17 @@ PUT /api/notifications/channels/{channel}
 
 ```json
 {
-  "channelTarget": "new@example.com",
-  "isEnabled": true
+  "channelType": "EMAIL",
+  "channelTarget": "user@example.com"
 }
 ```
 
 #### Request Field
 
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `channelType` | String | Y | 채널 종류 (`EMAIL` \| `MQTT`) |
+| `channelTarget` | String | Y | 수신 대상 |
 | 필드              | 타입      | 필수 | 설명         |
 |-----------------|---------|----|------------|
 | `channelTarget` | String  | N  | 변경할 수신 대상  |
@@ -2703,6 +2845,10 @@ PUT /api/notifications/channels/{channel}
 
 ```json
 {
+  "id": 10,
+  "channelType": "EMAIL",
+  "channelTarget": "user@example.com",
+  "enabled": true
   "channel": "EMAIL",
   "channelTarget": "new@example.com",
   "isEnabled": true
@@ -2711,6 +2857,9 @@ PUT /api/notifications/channels/{channel}
 
 #### Http Status / Error Code
 
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_CHANNEL_ALREADY_EXISTS` | 409 | 동일 채널 종류가 이미 등록됨 |
 | 에러 코드                    | HTTP Status | 설명          |
 |--------------------------|-------------|-------------|
 | `CHANNEL_NOT_FOUND`      | 404         | 등록되지 않은 채널  |
@@ -2718,14 +2867,17 @@ PUT /api/notifications/channels/{channel}
 
 ---
 
-### 6-6. 알림 채널 삭제
+### 6-9. 알림 채널 삭제
 
 ```
-DELETE /api/notifications/channels/{channel}
+DELETE /api/notifications/channels/{channelId}
 ```
 
 #### Path Variable
 
+| 변수 | 타입 | 설명 |
+| --- | --- | --- |
+| `channelId` | Long | 삭제할 채널 ID |
 | 변수        | 타입     | 설명                                              |
 |-----------|--------|-------------------------------------------------|
 | `channel` | String | 채널 종류 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`) |
@@ -2738,20 +2890,26 @@ HTTP 204 No Content
 
 #### Http Status / Error Code
 
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_CHANNEL_NOT_FOUND` | 404 | 채널 없음 또는 다른 회원의 채널 |
 | 에러 코드               | HTTP Status | 설명         |
 |---------------------|-------------|------------|
 | `CHANNEL_NOT_FOUND` | 404         | 등록되지 않은 채널 |
 
 ---
 
-### 6-7. 알림 발송 이력 조회
+### 6-10. 알림 채널 토글
 
 ```
-GET /api/notifications/history
+PATCH /api/notifications/channels/{channelId}/toggle
 ```
 
-#### Query Parameter
+#### Path Variable
 
+| 변수 | 타입 | 설명 |
+| --- | --- | --- |
+| `channelId` | Long | 토글할 채널 ID |
 | 파라미터      | 타입      | 필수 | 설명                                                                 |
 |-----------|---------|----|--------------------------------------------------------------------|
 | `channel` | String  | N  | 채널 필터 (`EMAIL` \| `SMS` \| `DISCORD` \| `PUSH`)                    |
@@ -2763,6 +2921,10 @@ GET /api/notifications/history
 
 ```json
 {
+  "id": 10,
+  "channelType": "EMAIL",
+  "channelTarget": "user@example.com",
+  "enabled": false
   "items": [
     {
       "historyId": 50001,
@@ -2780,8 +2942,156 @@ GET /api/notifications/history
 }
 ```
 
-#### Response Field
+#### Http Status / Error Code
 
+| 에러 코드 | HTTP Status | 설명 |
+| --- | --- | --- |
+| `NOTIFICATION_CHANNEL_NOT_FOUND` | 404 | 채널 없음 또는 다른 회원의 채널 |
+
+---
+
+## 부록 A. 전체 엔드포인트 요약
+
+| method | path | auth required | 설명 |
+| --- | --- | --- | --- |
+| GET | /oauth2/authorization/{registrationId} | N | 소셜 로그인 (Google / Kakao) |
+| GET | /oauth2/callback | N | 소셜 로그인 콜백 (토큰 발급) |
+| POST | /api/auth/token/refresh | N | 액세스 토큰 갱신 |
+| POST | /api/auth/logout | O | 로그아웃 |
+| GET | /api/members/me | O | 내 정보 조회 |
+| PATCH | /api/members/me/nickname | O | 내 정보 수정 (닉네임) |
+| DELETE | /api/members/me | O | 회원 탈퇴 |
+| POST | /api/members/me/favorite-teams | O | 선호 팀 추가 |
+| GET | /api/members/me/favorite-teams | O | 선호 팀 목록 조회 |
+| PATCH | /api/members/me/favorite-teams/{teamId}/priority | O | 선호 팀 우선순위 수정 |
+| DELETE | /api/members/me/favorite-teams/{teamId} | O | 선호 팀 삭제 |
+| GET | /api/members/me/activity/monthly | O | 월별 응원 활동 통계 |
+| GET | /api/teams | N | 팀 목록 조회 |
+| GET | /api/teams/{teamId} | N | 팀 상세 조회 |
+| GET | /api/games | N | 경기 목록 조회 |
+| GET | /api/games/{gameId} | N | 경기 상세 조회 |
+| GET | /api/games/{gameId}/seats | N | 좌석 목록 조회 |
+| GET | /api/tickets | O | 내 예매 내역 조회 |
+| GET | /api/tickets/{ticketId} | O | 예매 상세 조회 |
+| POST | /api/tickets/reserve | O | 티켓 예매 (좌석 선점) |
+| POST | /api/tickets/queue/enter | O | 대기열 입장 |
+| GET | /api/tickets/queue/position | O | 대기열 순번 조회 (폴링) |
+| GET | /api/tickets/queue/sse | O | 대기열 순번 SSE 스트리밍 |
+| DELETE | /api/tickets/queue/leave | O | 대기열 명시적 이탈 |
+| POST | /api/tickets/{ticketId}/cancel | O | 티켓 취소 |
+| POST | /api/payments/request | O | 결제 요청 등록 |
+| POST | /api/payments/verify | O | 결제 검증 |
+| POST | /api/payments/webhook | N | PG Webhook 수신 |
+| GET | /api/payments | O | 내 결제 내역 조회 |
+| GET | /api/payments/{paymentId} | O | 결제 상세 조회 |
+| POST | /api/payments/{paymentId}/refund | O | 환불 요청 |
+| GET | /api/chat/rooms | O | 내가 참여한 채팅방 목록 조회 |
+| GET | /api/chat/rooms/public | N | 공개 채팅방 목록 조회 (GAME/TEAM) |
+| GET | /api/chat/rooms/team/{teamName} | N | 팀별 채팅방 조회 |
+| WS | /ws/chat (STOMP) | O | WebSocket 연결 / 메시지 전송 |
+| GET | /api/chat/intensity/{gameId} | N | 응원 열기 지수 조회 |
+| GET | /api/chat/history/{roomId} | O | 채팅 이력 조회 |
+| GET | /api/notifications | O | 알림 목록 조회 |
+| PATCH | /api/notifications/{notificationId}/read | O | 단건 읽음 처리 |
+| PATCH | /api/notifications/read-all | O | 전체 읽음 처리 |
+| GET | /api/notifications/stream | O | SSE 실시간 알림 구독 |
+| GET | /api/notifications/settings | O | 알림 설정 조회 |
+| PUT | /api/notifications/settings | O | 알림 설정 변경 |
+| GET | /api/notifications/channels | O | 알림 채널 목록 조회 |
+| POST | /api/notifications/channels | O | 알림 채널 등록 |
+| DELETE | /api/notifications/channels/{channelId} | O | 알림 채널 삭제 |
+| PATCH | /api/notifications/channels/{channelId}/toggle | O | 알림 채널 토글 |
+| POST | /api/admin/teams | O (ADMIN) | 팀 등록 |
+| PUT | /api/admin/teams/{teamId} | O (ADMIN) | 팀 수정 |
+| DELETE | /api/admin/teams/{teamId} | O (ADMIN) | 팀 비활성화 |
+| POST | /api/admin/games | O (ADMIN) | 경기 등록 |
+| PUT | /api/admin/games/{gameId} | O (ADMIN) | 경기 수정 |
+| PATCH | /api/admin/games/{gameId}/status | O (ADMIN) | 경기 상태 변경 |
+| DELETE | /api/admin/games/{gameId} | O (ADMIN) | 경기 삭제 (soft delete) |
+| POST | /api/admin/games/{gameId}/seats/bulk | O (ADMIN) | 좌석 일괄 생성 |
+| PATCH | /api/admin/games/{gameId}/seats/price | O (ADMIN) | 좌석 등급 가격 수정 |
+| PATCH | /api/admin/games/{gameId}/seats/{seatId}/status | O (ADMIN) | 좌석 상태 수동 변경 |
+| POST | /api/admin/chat/rooms | O (ADMIN) | 채팅방 생성 |
+| POST | /api/admin/notifications/dlq/retry | O (ADMIN) | DLQ 알림 재처리 |
+
+---
+
+## 부록 B. 에러 코드 전체 목록
+
+| 에러 코드 | HTTP Status | 도메인 | 설명 |
+| --- | --- | --- | --- |
+| `UNAUTHORIZED` | 401 | 공통 | 인증 실패 |
+| `FORBIDDEN` | 403 | 공통 | 권한 없음 |
+| `NOT_FOUND` | 404 | 공통 | 리소스 없음 |
+| `INVALID_INPUT` | 400 | 공통 | 입력값 오류 |
+| `INTERNAL_ERROR` | 500 | 공통 | 서버 오류 |
+| `INVALID_REFRESH_TOKEN` | 401 | Auth | 유효하지 않은 리프레시 토큰 |
+| `TEAM_NOT_FOUND` | 404 | Team | 팀 없음 |
+| `FAVORITE_TEAM_ALREADY_EXISTS` | 409 | Member | 선호 팀 중복 |
+| `FAVORITE_TEAM_NOT_FOUND` | 404 | Member | 선호 팀 미등록 |
+| `GAME_NOT_FOUND` | 404 | Ticketing | 경기 없음 |
+| `GAME_NOT_ON_SALE` | 422 | Ticketing | 판매 중이 아닌 경기 |
+| `SEAT_NOT_FOUND` | 404 | Ticketing | 좌석 없음 |
+| `SEAT_ALREADY_RESERVED` | 409 | Ticketing | 이미 선점된 좌석 |
+| `SEAT_RESERVATION_EXPIRED` | 422 | Ticketing/Payment | 좌석 선점 만료 |
+| `TICKET_NOT_FOUND` | 404 | Ticketing | 티켓 없음 |
+| `TICKET_LIMIT_EXCEEDED` | 422 | Ticketing | 경기당 1인 최대 4매 초과 |
+| `TICKET_NOT_CANCELLABLE` | 422 | Ticketing | 취소 불가 상태 |
+| `TICKET_NOT_PAYABLE` | 422 | Payment | 결제 불가 티켓 상태 |
+| `TICKET_RESERVATION_EXPIRED` | 422 | Payment | 선점 10분 만료 |
+| `QUEUE_NOT_JOINED` | 404 | Ticketing | 대기열 미입장 |
+| `QUEUE_ALREADY_JOINED` | 409 | Ticketing | 이미 대기열 입장 상태 |
+| `PAYMENT_NOT_FOUND` | 404 | Payment | 결제 없음 |
+| `PAYMENT_ALREADY_EXISTS` | 409 | Payment | idempotencyKey 중복 |
+| `PAYMENT_AMOUNT_MISMATCH` | 422 | Payment | 결제 금액 불일치 |
+| `PAYMENT_ALREADY_COMPLETED` | 409 | Payment | 이미 검증 완료된 결제 |
+| `PAYMENT_NOT_REFUNDABLE` | 422 | Payment | 환불 불가 상태 |
+| `INVALID_WEBHOOK_SIGNATURE` | 401 | Payment | Webhook 서명 검증 실패 |
+| `CHAT_ROOM_NOT_FOUND` | 404 | Chat | 채팅방 없음 |
+| `CHANNEL_ALREADY_EXISTS` | 409 | Notification | 채널 중복 |
+| `CHANNEL_NOT_FOUND` | 404 | Notification | 채널 없음 |
+| `INVALID_CHANNEL_TARGET` | 400 | Notification | 채널 대상 형식 오류 |
+| `TEAM_NAME_DUPLICATE` | 409 | Admin | 동일 종목 내 팀 이름 중복 |
+| `INVALID_SPORT_TYPE` | 400 | Admin | 지원하지 않는 종목 값 |
+| `TEAM_HAS_ACTIVE_GAMES` | 422 | Admin | 진행 중인 경기가 있어 팀 비활성화 불가 |
+| `SAME_TEAM_GAME` | 400 | Admin | team1Id와 team2Id가 동일 |
+| `INVALID_GAME_TIME` | 400 | Admin | 현재 시각 이전의 경기 시각 |
+| `SPORT_TYPE_MISMATCH` | 400 | Admin | 두 팀의 sport_type 불일치 |
+| `GAME_NOT_MODIFIABLE` | 422 | Admin | SCHEDULED 상태 아님 — 수정 불가 |
+| `INVALID_STATUS_TRANSITION` | 422 | Admin | 허용되지 않는 경기 상태 전이 |
+| `NO_SEATS_REGISTERED` | 422 | Admin | 좌석 없는 상태에서 ON_SALE 전환 불가 |
+| `SEATS_ALREADY_EXISTS` | 409 | Admin | 이미 좌석이 등록된 경기 |
+| `INVALID_SEAT_DATA` | 400 | Admin | 좌석 데이터 형식 오류 |
+| `CHAT_ROOM_ALREADY_EXISTS` | 409 | Admin | 해당 game/team 채팅방 이미 존재 |
+| `NICKNAME_DUPLICATE` | 409 | Member | 중복 닉네임 |
+| `INVALID_PRIORITY` | 400 | Member | 선호 팀 우선순위 범위/중복 오류 |
+| `MEMBER_ALREADY_WITHDRAWN` | 422 | Member | 이미 탈퇴한 회원 |
+| `QUEUE_ENTRY_BEFORE_SALE` | 422 | Ticketing | 예매 오픈 전 대기열 진입 시도 |
+| `RESERVATION_SESSION_EXPIRED` | 422 | Ticketing | 예매 세션(UUID) 만료 |
+| `RESERVATION_UUID_INVALID` | 401 | Ticketing | 유효하지 않은 예매 진입 UUID |
+| `PURCHASE_LIMIT_EXCEEDED` | 422 | Ticketing | 인당 좌석 제한 초과 |
+| `GAME_DELETE_FORBIDDEN` | 422 | Admin | 확정 예매가 있어 경기 삭제 불가 |
+| `INVALID_SEAT_STATUS_TRANSITION` | 422 | Admin | 허용되지 않는 좌석 상태 전이 |
+
+---
+
+## 부록 C. Redis Streams 이벤트 정의
+
+> Kafka 대신 Redis Streams + Consumer Group 방식 채택 (인프라 단순화).
+
+| Stream Key | Producer | Consumer | 트리거 | Payload 예시 |
+| --- | --- | --- | --- | --- |
+| `ticket.opened` | Ticketing | Notification | 경기 상태 `OPEN` 전환 시 | `{"gameId": 101, "saleStartAt": "..."}` |
+| `payment.completed` | Payment | Notification, Ticketing | 결제 검증 완료 시 | `{"paymentId": 7001, "memberId": 1, "ticketId": 9001}` |
+| `game.starting` | Ticketing (@Scheduled) | Notification | 경기 시작 1시간 전 | `{"gameId": 101, "startAt": "..."}` |
+| `chat.mentioned` | Chat | Notification | 채팅 @멘션 발생 시 | `{"roomId": 201, "mentionedMemberId": 2, "messageId": 30001}` |
+
+### Consumer Group 처리 원칙
+
+- 모든 Stream은 Consumer Group 방식으로 소비 (`XREADGROUP`)
+- 처리 성공 시 `XACK` 발행
+- 처리 실패 시 3회 재시도 → Redis DLQ 키에 저장 (`notification:dlq:{streamKey}`)
+- 관리자가 DLQ 재처리 API(`POST /api/admin/notifications/dlq/retry`)로 수동 재처리 가능
 | 필드          | 타입               | 설명                         |
 |-------------|------------------|----------------------------|
 | `historyId` | Long             | 이력 ID                      |

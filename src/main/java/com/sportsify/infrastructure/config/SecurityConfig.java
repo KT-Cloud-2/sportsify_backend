@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -15,39 +16,53 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private static final List<String> PUBLIC_PATHS = List.of(
+            "/oauth2/**",
+            "/login/**",
+            "/api/auth/**",
+            "/api/teams",
+            "/api/teams/**",
+            "/actuator/health",
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/swagger",
+            "/swagger.html",
+            "/webjars/**",
+            "/docs.html",
+            "/api/chat/rooms/{roomId}"
+    );
+    private static final List<String> LOCAL_ONLY_PATHS = List.of(
+            "/dev/**", "/notification-test.html"
+    );
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final Environment environment;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
+        List<String> publicPaths = new ArrayList<>(PUBLIC_PATHS);
+
+        if (isLocalProfile()) {
+            publicPaths.addAll(LOCAL_ONLY_PATHS);
+        }
+
+        http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/oauth2/**",
-                                "/login/**",
-                                "/api/auth/**",
-                                "/api/teams",
-                                "/api/teams/**",
-                                "/actuator/health",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/swagger",
-                                "/swagger.html",
-                                "/webjars/**",
-                                "/docs.html",
-                                "/api/chat/rooms/{roomId}"
-                        ).permitAll()
+                        .requestMatchers(publicPaths.toArray(String[]::new)).permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -57,6 +72,10 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private boolean isLocalProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("local");
     }
 
     @Bean
