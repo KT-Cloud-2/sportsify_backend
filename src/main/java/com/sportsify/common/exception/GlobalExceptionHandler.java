@@ -1,12 +1,14 @@
 package com.sportsify.common.exception;
 
 import com.sportsify.common.response.ErrorDetail;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -27,12 +29,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InfrastructureException.class)
     public ResponseEntity<ErrorDetail> handleInfrastructureException(InfrastructureException e) {
+        log.error("Infrastructure failure errorCode={} message={}", e.getErrorCode(), e.getErrorCode().getMessage(), e);
         return ResponseEntity.internalServerError()
-                .body(ErrorDetail.of(ErrorCode.INTERNAL_ERROR.getCode(), e.getErrorCode().getMessage(), null));
+                .body(ErrorDetail.of(ErrorCode.INTERNAL_ERROR.getCode(), ErrorCode.INTERNAL_ERROR.getMessage(), null));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetail> handleException(Exception e) {
+        log.error("Unhandled exception", e);
         return ResponseEntity.internalServerError()
                 .body(ErrorDetail.of(ErrorCode.INTERNAL_ERROR.getCode(), ErrorCode.INTERNAL_ERROR.getMessage(), null));
     }

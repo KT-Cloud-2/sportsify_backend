@@ -117,8 +117,13 @@ public class NotificationEventProcessor {
         sseNotificationPort.send(memberId, event.getEventType().name());
 
         List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
-        return channels.stream()
-                .anyMatch(channel -> !sendWithRetry(notification.getId(), channel, event.getEventType().name(), payload));
+        boolean anyFailed = false;
+        for (NotificationChannel channel : channels) {
+            if (!sendWithRetry(notification.getId(), channel, event.getEventType().name(), payload)) {
+                anyFailed = true;
+            }
+        }
+        return anyFailed;
     }
 
     private Slice<Long> resolveTargetMemberIds(NotificationEventType eventType, PageRequest pageable) {
