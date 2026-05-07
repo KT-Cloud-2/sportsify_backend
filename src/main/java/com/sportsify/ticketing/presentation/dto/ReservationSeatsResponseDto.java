@@ -2,6 +2,7 @@ package com.sportsify.ticketing.presentation.dto;
 
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
+import com.sportsify.ticketing.domain.model.OrderStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +12,7 @@ public record ReservationSeatsResponseDto(
         Long orderId,
         Long gameId,
         Long memberId,
-        String status,
+        OrderStatus status,
         LocalDateTime reservedAt,
         List<ReservationSeatDto> seats
 ) {
@@ -24,7 +25,7 @@ public record ReservationSeatsResponseDto(
                 order.getId(),
                 gameId,
                 order.getMember().getId(),
-                order.getStatus().name(),
+                order.getStatus(),
                 order.getCreatedAt(),
                 seats
         );

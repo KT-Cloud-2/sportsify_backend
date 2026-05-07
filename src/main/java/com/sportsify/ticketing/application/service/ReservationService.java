@@ -51,7 +51,7 @@ public class ReservationService {
         if (availableSeats.size() != reqDto.seatIds().size())
             throw new BusinessException(ErrorCode.SEAT_ALREADY_RESERVED);
 
-        Order createdOrder = Order.builder().member(member).build();
+        Order createdOrder = Order.create(member);
 
         availableSeats.forEach(seat -> {
             seat.updateSeatStatus(SeatStatus.RESERVED);

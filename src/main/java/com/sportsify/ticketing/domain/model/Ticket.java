@@ -48,7 +48,7 @@ public class Ticket {
     private LocalDateTime cancelledAt;
 
     @Builder
-    public Ticket(OrderSeat orderSeat, Member member, Integer price) {
+    private Ticket(OrderSeat orderSeat, Member member, Integer price) {
         this.orderSeat = orderSeat;
         this.member = member;
         this.ticketNumber = UUID.randomUUID().toString();
@@ -57,5 +57,18 @@ public class Ticket {
         this.issuedAt = LocalDateTime.now();
     }
 
+    public static Ticket create(OrderSeat orderSeat, Member member, Integer price) {
+        return new Ticket(orderSeat, member, price);
+    }
+
+    public void updateAsUsed(LocalDateTime usedAt) {
+        this.status = TicketStatus.USED;
+        this.usedAt = usedAt;
+    }
+
+    public void updateAsCancelled(LocalDateTime cancelledAt) {
+        this.status = TicketStatus.CANCELLED;
+        this.cancelledAt = cancelledAt;
+    }
 
 }

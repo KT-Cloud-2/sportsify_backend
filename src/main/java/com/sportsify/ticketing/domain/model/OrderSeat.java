@@ -42,11 +42,19 @@ public class OrderSeat {
     private LocalDateTime createdAt;
 
     @Builder
-    public OrderSeat(Order order, GameSeat gameSeat, LocalDateTime expiresAt) {
+    private OrderSeat(Order order, GameSeat gameSeat) {
         this.order = order;
         this.gameSeat = gameSeat;
         this.status = OrderSeatStatus.HOLDING;
-        this.expiresAt = expiresAt != null ? expiresAt : LocalDateTime.now().plusMinutes(15);
+        this.expiresAt = LocalDateTime.now().plusMinutes(15);
+    }
+
+    public static OrderSeat create(Order order, GameSeat gameSeat) {
+        return new OrderSeat(order, gameSeat);
+    }
+
+    public void updateExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
     public Long getSeatId() {

@@ -45,10 +45,15 @@ public class Order {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Order(Member member) {
+    private Order(Member member) {
         this.member = member;
         this.status = OrderStatus.PENDING;
     }
+
+    public static Order create(Member member) {
+        return new Order(member);
+    }
+
 
     public void addOrderSeat(OrderSeat orderSeat) {
         this.orderSeats.add(orderSeat);
