@@ -36,7 +36,7 @@ class TeamControllerApiTest extends WebMvcTestSupport {
 
         mockMvc.perform(get("/api/teams"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2));
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
@@ -48,7 +48,7 @@ class TeamControllerApiTest extends WebMvcTestSupport {
 
         mockMvc.perform(get("/api/teams").param("sportType", "BASEBALL"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].sportType").value("BASEBALL"));
+                .andExpect(jsonPath("$[0].sportType").value("BASEBALL"));
     }
 
     @Test
@@ -59,7 +59,7 @@ class TeamControllerApiTest extends WebMvcTestSupport {
 
         mockMvc.perform(get("/api/teams").param("sportType", "INVALID"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     // ──────────────────────── GET /api/teams/{teamId} ────────────────────────
@@ -73,8 +73,8 @@ class TeamControllerApiTest extends WebMvcTestSupport {
 
         mockMvc.perform(get("/api/teams/{teamId}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.teamId").value(1))
-                .andExpect(jsonPath("$.data.name").value("KIA 타이거즈"));
+                .andExpect(jsonPath("$.teamId").value(1))
+                .andExpect(jsonPath("$.name").value("KIA 타이거즈"));
     }
 
     @Test
@@ -85,6 +85,6 @@ class TeamControllerApiTest extends WebMvcTestSupport {
 
         mockMvc.perform(get("/api/teams/{teamId}", 99L))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("TEAM_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("TEAM_NOT_FOUND"));
     }
 }

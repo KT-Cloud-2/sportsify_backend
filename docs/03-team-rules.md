@@ -8,24 +8,25 @@
 
 ### 커밋 유형
 
-| 유형 | 의미 |
-|------|------|
-| `feat` | 새로운 기능 추가 |
-| `fix` | 버그 수정 |
-| `refactor` | 코드 리팩토링 (동작 변화 없음) |
-| `test` | 테스트 코드 추가 및 리팩토링 |
-| `perf` | 성능 개선 |
-| `docs` | 문서 수정 |
-| `chore` | 패키지 매니저 수정, 기타 (.gitignore 등) |
-| `style` | 코드 포매팅, 세미콜론 누락 등 코드 변경 없는 경우 |
-| `design` | CSS 등 UI 디자인 변경 |
-| `comment` | 필요한 주석 추가 및 변경 |
-| `rename` | 파일·폴더 이름 변경 또는 이동 |
-| `remove` | 파일 삭제 |
-| `!BREAKING CHANGE` | 커다란 API 변경 |
-| `!HOTFIX` | 치명적인 버그 긴급 수정 |
+| 유형                 | 의미                            |
+|--------------------|-------------------------------|
+| `feat`             | 새로운 기능 추가                     |
+| `fix`              | 버그 수정                         |
+| `refactor`         | 코드 리팩토링 (동작 변화 없음)            |
+| `test`             | 테스트 코드 추가 및 리팩토링              |
+| `perf`             | 성능 개선                         |
+| `docs`             | 문서 수정                         |
+| `chore`            | 패키지 매니저 수정, 기타 (.gitignore 등) |
+| `style`            | 코드 포매팅, 세미콜론 누락 등 코드 변경 없는 경우 |
+| `design`           | CSS 등 UI 디자인 변경               |
+| `comment`          | 필요한 주석 추가 및 변경                |
+| `rename`           | 파일·폴더 이름 변경 또는 이동             |
+| `remove`           | 파일 삭제                         |
+| `!BREAKING CHANGE` | 커다란 API 변경                    |
+| `!HOTFIX`          | 치명적인 버그 긴급 수정                 |
 
 ### 작성 규칙
+
 - 제목은 50자 이내, 직관적인 내용으로 작성
 - 세부 항목은 `-`로 추가 작성
 
@@ -93,12 +94,12 @@ main
       └─ feature/* 기능 개발 → develop
 ```
 
-| 브랜치 | 용도 |
-|--------|------|
-| `main` | 라이브 서버 출시 브랜치 |
-| `hotfix/*` | main 브랜치 긴급 버그 수정 |
-| `develop` | 다음 출시 버전 통합 브랜치 (develop → main) |
-| `feature/*` | 기능 개발 브랜치 (feature → develop) |
+| 브랜치        | 용도                               |
+|------------|----------------------------------|
+| `main`     | 라이브 서버 출시 브랜치                    |
+| `hotfix/*` | main 브랜치 긴급 버그 수정                |
+| `develop`  | 다음 출시 버전 통합 브랜치 (develop → main) |
+| `feat/*`   | 기능 개발 브랜치 (feature → develop)    |
 
 > `release` 브랜치는 사용하지 않는다.
 
@@ -107,8 +108,8 @@ main
 `유형/설명` 형식 (kebab-case)
 
 ```
-feature/ticket-reservation
-feature/chat-realtime
+feat/ticket-reservation
+feat/chat-realtime
 hotfix/seat-double-booking
 ```
 
@@ -118,11 +119,11 @@ hotfix/seat-double-booking
 
 ### DTO / Record / Enum 사용 기준
 
-| 타입 | 사용 기준 |
-|------|----------|
-| `Enum` | 스포츠 종류, 구단명 등 고정 값 |
-| `record` | 내부 구현이 없는 불변 DTO (우선 사용) |
-| `class` | 내부 구현이 필요한 경우 (JPA 엔티티 등) |
+| 타입       | 사용 기준                     |
+|----------|---------------------------|
+| `Enum`   | 스포츠 종류, 구단명 등 고정 값        |
+| `record` | 내부 구현이 없는 불변 DTO (우선 사용)  |
+| `class`  | 내부 구현이 필요한 경우 (JPA 엔티티 등) |
 
 > 코드 리뷰 과정에서 필요 시 변경한다.
 
@@ -136,7 +137,7 @@ Google Java Format 사용 (`google-java-format`)
 
 ```
 com.sportsify
-├── SortsifyApplication.java
+├── SportsifyApplication.java
 │
 ├── common/
 │   ├── domain/         # 공통 도메인 개념
@@ -147,7 +148,7 @@ com.sportsify
 ├── member/
 │   ├── domain/
 │   │   ├── model/      # Entity, Value Object, Aggregate
-│   │   ├── service/    # Domain Service
+│   │   ├── service/    # Domain Service  (비즈니스 규칙)  
 │   │   └── repository/ # Repository 인터페이스
 │   ├── application/
 │   │   ├── service/    # Application Service (유스케이스)
@@ -156,19 +157,14 @@ com.sportsify
 │   │   ├── repository/ # JPA 구현체
 │   │   └── external/   # 외부 시스템 연동
 │   └── presentation/
-│       ├── controller/
+│       ├── api/        # swagger 
+│       ├── controller/ # REST API
 │       └── dto/        # Request / Response DTO
 │
 ├── ticketing/          # 동일 구조
 ├── payment/            # 동일 구조
-├── chat/
-│   ├── application/
-│   │   └── consumer/   # Redis Streams Consumer
-│   └── ...             # 동일 구조
-├── notification/
-│   ├── application/
-│   │   └── consumer/   # Redis Streams Consumer
-│   └── ...             # 동일 구조
+├── chat/               # 동일 구조
+├── notification/       # 동일 구조
 │
 └── infrastructure/     # 공통 인프라
     ├── config/         # Redis, JPA Config
@@ -195,6 +191,7 @@ bash scripts/setup.sh
 ```
 
 이 스크립트가 하는 일:
+
 1. `git config core.hooksPath .githooks` — 팀 공유 Git hook 경로 설정
 2. `.env.example` → `.env.local` 복사 (없을 경우에만)
 
@@ -202,11 +199,11 @@ bash scripts/setup.sh
 
 ### .env 파일 규칙
 
-| 파일 | 용도 | 커밋 |
-|------|------|------|
-| `.env.example` | 환경변수 키 템플릿 (값 없음) | **커밋 O** |
-| `.env.local` | 로컬 개발용 실제 값 | **커밋 금지** |
-| `.env.prod` | 운영 서버용 실제 값 | **커밋 금지** |
+| 파일             | 용도                | 커밋        |
+|----------------|-------------------|-----------|
+| `.env.example` | 환경변수 키 템플릿 (값 없음) | **커밋 O**  |
+| `.env.local`   | 로컬 개발용 실제 값       | **커밋 금지** |
+| `.env.prod`    | 운영 서버용 실제 값       | **커밋 금지** |
 
 - `.env.local`, `.env.prod`는 `.gitignore`에 등록되어 있음
 - pre-commit hook(`.githooks/pre-commit`)이 `.env` 파일 스테이징을 차단함

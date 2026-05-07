@@ -27,14 +27,12 @@ public class OpenApiConfig {
                                 |-----------|-----------|------|
                                 | 500 | `INTERNAL_ERROR` | 서버 내부 오류 |
 
-                                ## 응답 형식
-                                모든 응답은 `CommonResponse<T>` 형식으로 감싸집니다.
+                                ## 에러 응답 형식
                                 ```json
                                 {
-                                  "success": true,
-                                  "data": { },
-                                  "error": null,
-                                  "timestamp": "2026-04-29T12:00:00Z"
+                                  "code": "ERROR_CODE",
+                                  "message": "에러 메시지",
+                                  "detail": "상세 정보 (nullable)"
                                 }
                                 ```""")
                         .version("0.0.1-SNAPSHOT"))
