@@ -8,14 +8,9 @@ spring:
     datatype:
       datetime:
         write-dates-as-timestamps: false
-  mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
 
 mqtt:
-  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  broker-url: tcp://localhost:1883
   client-id: ${MQTT_CLIENT_ID:notification-service}
   username: ${MQTT_USERNAME:}
   password: ${MQTT_PASSWORD:}

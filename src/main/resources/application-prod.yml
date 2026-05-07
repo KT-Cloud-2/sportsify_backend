@@ -49,17 +49,17 @@ spring:
             user-name-attribute: id
 
   mail:
-    host: smtp.gmail.com # 1
-    port: 587 # 2
-    username: ${mail.username} # 3
-    password: ${mail.password} # 4
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
-          auth: true # 5
-          timeout: 5000 # 6
+          auth: true
+          timeout: 5000
           starttls:
-            enable: true # 7
+            enable: true
 
 jwt:
   secret: ${JWT_SECRET}
@@ -71,12 +71,10 @@ app:
     redirect-uri: ${FRONTEND_URL}/oauth2/callback
 
 mqtt:
-  broker:
-    url: ssl://${MQTT_HOST}:8883
-  client:
-    id: ${MQTT_CLIENT_ID:sportsify-server}
-  username: ${MQTT_USERNAME}
-  password: ${MQTT_PASSWORD}
+  broker-url: ssl://${MQTT_HOST}:8883
+  client-id: ${MQTT_CLIENT_ID:sportsify-server}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
 
 management:
   endpoints:
