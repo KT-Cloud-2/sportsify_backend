@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Slf4j
 @Configuration
-@ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true")
 public class MqttConfig {
 
     @Value("${mqtt.broker-url}")

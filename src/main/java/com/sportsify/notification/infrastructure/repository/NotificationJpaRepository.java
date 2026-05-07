@@ -16,7 +16,7 @@ public interface NotificationJpaRepository extends JpaRepository<Notification, L
     boolean existsByEventIdAndMemberId(Long eventId, Long memberId);
 
     @Transactional
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Notification n SET n.read = true WHERE n.memberId = :memberId AND n.read = false")
     void markAllReadByMemberId(@Param("memberId") Long memberId);
 }

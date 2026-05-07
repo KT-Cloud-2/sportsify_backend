@@ -11,6 +11,7 @@ import com.sportsify.notification.domain.model.NotificationSetting;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,10 +52,14 @@ public class NotificationSettingService {
         if (channelRepository.existsByMemberIdAndChannelType(memberId, channelType)) {
             throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_ALREADY_EXISTS);
         }
-        NotificationChannel channel = channelRepository.save(
-                NotificationChannel.create(memberId, channelType, channelTarget)
-        );
-        return NotificationChannelResult.from(channel);
+        try {
+            NotificationChannel channel = channelRepository.save(
+                    NotificationChannel.create(memberId, channelType, channelTarget)
+            );
+            return NotificationChannelResult.from(channel);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_ALREADY_EXISTS);
+        }
     }
 
     @Transactional

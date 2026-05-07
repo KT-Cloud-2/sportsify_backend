@@ -101,7 +101,9 @@ public class NotificationEventProcessor {
     private boolean sendWithRetry(Long notificationId, NotificationChannel channel, String subject, String body) {
         Optional<NotificationSender> sender = Optional.ofNullable(senderMap.get(channel.getChannelType()));
         if (sender.isEmpty()) {
-            return true;
+            log.warn("지원하지 않는 채널 타입 channelType={} notificationId={}", channel.getChannelType(), notificationId);
+            historyRepository.save(NotificationHistory.failed(notificationId, channel.getChannelType(), "지원하지 않는 채널 타입"));
+            return false;
         }
         return attemptSend(notificationId, channel, subject, body, sender.get());
     }

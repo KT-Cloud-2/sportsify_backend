@@ -20,10 +20,13 @@ public class SseEmitterManager implements SseNotificationPort {
     @Override
     public SseEmitter subscribe(Long memberId) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
-        emitters.put(memberId, emitter);
-        emitter.onCompletion(() -> emitters.remove(memberId));
-        emitter.onTimeout(() -> emitters.remove(memberId));
-        emitter.onError(e -> emitters.remove(memberId));
+        SseEmitter previous = emitters.put(memberId, emitter);
+        if (previous != null) {
+            previous.complete();
+        }
+        emitter.onCompletion(() -> emitters.remove(memberId, emitter));
+        emitter.onTimeout(() -> emitters.remove(memberId, emitter));
+        emitter.onError(e -> emitters.remove(memberId, emitter));
         log.info("SSE subscribed memberId={}", memberId);
         return emitter;
     }

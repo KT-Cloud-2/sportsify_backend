@@ -29,7 +29,7 @@ public class NotificationStreamConsumer {
     private final StringRedisTemplate redisTemplate;
     private final NotificationEventProcessor processor;
 
-    @Value("${spring.application.name:app}-consumer")
+    @Value("${spring.application.name:app}-consumer-${HOSTNAME:local}")
     private String consumerName;
 
     @PostConstruct

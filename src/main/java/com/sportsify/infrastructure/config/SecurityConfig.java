@@ -39,8 +39,7 @@ public class SecurityConfig {
             "/swagger.html",
             "/webjars/**",
             "/docs.html",
-            "/api/chat/rooms/{roomId}",
-            "/api/notifications/stream"
+            "/api/chat/rooms/{roomId}"
     );
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
             "/dev/**", "/notification-test.html"

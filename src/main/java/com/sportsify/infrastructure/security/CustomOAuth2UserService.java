@@ -32,12 +32,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         OAuth2UserInfo info = OAuth2UserInfo.of(registrationId, oAuth2User.getAttributes());
 
-        boolean isNewMember = memberRepository.findByProviderAndProviderId(info.provider(), info.providerId()).isEmpty();
+        boolean[] isNew = {false};
         Member member = memberRepository.findByProviderAndProviderId(info.provider(), info.providerId())
-                .orElseGet(() -> memberRepository.save(
-                        Member.create(info.email(), info.nickname(), info.provider(), info.providerId())
-                ));
-        if (isNewMember) {
+                .orElseGet(() -> {
+                    isNew[0] = true;
+                    return memberRepository.save(
+                            Member.create(info.email(), info.nickname(), info.provider(), info.providerId())
+                    );
+                });
+        if (isNew[0]) {
             notificationSettingRepository.save(NotificationSetting.createDefault(member.getId()));
         }
 

@@ -46,8 +46,24 @@ public class RedisStreamsConfig {
             try {
                 redisTemplate.opsForStream().createGroup(streamKey, ReadOffset.from("0"), NOTIFICATION_GROUP);
             } catch (Exception e) {
-                log.debug("Consumer group already exists for stream={}", streamKey);
+                if (isBusyGroup(e)) {
+                    log.debug("Consumer group already exists stream={}", streamKey);
+                    continue;
+                }
+                log.error("Consumer group 생성 실패 stream={} error={}", streamKey, e.getMessage(), e);
+                throw new IllegalStateException("Redis Streams consumer group 초기화 실패: " + streamKey, e);
             }
         }
+    }
+
+    private boolean isBusyGroup(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause.getMessage() != null && cause.getMessage().contains("BUSYGROUP")) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 }
