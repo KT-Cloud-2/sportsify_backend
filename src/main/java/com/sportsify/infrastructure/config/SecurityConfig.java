@@ -35,6 +35,8 @@ public class SecurityConfig {
             "/api/auth/**",
             "/api/teams",
             "/api/teams/**",
+            "/api/games",
+            "/api/games/**",
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",
