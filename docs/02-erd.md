@@ -1,4 +1,4 @@
-# ERD — Sortsify
+# ERD — Sportsify
 
 > 모든 테이블은 PostgreSQL 18 기준으로 작성.  
 > `BIGSERIAL` = auto-increment Long PK.  

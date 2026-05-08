@@ -15,10 +15,23 @@
 
 ```json
 // 200 OK — 단일 객체 예시
-{ "memberId": 1, "nickname": "응원왕", "email": "user@example.com" }
+{
+    "memberId": 1,
+    "nickname": "응원왕",
+    "email": "user@example.com"
+}
 
 // 200 OK — 배열 예시
-[ { "teamId": 1, "name": "KIA 타이거즈" }, { "teamId": 2, "name": "FC 서울" } ]
+[
+    {
+        "teamId": 1,
+        "name": "KIA 타이거즈"
+    },
+    {
+        "teamId": 2,
+        "name": "FC 서울"
+    }
+]
 
 // 204 No Content — 본문 없음
 ```

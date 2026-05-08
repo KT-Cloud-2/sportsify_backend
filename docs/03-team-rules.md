@@ -140,9 +140,10 @@ com.sportsify
 ├── SportsifyApplication.java
 │
 ├── common/
-│   ├── domain/         # 공통 도메인 개념
+│   ├── dev/            # 개발 환경용 api (local)
 │   ├── event/          # Domain Event
 │   ├── exception/      # 예외 통합 관리
+│   ├── swagger/        # 스웨거 관리
 │   └── util/           # 공통 유틸
 │
 ├── member/
@@ -168,6 +169,7 @@ com.sportsify
 │
 └── infrastructure/     # 공통 인프라
     ├── config/         # Redis, JPA Config
+    ├── security/       # security
     ├── redis/
     └── jpa/
 ```
