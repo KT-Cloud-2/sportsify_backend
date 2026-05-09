@@ -45,10 +45,10 @@ public class SecurityConfig {
             "/swagger.html",
             "/webjars/**",
             "/docs.html",
-            "/api/chat/rooms/{roomId}"
+            "/api/chat/rooms/**"
     );
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
-            "/dev/**", "/notification-test.html"
+            "/dev/**", "/notification-test.html", "/dev-test.html"
     );
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;

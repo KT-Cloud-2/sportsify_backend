@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Sportsify Dev Console</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── 상단 헤더 ── */
+        .header {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .header h1 { font-size: 18px; font-weight: 700; color: #f8fafc; flex-shrink: 0; }
+        .header .subtitle { font-size: 12px; color: #64748b; }
+
+        .token-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .token-bar select, .token-bar input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 12px;
+            padding: 6px 10px;
+            outline: none;
+        }
+
+        .token-bar input { width: 260px; font-family: monospace; }
+
+        #tokenStatus {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: #450a0a;
+            color: #f87171;
+        }
+
+        #tokenStatus.ok { background: #14532d; color: #4ade80; }
+
+        /* ── 탭 ── */
+        .tabs {
+            display: flex;
+            gap: 0;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 0 24px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+            transition: all 0.15s;
+            user-select: none;
+        }
+
+        .tab:hover { color: #e2e8f0; }
+        .tab.active { color: #818cf8; border-bottom-color: #6366f1; }
+
+        /* ── 콘텐츠 ── */
+        .content { flex: 1; padding: 20px 24px; display: none; }
+        .content.active { display: block; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 900px) { .grid, .grid-3 { grid-template-columns: 1fr; } }
+
+        .full { grid-column: 1 / -1; }
+
+        /* ── 카드 ── */
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .card h2 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── 폼 요소 ── */
+        label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
+
+        input, select, textarea {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 13px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus { border-color: #6366f1; }
+        textarea { resize: vertical; font-family: monospace; font-size: 11px; min-height: 60px; }
+
+        .row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .row input, .row select { margin-bottom: 0; }
+
+        /* ── 버튼 ── */
+        button {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-primary { background: #6366f1; color: white; }
+        .btn-primary:hover { background: #4f46e5; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-warn { background: #d97706; color: white; }
+        .btn-warn:hover { background: #b45309; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+
+        /* ── 로그 ── */
+        .log {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-family: monospace;
+            font-size: 12px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log .entry { margin-bottom: 3px; line-height: 1.5; }
+        .log .ts { color: #475569; }
+        .log .ok { color: #22c55e; }
+        .log .err { color: #ef4444; }
+        .log .inf { color: #38bdf8; }
+        .log .warn { color: #eab308; }
+        .log .sse { color: #a78bfa; }
+
+        /* ── 배지 ── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-on { background: #14532d; color: #4ade80; }
+        .badge-off { background: #450a0a; color: #f87171; }
+        .badge-cnt { background: #312e81; color: #a5b4fc; }
+
+        /* ── 결과 테이블 ── */
+        .result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+        .result-table th { background: #0f172a; color: #64748b; padding: 6px 10px; text-align: left; border-bottom: 1px solid #334155; }
+        .result-table td { padding: 6px 10px; border-bottom: 1px solid #1e293b; vertical-align: top; word-break: break-all; }
+        .result-table tr:last-child td { border-bottom: none; }
+        .result-table tr:hover td { background: #1e293b; }
+
+        .tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #312e81;
+            color: #a5b4fc;
+        }
+
+        .tag.green { background: #14532d; color: #4ade80; }
+        .tag.red { background: #450a0a; color: #f87171; }
+        .tag.yellow { background: #451a03; color: #fbbf24; }
+
+        /* ── 알림 목록 ── */
+        .notif-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+        .notif-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; }
+        .notif-item.unread { border-left: 3px solid #6366f1; }
+        .notif-item.read { opacity: 0.5; }
+        .notif-meta { font-size: 11px; color: #475569; margin-top: 4px; }
+        .notif-type { font-size: 11px; font-weight: 700; color: #818cf8; }
+
+        /* ── 토글 ── */
+        .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1e293b; }
+        .settings-row:last-child { border-bottom: none; }
+
+        .toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; inset: 0; background: #334155; border-radius: 22px; cursor: pointer; transition: 0.2s; }
+        .slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+        input:checked + .slider { background: #6366f1; }
+        input:checked + .slider::before { transform: translateX(18px); }
+
+        /* ── 이벤트 그리드 ── */
+        .event-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .event-btn { padding: 12px 8px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; text-align: center; }
+        .event-btn:hover { border-color: #6366f1; background: #1e1b4b; color: #a5b4fc; }
+        .event-btn .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #475569; flex-shrink: 0; display: inline-block; }
+        .dot.green { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+        .dot.red { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
+
+        hr { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
+
+        .hint { font-size: 11px; color: #475569; margin-top: -6px; margin-bottom: 10px; }
+
+        /* ── OAuth 버튼 ── */
+        .oauth-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            margin-bottom: 10px;
+            transition: all 0.15s;
+        }
+
+        .oauth-google { background: #4285F4; color: white; }
+        .oauth-google:hover { background: #3367D6; }
+        .oauth-kakao { background: #FEE500; color: #3A1D1D; }
+        .oauth-kakao:hover { background: #E6CF00; }
+    </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+    <div>
+        <h1>Sportsify Dev Console</h1>
+        <div class="subtitle">localhost:8080 · 개발/테스트 전용</div>
+    </div>
+    <div class="token-bar">
+        <select id="headerMemberId" onchange="syncMemberId()">
+            <option value="1">Member 1 (야구팬1)</option>
+            <option value="2">Member 2 (축구팬2)</option>
+            <option value="3">Member 3 (농구팬3)</option>
+            <option value="4">Member 4 (관리자)</option>
+            <option value="5">Member 5 (스포츠팬4)</option>
+        </select>
+        <button class="btn-primary btn-sm" onclick="fetchToken()">토큰 발급</button>
+        <button class="btn-secondary btn-sm" onclick="clearToken()">초기화</button>
+        <input id="tokenInput" placeholder="eyJ... (수동 입력 가능)" type="text">
+        <span id="tokenStatus">토큰 없음</span>
+    </div>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+    <div class="tab active" onclick="showTab('auth')">🔐 인증</div>
+    <div class="tab" onclick="showTab('games')">🏟️ 게임</div>
+    <div class="tab" onclick="showTab('chat')">💬 채팅</div>
+    <div class="tab" onclick="showTab('notification')">🔔 알림</div>
+    <div class="tab" onclick="showTab('member')">👤 회원</div>
+    <div class="tab" onclick="showTab('team')">🏆 팀</div>
+</div>
+
+<!-- ═══════════════════════ 인증 탭 ═══════════════════════ -->
+<div class="content active" id="tab-auth">
+    <div class="grid">
+        <div class="card">
+            <h2>개발용 토큰 발급</h2>
+            <label>Member ID</label>
+            <select id="authMemberId" onchange="syncMemberIdFromAuth()">
+                <option value="1">1 — 야구팬1 (USER)</option>
+                <option value="2">2 — 축구팬2 (USER)</option>
+                <option value="3">3 — 농구팬3 (USER)</option>
+                <option value="4">4 — 관리자 (ADMIN)</option>
+                <option value="5">5 — 스포츠팬4 (USER)</option>
+            </select>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="fetchToken()">토큰 발급 (서버)</button>
+                <button class="btn-secondary" onclick="clearToken()">초기화</button>
+            </div>
+            <p class="hint">GET /dev/token?memberId={id} — 로컬 프로파일 전용</p>
+            <hr>
+            <label>수동 JWT 입력</label>
+            <textarea id="tokenTextarea" placeholder="eyJ..." rows="3" oninput="onManualToken()"></textarea>
+        </div>
+
+        <div class="card">
+            <h2>OAuth 실제 로그인</h2>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:14px">
+                소셜 로그인 후 <code style="background:#0f172a;padding:2px 6px;border-radius:4px;font-size:11px">/oauth2/callback?accessToken=…</code> 으로 리다이렉트됩니다.<br>
+                이 페이지의 URL이 콜백 주소와 다를 경우 토큰을 수동으로 붙여넣으세요.
+            </p>
+            <button class="oauth-btn oauth-google" onclick="oauthLogin('google')">
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                Google로 로그인
+            </button>
+            <button class="oauth-btn oauth-kakao" onclick="oauthLogin('kakao')">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.485 1.39 4.677 3.5 6.03L4.5 21l4.382-2.922A11.3 11.3 0 0 0 12 18c5.523 0 10-3.477 10-7.5S17.523 3 12 3z" fill="#3A1D1D"/></svg>
+                카카오로 로그인
+            </button>
+            <hr>
+            <label>콜백 URL에서 토큰 자동 파싱</label>
+            <input id="callbackUrl" placeholder="http://localhost:3000/oauth2/callback?accessToken=..." type="text">
+            <button class="btn-secondary btn-sm" onclick="parseCallbackUrl()">URL에서 파싱</button>
+        </div>
+
+        <div class="card full">
+            <h2>API 응답 로그</h2>
+            <div class="log" id="authLog"><span class="inf">인증 관련 로그...</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ 게임 탭 ═══════════════════════ -->
+<div class="content" id="tab-games">
+    <div class="grid">
+        <div class="card">
+            <h2>게임 목록 조회</h2>
+            <div class="row">
+                <select id="gameSportType" style="margin-bottom:0">
+                    <option value="">종목 전체</option>
+                    <option value="BASEBALL">BASEBALL</option>
+                    <option value="FOOTBALL">FOOTBALL</option>
+                    <option value="BASKETBALL">BASKETBALL</option>
+                </select>
+                <select id="gameStatus" style="margin-bottom:0">
+                    <option value="">상태 전체</option>
+                    <option value="ON_SALE">ON_SALE</option>
+                    <option value="SCHEDULED">SCHEDULED</option>
+                    <option value="FINISHED">FINISHED</option>
+                </select>
+            </div>
+            <input id="gameTeamId" placeholder="팀 ID (선택)" type="number">
+            <div class="btn-row">
+                <button class="btn-primary" onclick="getGames()">조회</button>
+                <button class="btn-secondary" onclick="clearGameList()">초기화</button>
+            </div>
+            <div id="gameListResult" style="overflow-x:auto"></div>
+        </div>
+
+        <div class="card">
+            <h2>게임 상세 / 좌석 조회</h2>
+            <label>Game ID</label>
+            <input id="gameDetailId" placeholder="1" type="number">
+            <div class="btn-row">
+                <button class="btn-primary" onclick="getGameDetail()">상세 조회</button>
+                <button class="btn-success" onclick="getGameSeats()">좌석 조회</button>
+            </div>
+            <label>좌석 필터</label>
+            <div class="row">
+                <select id="seatGrade" style="margin-bottom:0">
+                    <option value="">등급 전체</option>
+                    <option value="VIP">VIP</option>
+                    <option value="MVP">MVP</option>
+                    <option value="ROYAL">ROYAL</option>
+                </select>
+                <select id="seatStatus" style="margin-bottom:0">
+                    <option value="">상태 전체</option>
+                    <option value="AVAILABLE">AVAILABLE</option>
+                    <option value="SOLD">SOLD</option>
+                    <option value="RESERVED">RESERVED</option>
+                </select>
+            </div>
+            <div id="gameDetailResult" style="margin-top:10px;overflow-x:auto"></div>
+        </div>
+
+        <div class="card full">
+            <h2>API 응답 로그</h2>
+            <div class="log" id="gameLog"><span class="inf">게임 API 로그...</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ 채팅 탭 ═══════════════════════ -->
+<div class="content" id="tab-chat">
+    <div class="grid">
+        <div class="card">
+            <h2>채팅방 만들기</h2>
+            <label>방 이름</label>
+            <input id="chatRoomName" placeholder="LG vs 두산 응원방" type="text">
+            <label>타입</label>
+            <select id="chatRoomType">
+                <option value="GAME">GAME</option>
+                <option value="DIRECT">DIRECT</option>
+            </select>
+            <label>Game ID (GAME 타입)</label>
+            <input id="chatRoomGameId" placeholder="1" type="number">
+            <label>이미지 URL (선택)</label>
+            <input id="chatRoomImage" placeholder="https://..." type="text">
+            <button class="btn-primary" onclick="createChatRoom()">채팅방 생성</button>
+        </div>
+
+        <div class="card">
+            <h2>내 채팅방 목록</h2>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="getMyChatRooms()">조회</button>
+            </div>
+            <div id="chatRoomListResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>채팅방 멤버 관리</h2>
+            <label>Room ID</label>
+            <input id="chatMemberRoomId" placeholder="1" type="number">
+            <label>초대할 Member ID</label>
+            <input id="chatInviteMemberId" placeholder="2" type="number">
+            <div class="btn-row">
+                <button class="btn-success" onclick="joinChatRoom()">참가</button>
+                <button class="btn-primary" onclick="inviteChatRoom()">초대</button>
+                <button class="btn-danger" onclick="leaveChatRoom()">나가기</button>
+            </div>
+            <hr>
+            <label>게임별 채팅방 조회 (Game ID)</label>
+            <input id="chatGameId" placeholder="1" type="number">
+            <button class="btn-secondary btn-sm" onclick="getChatRoomsByGame()">조회</button>
+        </div>
+
+        <div class="card">
+            <h2>채팅방 상세</h2>
+            <label>Room ID</label>
+            <input id="chatDetailRoomId" placeholder="1" type="number">
+            <button class="btn-primary" onclick="getChatRoomDetail()">상세 조회</button>
+            <div id="chatDetailResult" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card full">
+            <h2>API 응답 로그</h2>
+            <div class="log" id="chatLog"><span class="inf">채팅 API 로그...</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ 알림 탭 ═══════════════════════ -->
+<div class="content" id="tab-notification">
+    <div class="grid">
+        <div class="card">
+            <h2><span class="dot" id="sseDot"></span> SSE 실시간 스트림 <span class="badge badge-off" id="sseBadge">미연결</span></h2>
+            <div class="btn-row">
+                <button class="btn-success" onclick="connectSSE()">연결</button>
+                <button class="btn-danger" onclick="disconnectSSE()">끊기</button>
+            </div>
+            <div class="log" id="sseLog"><span class="inf">SSE 대기 중...</span></div>
+        </div>
+
+        <div class="card">
+            <h2>Redis Stream 이벤트 발행</h2>
+            <div class="event-grid">
+                <button class="event-btn" onclick="publish('ticket.opened', {ticketId:1, eventName:'2025 KBO 개막전'})">
+                    <span class="icon">🎟️</span>티켓 오픈
+                </button>
+                <button class="event-btn" onclick="publish('payment.completed', {orderId:99, amount:55000, itemName:'VIP석 1매'})">
+                    <span class="icon">💳</span>결제 완료
+                </button>
+                <button class="event-btn" onclick="publish('game.starting', {gameId:1, homeTeam:'LG', awayTeam:'두산', startsIn:'10분'})">
+                    <span class="icon">⚾</span>경기 시작
+                </button>
+                <button class="event-btn" onclick="publish('chat.mentioned', {roomId:1, mentionedBy:'홍길동', preview:'@me 잠깐요!'})">
+                    <span class="icon">💬</span>채팅 멘션
+                </button>
+            </div>
+            <hr>
+            <label>커스텀 스트림</label>
+            <input id="customStream" placeholder="ticket.opened" type="text">
+            <label>페이로드 (JSON)</label>
+            <textarea id="customPayload" rows="3">{"key": "value"}</textarea>
+            <button class="btn-warn" onclick="publishCustom()">커스텀 발행</button>
+            <hr>
+            <div class="log" id="pubLog"><span class="inf">발행 로그...</span></div>
+        </div>
+
+        <div class="card">
+            <h2>알림 목록 <span class="badge badge-cnt" id="unreadBadge">0 읽지 않음</span></h2>
+            <div class="btn-row">
+                <button class="btn-primary btn-sm" onclick="loadNotifications()">새로고침</button>
+                <button class="btn-secondary btn-sm" onclick="markAllRead()">모두 읽음</button>
+            </div>
+            <div class="notif-list" id="notifList">
+                <p style="color:#475569;font-size:13px">새로고침을 눌러주세요</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>알림 설정</h2>
+            <div id="settingsArea"><p style="color:#475569;font-size:13px">불러오기를 눌러주세요</p></div>
+            <div class="btn-row" style="margin-top:14px">
+                <button class="btn-primary btn-sm" onclick="loadSettings()">불러오기</button>
+                <button class="btn-success btn-sm" onclick="saveSettings()">저장</button>
+            </div>
+            <hr>
+            <h2 style="margin-top:4px">알림 채널</h2>
+            <div class="btn-row">
+                <button class="btn-primary btn-sm" onclick="loadChannels()">채널 조회</button>
+            </div>
+            <div id="channelList"></div>
+        </div>
+
+        <div class="card full">
+            <h2>API 응답 로그</h2>
+            <div class="log" id="notiLog"><span class="inf">알림 API 로그...</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ 회원 탭 ═══════════════════════ -->
+<div class="content" id="tab-member">
+    <div class="grid">
+        <div class="card">
+            <h2>내 정보</h2>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="getMe()">조회</button>
+            </div>
+            <div id="meResult"></div>
+            <hr>
+            <label>닉네임 변경</label>
+            <input id="newNickname" placeholder="새 닉네임" type="text">
+            <button class="btn-success btn-sm" onclick="updateNickname()">변경</button>
+        </div>
+
+        <div class="card">
+            <h2>즐겨찾기 팀</h2>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="getFavoriteTeams()">목록 조회</button>
+            </div>
+            <div id="favoriteTeamsResult" style="margin-bottom:12px"></div>
+            <label>팀 ID 추가</label>
+            <div class="row">
+                <input id="favTeamId" placeholder="팀 ID" type="number" style="margin-bottom:0">
+                <input id="favPriority" placeholder="우선순위 (0=높음)" type="number" value="0" style="margin-bottom:0">
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+                <button class="btn-success btn-sm" onclick="addFavoriteTeam()">추가</button>
+                <button class="btn-danger btn-sm" onclick="removeFavoriteTeam()">제거</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>토큰 갱신 / 로그아웃</h2>
+            <label>Refresh Token</label>
+            <textarea id="refreshToken" placeholder="eyJ..." rows="2"></textarea>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="refreshAccessToken()">액세스 토큰 갱신</button>
+                <button class="btn-danger" onclick="logout()">로그아웃</button>
+            </div>
+        </div>
+
+        <div class="card full">
+            <h2>API 응답 로그</h2>
+            <div class="log" id="memberLog"><span class="inf">회원 API 로그...</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ 팀 탭 ═══════════════════════ -->
+<div class="content" id="tab-team">
+    <div class="grid">
+        <div class="card">
+            <h2>팀 목록 조회</h2>
+            <div class="row">
+                <select id="teamSportType" style="margin-bottom:0">
+                    <option value="">종목 전체</option>
+                    <option value="BASEBALL">BASEBALL</option>
+                    <option value="FOOTBALL">FOOTBALL</option>
+                    <option value="BASKETBALL">BASKETBALL</option>
+                </select>
+                <select id="teamIsActive" style="margin-bottom:0">
+                    <option value="">활성 전체</option>
+                    <option value="true">활성</option>
+                    <option value="false">비활성</option>
+                </select>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+                <button class="btn-primary" onclick="getTeams()">조회</button>
+            </div>
+            <div id="teamListResult" style="overflow-x:auto"></div>
+        </div>
+
+        <div class="card">
+            <h2>팀 상세 조회</h2>
+            <label>Team ID</label>
+            <input id="teamDetailId" placeholder="1" type="number">
+            <button class="btn-primary" onclick="getTeamDetail()">조회</button>
+            <div id="teamDetailResult" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card full">
+            <h2>API 응답 로그</h2>
+            <div class="log" id="teamLog"><span class="inf">팀 API 로그...</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ══════════════════════════════════════
+       공통 유틸
+    ══════════════════════════════════════ */
+    let currentToken = '';
+    let sseReader = null;
+    let settingsCache = {};
+
+    function ts() { return new Date().toLocaleTimeString('ko-KR'); }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function logTo(id, msg, cls = '') {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML += `<div class="entry"><span class="ts">[${ts()}]</span> <span class="${cls}">${escHtml(msg)}</span></div>`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function alog(logId, m, c) { logTo(logId, m, c); }
+
+    function getToken() {
+        const manual = document.getElementById('tokenInput').value.trim();
+        return manual || currentToken;
+    }
+
+    /* ══════════════════════════════════════
+       탭 전환
+    ══════════════════════════════════════ */
+    function showTab(name) {
+        document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    /* ══════════════════════════════════════
+       API 공통 fetch
+    ══════════════════════════════════════ */
+    async function api(method, path, body, logId = 'authLog') {
+        const token = getToken();
+        if (!token) {
+            alog(logId, '토큰이 없습니다. 먼저 토큰을 발급하세요.', 'err');
+            return null;
+        }
+        const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+        if (body !== undefined) opts.body = JSON.stringify(body);
+        try {
+            const res = await fetch(path, opts);
+            const text = await res.text();
+            let parsed;
+            try { parsed = JSON.parse(text); } catch { parsed = text; }
+            alog(logId, `${method} ${path} → ${res.status}`, res.ok ? 'ok' : 'err');
+            if (parsed && typeof parsed === 'object') alog(logId, JSON.stringify(parsed, null, 2));
+            else if (text) alog(logId, text);
+            return { ok: res.ok, status: res.status, data: parsed };
+        } catch (e) {
+            alog(logId, `${method} ${path} → ${e.message}`, 'err');
+            return null;
+        }
+    }
+
+    /* ══════════════════════════════════════
+       인증
+    ══════════════════════════════════════ */
+    function syncMemberId() {
+        const v = document.getElementById('headerMemberId').value;
+        document.getElementById('authMemberId').value = v;
+    }
+
+    function syncMemberIdFromAuth() {
+        const v = document.getElementById('authMemberId').value;
+        document.getElementById('headerMemberId').value = v;
+    }
+
+    async function fetchToken() {
+        const memberId = document.getElementById('headerMemberId').value || 1;
+        try {
+            const res = await fetch(`/dev/token?memberId=${memberId}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            currentToken = data.token;
+            document.getElementById('tokenInput').value = currentToken;
+            document.getElementById('tokenTextarea').value = currentToken;
+            setTokenStatus(`발급 완료 (memberId=${data.memberId})`, true);
+            alog('authLog', `토큰 발급 완료 — memberId=${data.memberId}`, 'ok');
+        } catch (e) {
+            setTokenStatus(`발급 실패: ${e.message}`, false);
+            alog('authLog', `토큰 발급 실패: ${e.message}`, 'err');
+        }
+    }
+
+    function clearToken() {
+        currentToken = '';
+        document.getElementById('tokenInput').value = '';
+        document.getElementById('tokenTextarea').value = '';
+        setTokenStatus('토큰 없음', null);
+        alog('authLog', '토큰 초기화', 'warn');
+    }
+
+    function onManualToken() {
+        const val = document.getElementById('tokenTextarea').value.trim();
+        document.getElementById('tokenInput').value = val;
+        currentToken = val;
+        if (val) setTokenStatus('수동 입력됨', true);
+    }
+
+    function setTokenStatus(msg, ok) {
+        const el = document.getElementById('tokenStatus');
+        el.textContent = msg;
+        el.className = ok === true ? 'ok' : (ok === false ? '' : '');
+        if (ok === true) el.style.cssText = 'background:#14532d;color:#4ade80';
+        else if (ok === false) el.style.cssText = 'background:#450a0a;color:#f87171';
+        else el.style.cssText = 'background:#1e293b;color:#64748b';
+    }
+
+    function oauthLogin(provider) {
+        window.location.href = `/oauth2/authorization/${provider}`;
+    }
+
+    function parseCallbackUrl() {
+        const url = document.getElementById('callbackUrl').value.trim();
+        try {
+            const params = new URL(url).searchParams;
+            const access = params.get('accessToken');
+            const refresh = params.get('refreshToken');
+            if (access) {
+                currentToken = access;
+                document.getElementById('tokenInput').value = access;
+                document.getElementById('tokenTextarea').value = access;
+                if (refresh) document.getElementById('refreshToken').value = refresh;
+                setTokenStatus('콜백 URL에서 파싱 완료', true);
+                alog('authLog', 'accessToken 파싱 완료', 'ok');
+            } else {
+                alog('authLog', 'URL에 accessToken이 없습니다.', 'err');
+            }
+        } catch {
+            alog('authLog', '유효하지 않은 URL입니다.', 'err');
+        }
+    }
+
+    /* ══════════════════════════════════════
+       게임
+    ══════════════════════════════════════ */
+    async function getGames() {
+        const sport = document.getElementById('gameSportType').value;
+        const status = document.getElementById('gameStatus').value;
+        const teamId = document.getElementById('gameTeamId').value;
+        let qs = [];
+        if (sport) qs.push(`sportType=${sport}`);
+        if (status) qs.push(`status=${status}`);
+        if (teamId) qs.push(`teamId=${teamId}`);
+        const res = await api('GET', `/api/games${qs.length ? '?' + qs.join('&') : ''}`, undefined, 'gameLog');
+        if (!res?.ok) return;
+        const items = Array.isArray(res.data) ? res.data : (res.data?.content || []);
+        if (!items.length) { document.getElementById('gameListResult').innerHTML = '<p style="color:#475569;font-size:13px;margin-top:8px">결과 없음</p>'; return; }
+        document.getElementById('gameListResult').innerHTML = `
+            <table class="result-table">
+                <thead><tr><th>ID</th><th>종목</th><th>홈</th><th>원정</th><th>상태</th><th>시작</th></tr></thead>
+                <tbody>${items.map(g => `
+                    <tr style="cursor:pointer" onclick="document.getElementById('gameDetailId').value=${g.id}">
+                        <td>${g.id}</td>
+                        <td>${g.sportType || '-'}</td>
+                        <td>${g.homeTeamName || g.homeTeamId || '-'}</td>
+                        <td>${g.awayTeamName || g.awayTeamId || '-'}</td>
+                        <td><span class="tag ${g.status === 'ON_SALE' ? 'green' : g.status === 'FINISHED' ? 'red' : ''}">${g.status || '-'}</span></td>
+                        <td>${g.startAt ? new Date(g.startAt).toLocaleString('ko-KR') : '-'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function clearGameList() {
+        document.getElementById('gameListResult').innerHTML = '';
+        document.getElementById('gameDetailResult').innerHTML = '';
+    }
+
+    async function getGameDetail() {
+        const id = document.getElementById('gameDetailId').value;
+        if (!id) { alog('gameLog', 'Game ID를 입력하세요.', 'warn'); return; }
+        const res = await api('GET', `/api/games/${id}`, undefined, 'gameLog');
+        if (!res?.ok) return;
+        const g = res.data;
+        document.getElementById('gameDetailResult').innerHTML = `
+            <table class="result-table">
+                ${Object.entries(g).map(([k, v]) => `<tr><td style="color:#64748b;width:40%">${k}</td><td>${escHtml(JSON.stringify(v))}</td></tr>`).join('')}
+            </table>`;
+    }
+
+    async function getGameSeats() {
+        const id = document.getElementById('gameDetailId').value;
+        if (!id) { alog('gameLog', 'Game ID를 입력하세요.', 'warn'); return; }
+        const grade = document.getElementById('seatGrade').value;
+        const status = document.getElementById('seatStatus').value;
+        let qs = [];
+        if (grade) qs.push(`grade=${grade}`);
+        if (status) qs.push(`status=${status}`);
+        const res = await api('GET', `/api/games/${id}/seats${qs.length ? '?' + qs.join('&') : ''}`, undefined, 'gameLog');
+        if (!res?.ok) return;
+        const items = Array.isArray(res.data) ? res.data : [];
+        document.getElementById('gameDetailResult').innerHTML = !items.length
+            ? '<p style="color:#475569;font-size:13px;margin-top:8px">좌석 없음</p>'
+            : `<table class="result-table">
+                <thead><tr><th>좌석ID</th><th>섹션</th><th>열</th><th>번호</th><th>등급</th><th>상태</th><th>가격</th></tr></thead>
+                <tbody>${items.map(s => `
+                    <tr>
+                        <td>${s.id || s.seatId || '-'}</td>
+                        <td>${s.sectionName || '-'}</td>
+                        <td>${s.rowNumber || '-'}</td>
+                        <td>${s.seatNumber || '-'}</td>
+                        <td>${s.grade || s.zoneName || '-'}</td>
+                        <td><span class="tag ${s.status === 'AVAILABLE' ? 'green' : s.status === 'SOLD' ? 'red' : 'yellow'}">${s.status || '-'}</span></td>
+                        <td>${s.price ? s.price.toLocaleString() + '원' : '-'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    /* ══════════════════════════════════════
+       채팅
+    ══════════════════════════════════════ */
+    async function createChatRoom() {
+        const name = document.getElementById('chatRoomName').value.trim();
+        const type = document.getElementById('chatRoomType').value;
+        const gameId = document.getElementById('chatRoomGameId').value;
+        const imageUrl = document.getElementById('chatRoomImage').value.trim();
+        if (!name) { alog('chatLog', '방 이름을 입력하세요.', 'warn'); return; }
+        const body = { name, type };
+        if (gameId) body.gameId = Number(gameId);
+        if (imageUrl) body.imageUrl = imageUrl;
+        await api('POST', '/api/chat/rooms', body, 'chatLog');
+    }
+
+    async function getMyChatRooms() {
+        const res = await api('GET', '/api/chat/rooms', undefined, 'chatLog');
+        if (!res?.ok) return;
+        const items = res.data?.rooms || res.data?.content || (Array.isArray(res.data) ? res.data : []);
+        document.getElementById('chatRoomListResult').innerHTML = !items.length
+            ? '<p style="color:#475569;font-size:13px;margin-top:8px">채팅방 없음</p>'
+            : `<table class="result-table" style="margin-top:8px">
+                <thead><tr><th>ID</th><th>이름</th><th>타입</th><th>상태</th></tr></thead>
+                <tbody>${items.map(r => `
+                    <tr style="cursor:pointer" onclick="document.getElementById('chatDetailRoomId').value=${r.id};document.getElementById('chatMemberRoomId').value=${r.id}">
+                        <td>${r.id}</td><td>${escHtml(r.name || '-')}</td><td>${r.type || '-'}</td><td>${r.status || '-'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    async function joinChatRoom() {
+        const roomId = document.getElementById('chatMemberRoomId').value;
+        if (!roomId) { alog('chatLog', 'Room ID를 입력하세요.', 'warn'); return; }
+        await api('POST', `/api/chat/rooms/${roomId}/join`, {}, 'chatLog');
+    }
+
+    async function inviteChatRoom() {
+        const roomId = document.getElementById('chatMemberRoomId').value;
+        const memberId = document.getElementById('chatInviteMemberId').value;
+        if (!roomId || !memberId) { alog('chatLog', 'Room ID와 Member ID를 입력하세요.', 'warn'); return; }
+        await api('POST', `/api/chat/rooms/${roomId}/invite`, { memberId: Number(memberId) }, 'chatLog');
+    }
+
+    async function leaveChatRoom() {
+        const roomId = document.getElementById('chatMemberRoomId').value;
+        if (!roomId) { alog('chatLog', 'Room ID를 입력하세요.', 'warn'); return; }
+        await api('DELETE', `/api/chat/rooms/${roomId}/invite`, {}, 'chatLog');
+    }
+
+    async function getChatRoomsByGame() {
+        const gameId = document.getElementById('chatGameId').value;
+        if (!gameId) { alog('chatLog', 'Game ID를 입력하세요.', 'warn'); return; }
+        await api('GET', `/api/chat/rooms/game/${gameId}`, undefined, 'chatLog');
+    }
+
+    async function getChatRoomDetail() {
+        const roomId = document.getElementById('chatDetailRoomId').value;
+        if (!roomId) { alog('chatLog', 'Room ID를 입력하세요.', 'warn'); return; }
+        const res = await api('GET', `/api/chat/rooms/${roomId}`, undefined, 'chatLog');
+        if (!res?.ok) return;
+        const r = res.data;
+        document.getElementById('chatDetailResult').innerHTML = `
+            <table class="result-table">
+                ${Object.entries(r).map(([k, v]) => `<tr><td style="color:#64748b;width:40%">${k}</td><td>${escHtml(JSON.stringify(v))}</td></tr>`).join('')}
+            </table>`;
+    }
+
+    /* ══════════════════════════════════════
+       알림 — SSE
+    ══════════════════════════════════════ */
+    async function connectSSE() {
+        const token = getToken();
+        if (!token) { logTo('sseLog', '토큰이 없습니다.', 'err'); return; }
+        if (sseReader) { try { await sseReader.cancel(); } catch {} sseReader = null; }
+        logTo('sseLog', 'SSE 연결 중...', 'inf');
+        try {
+            const res = await fetch('/api/notifications/stream', { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'text/event-stream' } });
+            if (!res.ok) { logTo('sseLog', `연결 실패: HTTP ${res.status}`, 'err'); return; }
+            logTo('sseLog', 'SSE 연결 성공!', 'ok');
+            setSseBadge(true);
+            sseReader = res.body.getReader();
+            const dec = new TextDecoder();
+            (async () => {
+                try {
+                    while (true) {
+                        const { done, value } = await sseReader.read();
+                        if (done) break;
+                        dec.decode(value).split('\n').forEach(line => {
+                            if (line.startsWith('data:')) {
+                                const d = line.slice(5).trim();
+                                logTo('sseLog', `수신: ${d}`, 'sse');
+                                if (d && d !== 'ping') setTimeout(loadNotifications, 600);
+                            }
+                        });
+                    }
+                } catch (e) { if (e.name !== 'AbortError') logTo('sseLog', `스트림 오류: ${e.message}`, 'err'); }
+                setSseBadge(false);
+            })();
+        } catch (e) { logTo('sseLog', `연결 오류: ${e.message}`, 'err'); setSseBadge(false); }
+    }
+
+    async function disconnectSSE() {
+        if (sseReader) { try { await sseReader.cancel(); } catch {} sseReader = null; }
+        setSseBadge(false);
+        logTo('sseLog', '연결 끊김', 'warn');
+    }
+
+    function setSseBadge(on) {
+        document.getElementById('sseBadge').textContent = on ? '연결됨' : '미연결';
+        document.getElementById('sseBadge').className = on ? 'badge badge-on' : 'badge badge-off';
+        document.getElementById('sseDot').className = on ? 'dot green' : 'dot red';
+    }
+
+    /* ══════════════════════════════════════
+       알림 — 이벤트 발행
+    ══════════════════════════════════════ */
+    async function publish(stream, payload) {
+        logTo('pubLog', `발행: ${stream}`, 'inf');
+        const res = await fetch('/dev/events/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stream, payload: JSON.stringify(payload) })
+        });
+        logTo('pubLog', res.ok ? `완료: ${stream}` : `실패: HTTP ${res.status}`, res.ok ? 'ok' : 'err');
+    }
+
+    async function publishCustom() {
+        const stream = document.getElementById('customStream').value.trim();
+        const payloadStr = document.getElementById('customPayload').value.trim();
+        if (!stream) { logTo('pubLog', '스트림 이름을 입력하세요.', 'warn'); return; }
+        let payload;
+        try { payload = JSON.parse(payloadStr); } catch { logTo('pubLog', '페이로드가 유효한 JSON이 아닙니다.', 'err'); return; }
+        await publish(stream, payload);
+    }
+
+    /* ══════════════════════════════════════
+       알림 — 목록 / 설정 / 채널
+    ══════════════════════════════════════ */
+    async function loadNotifications() {
+        const res = await api('GET', '/api/notifications?page=0&size=20', undefined, 'notiLog');
+        if (!res?.ok) return;
+        const items = res.data?.content || [];
+        const unread = items.filter(n => !n.read).length;
+        document.getElementById('unreadBadge').textContent = `${unread} 읽지 않음`;
+        const el = document.getElementById('notifList');
+        el.innerHTML = !items.length
+            ? '<p style="color:#475569;font-size:13px">알림 없음</p>'
+            : items.map(n => `
+                <div class="notif-item ${n.read ? 'read' : 'unread'}">
+                    <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                        <div style="flex:1;min-width:0">
+                            <span class="notif-type">${n.eventType || '알림'}</span>
+                            <p style="font-size:12px;margin-top:4px;word-break:break-all">${escHtml(n.payload || '')}</p>
+                            <p class="notif-meta">${new Date(n.createdAt).toLocaleString('ko-KR')}</p>
+                        </div>
+                        ${!n.read ? `<button class="btn-secondary btn-sm" style="flex-shrink:0" onclick="markRead(${n.id})">읽음</button>` : ''}
+                    </div>
+                </div>`).join('');
+    }
+
+    async function markRead(id) {
+        await api('PATCH', `/api/notifications/${id}/read`, undefined, 'notiLog');
+        await loadNotifications();
+    }
+
+    async function markAllRead() {
+        await api('PATCH', '/api/notifications/read-all', undefined, 'notiLog');
+        await loadNotifications();
+    }
+
+    async function loadSettings() {
+        const res = await api('GET', '/api/notifications/settings', undefined, 'notiLog');
+        if (!res?.ok) return;
+        settingsCache = res.data;
+        const items = [
+            { key: 'ticketOpenAlert', label: '🎟️ 티켓 오픈 알림' },
+            { key: 'gameStartAlert', label: '⚾ 경기 시작 알림' },
+            { key: 'paymentAlert', label: '💳 결제 알림' },
+            { key: 'chatMentionAlert', label: '💬 채팅 멘션 알림' },
+        ];
+        document.getElementById('settingsArea').innerHTML = items.map(({ key, label }) => `
+            <div class="settings-row">
+                <span style="font-size:13px">${label}</span>
+                <label class="toggle"><input type="checkbox" id="s-${key}" ${res.data[key] ? 'checked' : ''}><span class="slider"></span></label>
+            </div>`).join('');
+    }
+
+    async function saveSettings() {
+        const body = {
+            ticketOpenAlert: document.getElementById('s-ticketOpenAlert')?.checked ?? settingsCache.ticketOpenAlert,
+            gameStartAlert: document.getElementById('s-gameStartAlert')?.checked ?? settingsCache.gameStartAlert,
+            paymentAlert: document.getElementById('s-paymentAlert')?.checked ?? settingsCache.paymentAlert,
+            chatMentionAlert: document.getElementById('s-chatMentionAlert')?.checked ?? settingsCache.chatMentionAlert,
+        };
+        const res = await api('PUT', '/api/notifications/settings', body, 'notiLog');
+        if (res?.ok) { settingsCache = res.data; alog('notiLog', '설정 저장 완료', 'ok'); }
+    }
+
+    async function loadChannels() {
+        const res = await api('GET', '/api/notifications/channels', undefined, 'notiLog');
+        if (!res?.ok) return;
+        const items = Array.isArray(res.data) ? res.data : [];
+        document.getElementById('channelList').innerHTML = !items.length
+            ? '<p style="color:#475569;font-size:12px;margin-top:8px">채널 없음</p>'
+            : `<table class="result-table" style="margin-top:8px">
+                <thead><tr><th>타입</th><th>대상</th><th>활성</th></tr></thead>
+                <tbody>${items.map(c => `<tr><td>${c.channelType}</td><td>${escHtml(c.channelTarget || '-')}</td><td>${c.enabled ? '✓' : '✗'}</td></tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    /* ══════════════════════════════════════
+       회원
+    ══════════════════════════════════════ */
+    async function getMe() {
+        const res = await api('GET', '/api/members/me', undefined, 'memberLog');
+        if (!res?.ok) return;
+        const m = res.data;
+        document.getElementById('meResult').innerHTML = `
+            <table class="result-table" style="margin-top:8px">
+                ${Object.entries(m).map(([k, v]) => `<tr><td style="color:#64748b;width:40%">${k}</td><td>${escHtml(JSON.stringify(v))}</td></tr>`).join('')}
+            </table>`;
+    }
+
+    async function updateNickname() {
+        const nickname = document.getElementById('newNickname').value.trim();
+        if (!nickname) { alog('memberLog', '닉네임을 입력하세요.', 'warn'); return; }
+        await api('PATCH', '/api/members/me/nickname', { nickname }, 'memberLog');
+    }
+
+    async function getFavoriteTeams() {
+        const res = await api('GET', '/api/members/me/favorite-teams', undefined, 'memberLog');
+        if (!res?.ok) return;
+        const items = Array.isArray(res.data) ? res.data : [];
+        document.getElementById('favoriteTeamsResult').innerHTML = !items.length
+            ? '<p style="color:#475569;font-size:13px">즐겨찾기 없음</p>'
+            : `<table class="result-table">
+                <thead><tr><th>팀ID</th><th>팀명</th><th>우선순위</th></tr></thead>
+                <tbody>${items.map(t => `<tr><td>${t.teamId || t.id}</td><td>${escHtml(t.teamName || t.name || '-')}</td><td>${t.priority ?? '-'}</td></tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    async function addFavoriteTeam() {
+        const teamId = document.getElementById('favTeamId').value;
+        const priority = document.getElementById('favPriority').value || 0;
+        if (!teamId) { alog('memberLog', '팀 ID를 입력하세요.', 'warn'); return; }
+        await api('POST', '/api/members/me/favorite-teams', { teamId: Number(teamId), priority: Number(priority) }, 'memberLog');
+    }
+
+    async function removeFavoriteTeam() {
+        const teamId = document.getElementById('favTeamId').value;
+        if (!teamId) { alog('memberLog', '팀 ID를 입력하세요.', 'warn'); return; }
+        await api('DELETE', `/api/members/me/favorite-teams/${teamId}`, undefined, 'memberLog');
+    }
+
+    async function refreshAccessToken() {
+        const refreshToken = document.getElementById('refreshToken').value.trim();
+        if (!refreshToken) { alog('memberLog', 'Refresh Token을 입력하세요.', 'warn'); return; }
+        try {
+            const res = await fetch('/api/auth/token/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }) });
+            const data = await res.json();
+            alog('memberLog', `POST /api/auth/token/refresh → ${res.status}`, res.ok ? 'ok' : 'err');
+            if (res.ok && data.accessToken) {
+                currentToken = data.accessToken;
+                document.getElementById('tokenInput').value = data.accessToken;
+                document.getElementById('tokenTextarea').value = data.accessToken;
+                setTokenStatus('토큰 갱신 완료', true);
+            }
+            alog('memberLog', JSON.stringify(data, null, 2));
+        } catch (e) { alog('memberLog', e.message, 'err'); }
+    }
+
+    async function logout() {
+        await api('POST', '/api/auth/logout', {}, 'memberLog');
+        clearToken();
+    }
+
+    /* ══════════════════════════════════════
+       팀
+    ══════════════════════════════════════ */
+    async function getTeams() {
+        const sport = document.getElementById('teamSportType').value;
+        const active = document.getElementById('teamIsActive').value;
+        let qs = [];
+        if (sport) qs.push(`sportType=${sport}`);
+        if (active) qs.push(`isActive=${active}`);
+        const res = await api('GET', `/api/teams${qs.length ? '?' + qs.join('&') : ''}`, undefined, 'teamLog');
+        if (!res?.ok) return;
+        const items = Array.isArray(res.data) ? res.data : [];
+        document.getElementById('teamListResult').innerHTML = !items.length
+            ? '<p style="color:#475569;font-size:13px;margin-top:8px">결과 없음</p>'
+            : `<table class="result-table" style="margin-top:8px">
+                <thead><tr><th>ID</th><th>이름</th><th>약칭</th><th>종목</th><th>활성</th></tr></thead>
+                <tbody>${items.map(t => `
+                    <tr style="cursor:pointer" onclick="document.getElementById('teamDetailId').value=${t.id}">
+                        <td>${t.id}</td><td>${escHtml(t.name)}</td><td>${t.shortName || '-'}</td>
+                        <td>${t.sportType}</td><td>${t.active !== false ? '✓' : '✗'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    async function getTeamDetail() {
+        const id = document.getElementById('teamDetailId').value;
+        if (!id) { alog('teamLog', '팀 ID를 입력하세요.', 'warn'); return; }
+        const res = await api('GET', `/api/teams/${id}`, undefined, 'teamLog');
+        if (!res?.ok) return;
+        document.getElementById('teamDetailResult').innerHTML = `
+            <table class="result-table">
+                ${Object.entries(res.data).map(([k, v]) => `<tr><td style="color:#64748b;width:40%">${k}</td><td>${escHtml(JSON.stringify(v))}</td></tr>`).join('')}
+            </table>`;
+    }
+
+    /* ══════════════════════════════════════
+       초기화
+    ══════════════════════════════════════ */
+    window.addEventListener('load', fetchToken);
+</script>
+</body>
+</html>
