@@ -1465,31 +1465,29 @@ POST /api/payments/{paymentId}/refund
 
 ### 엔드포인트 목록
 
-| method | path                                       | auth required | 설명                    |
-|--------|--------------------------------------------|---------------|-----------------------|
-| POST   | /api/chat/create                           | O             | 채팅방 생성                |
-| GET    | /api/chat/rooms                            | O             | 내 채팅방 목록 조회           |
-| GET    | /api/chat/rooms/game/{gameId}              | N             | 게임별 채팅방 조회            |
-| GET    | /api/chat/rooms/{roomId}                   | O/N           | 채팅방 상세 조회             |
-| PATCH  | /api/chat/rooms/{roomId}                   | O             | 채팅방 정보 수정             |
-| DELETE | /api/chat/rooms/{roomId}                   | O             | 채팅방 삭제                |
-| POST   | /api/chat/rooms/{roomId}/join              | O             | 채팅방 입장                |
-| POST   | /api/chat/rooms/{roomId}/leave             | O             | 채팅방 상세 나가기            |
-| POST   | /api/chat/rooms/{roomId}/invite            | O             | 채팅방 상세 초대             |
-| PATCH  | /api/chat/rooms/{roomId}/notification      | O             | 채팅방 알림 설정 변경          |
-| POST   | /api/chat/rooms/{roomId}/ban               | O             | 채팅방 멤버 ban            |
-| GET    | /api/chat/messages/history/{roomId}        | O             | 채팅 이력 조회              |
-| WS     | /ws/chat (STOMP)                           | O/N           | WebSocket 연결 / 메시지 전송 |
-| DELETE | /api/chat/messages/{messageId}             | O             | 메시지 삭제                |
-| GET    | /api/chat/messages/getMessages/{messageId} | O             | 메시지 삭제                |
-| POST   | /api/chat/message/upload                   | O             | 메시지 첨부 파일 업로드         |
+| method | path                                          | auth required | 설명                              |
+|--------|-----------------------------------------------|---------------|---------------------------------|
+| POST   | /api/chat/rooms                               | O             | 채팅방 생성 (5-1)                    |
+| GET    | /api/chat/rooms                               | O             | 내 채팅방 목록 조회 (5-2)               |
+| GET    | /api/chat/rooms/game/{gameId}                 | N             | 게임별 채팅방 조회 (5-3)                |
+| GET    | /api/chat/rooms/{roomId}                      | O/N           | 채팅방 상세 조회 (5-4)                 |
+| PATCH  | /api/chat/rooms/{roomId}                      | O             | 채팅방 정보 수정 name/imageUrl (5-5)   |
+| DELETE | /api/chat/rooms/{roomId}                      | O             | 채팅방 삭제 (5-6, 방장만 가능)            |
+| POST   | /api/chat/rooms/{roomId}/join                 | O             | 채팅방 입장 (5-7)                    |
+| DELETE | /api/chat/rooms/{roomId}/leave                | O             | 채팅방 나가기 (5-8)                   |
+| POST   | /api/chat/rooms/{roomId}/invite               | O             | 참여자 초대 (5-9, ?inviteeId=)        |
+| PATCH  | /api/chat/rooms/{roomId}/notification         | O             | 채팅방 알림 설정 변경 (5-10, ?enabled=)  |
+| POST   | /api/chat/rooms/{roomId}/ban                  | O             | 멤버 BAN (5-11, 방장만 가능, ?targetId=) |
+| GET    | /api/chat/messages/history/{roomId}           | O             | 채팅 이력 조회 — 내가 있을 때 메시지 (5-12)   |
+| DELETE | /api/chat/messages/{messageId}                | O             | 메시지 삭제 soft delete (5-14)        |
+| GET    | /api/chat/messages/getMessages/{roomId}       | O             | 채팅방 메시지 조회 + lastRead 갱신 (5-15)  |
 
 ---
 
 ### 5-1. 채팅방 생성
 
 ```
-POST /api/chat/create
+POST /api/chat/rooms
 ```
 
 Auth Required: **O**
@@ -1498,8 +1496,8 @@ Request Body
 
 | 필드           | 타입      | 필수  | 설명                                 |
 |--------------|---------|-----|------------------------------------|
-| `type`       | String  | Y   | 채팅방 유형 (`GAME` \|  `DM`)           |
-| `name`       | String* | Y/N | 채팅방 표시 이름. `DM` 의 경우 자동 생성되어 생략 가능 |
+| `type`       | String  | Y   | 채팅방 유형 (`GAME` \| `DIRECT`)                        |
+| `name`       | String* | Y/N | 채팅방 표시 이름. `DIRECT` 의 경우 자동 생성되어 생략 가능. `GAME`은 필수 |
 | `imageUrl`   | String* | N   | 채팅방 프로필 이미지 URL                    |
 | `gameId`     | Long*   | Y/N | `type=GAME` 일 때 필수                 |
 | `inviteeIds` | Long[]* | Y/N | `DM` / 비공개 방 생성 시 함께 초대할 사용자 ID 목록 |
@@ -2599,11 +2597,12 @@ GET /api/notifications
 | `payload` | String | 이벤트 원본 페이로드 (JSON 문자열) |
 | `read` | Boolean | 읽음 여부 |
 | `createdAt` | String (ISO8601) | 알림 생성 시각 |
-| 필드                | 타입      | 설명              |
-|-------------------|---------|-----------------|
-| `ticketOpenAlert` | Boolean | 티켓 오픈 알림 ON/OFF |
-| `gameStartAlert`  | Boolean | 경기 시작 알림 ON/OFF |
-| `paymentAlert`    | Boolean | 결제 알림 ON/OFF    |
+| 필드                  | 타입      | 설명                              |
+|---------------------|---------|----------------------------------|
+| `ticketOpenAlert`   | Boolean | 티켓 오픈 알림 ON/OFF                  |
+| `gameStartAlert`    | Boolean | 경기 시작 알림 ON/OFF                  |
+| `paymentAlert`      | Boolean | 결제 알림 ON/OFF                     |
+| `chatMentionAlert`  | Boolean | 채팅 @멘션 알림 ON/OFF (채팅방별 설정의 마스터 스위치) |
 
 ---
 
@@ -2631,11 +2630,12 @@ HTTP 204 No Content
 | --- | --- | --- |
 | `NOTIFICATION_NOT_FOUND` | 404 | 알림 없음 또는 다른 회원의 알림 |
 | `NOTIFICATION_ALREADY_READ` | 400 | 이미 읽은 알림 |
-| 필드                | 타입      | 필수 | 설명              |
-|-------------------|---------|----|-----------------|
-| `ticketOpenAlert` | Boolean | N  | 티켓 오픈 알림 ON/OFF |
-| `gameStartAlert`  | Boolean | N  | 경기 시작 알림 ON/OFF |
-| `paymentAlert`    | Boolean | N  | 결제 알림 ON/OFF    |
+| 필드                  | 타입      | 필수 | 설명                              |
+|---------------------|---------|-----|----------------------------------|
+| `ticketOpenAlert`   | Boolean | N   | 티켓 오픈 알림 ON/OFF                  |
+| `gameStartAlert`    | Boolean | N   | 경기 시작 알림 ON/OFF                  |
+| `paymentAlert`      | Boolean | N   | 결제 알림 ON/OFF                     |
+| `chatMentionAlert`  | Boolean | N   | 채팅 @멘션 알림 ON/OFF (채팅방별 설정의 마스터 스위치) |
 
 ---
 
