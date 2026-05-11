@@ -5,6 +5,7 @@ import com.sportsify.infrastructure.security.JwtAuthenticationEntryPoint;
 import com.sportsify.infrastructure.security.JwtAuthenticationFilter;
 import com.sportsify.infrastructure.security.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +16,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +35,8 @@ public class SecurityConfig {
             "/api/auth/**",
             "/api/teams",
             "/api/teams/**",
+            "/api/games",
+            "/api/games/**",
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -39,16 +45,19 @@ public class SecurityConfig {
             "/swagger.html",
             "/webjars/**",
             "/docs.html",
-            "/api/chat/rooms/{roomId}"
+            "/api/chat/rooms/**"
     );
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
-            "/dev/**", "/notification-test.html"
+            "/dev/**", "/notification-test.html", "/dev-test.html"
     );
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final Environment environment;
+
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -58,7 +67,8 @@ public class SecurityConfig {
             publicPaths.addAll(LOCAL_ONLY_PATHS);
         }
 
-        http.csrf(AbstractHttpConfigurer::disable)
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
@@ -83,5 +93,15 @@ public class SecurityConfig {
         FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
+    }
+
+    private CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(allowedOrigins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }
