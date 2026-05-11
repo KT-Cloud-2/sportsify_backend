@@ -1,0 +1,148 @@
+name: Notify Slack on PR Events
+
+on:
+  pull_request:
+    types: [ review_requested, closed, reopened ]
+    branches:
+      - '**'
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: slack-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    continue-on-error: true
+
+    steps:
+      - name: Wait for other events
+        run: sleep 10
+
+      - name: Send Slack Notification with Mentions
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_ACTION="${{ github.event.action }}"
+          PR_IS_DRAFT=${{ github.event.pull_request.draft }}
+          
+          if [ "$PR_IS_DRAFT" == "true" ]; then
+            echo "Draft PR - skipping notification"
+            exit 0
+          fi
+          
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          MAPPING_JSON='${{ secrets.SLACK_USER_MAPPING }}'
+          
+          get_slack_id() {
+            local github_username=$1
+            echo "$MAPPING_JSON" | jq -r --arg user "$github_username" '.[$user] // "Unknown"'
+          }
+          
+          if [ -z "$PR_AUTHOR" ]; then
+            SLACK_AUTHOR_ID="Unknown"
+          else
+            SLACK_AUTHOR_ID=$(get_slack_id "$PR_AUTHOR")
+          fi
+          
+          get_all_reviewers_mentions() {
+            local CURRENT_REVIEWERS='${{ toJson(github.event.pull_request.requested_reviewers) }}'
+            local REVIEWER_MENTIONS=""
+          
+            if [ "$CURRENT_REVIEWERS" != "null" ] && [ "$CURRENT_REVIEWERS" != "[]" ] && [ -n "$CURRENT_REVIEWERS" ]; then
+              for reviewer in $(echo "$CURRENT_REVIEWERS" | jq -r '.[].login'); do
+                SLACK_ID=$(get_slack_id "$reviewer")
+                if [ "$SLACK_ID" != "Unknown" ]; then
+                  REVIEWER_MENTIONS+="<@$SLACK_ID> "
+                else
+                  REVIEWER_MENTIONS+="@$reviewer (GitHub) "
+                fi
+              done
+            fi
+          
+            echo "$REVIEWER_MENTIONS"
+          }
+          
+          echo "Processing PR #${PR_NUMBER} - Action: ${PR_ACTION}"
+          
+          case "$PR_ACTION" in
+            "review_requested")
+              REQUESTED_REVIEWER="${{ github.event.requested_reviewer.login }}"
+              echo "Requested reviewer: ${REQUESTED_REVIEWER:-none (CODEOWNERS auto-assign)}"
+          
+              if [ -n "$REQUESTED_REVIEWER" ] && [ "$REQUESTED_REVIEWER" != "null" ]; then
+                # Round robin - specific reviewer assigned
+                SLACK_REVIEWER_ID=$(get_slack_id "$REQUESTED_REVIEWER")
+                if [ "$SLACK_REVIEWER_ID" != "Unknown" ]; then
+                  ALL_MENTIONS="<@$SLACK_REVIEWER_ID>"
+                else
+                  ALL_MENTIONS="@$REQUESTED_REVIEWER (GitHub)"
+                fi
+              else
+                # CODEOWNERS auto-assign
+                ALL_MENTIONS=$(get_all_reviewers_mentions)
+                if [ -z "$ALL_MENTIONS" ]; then
+                  echo "No reviewers found - skipping notification"
+                  exit 0
+                fi
+              fi
+          
+              PR_STATUS="📢 *리뷰 알림 요청*"
+              ;;
+          
+            "closed")
+              if [ "$SLACK_AUTHOR_ID" != "Unknown" ]; then
+                AUTHOR_MENTION="<@$SLACK_AUTHOR_ID>"
+              else
+                AUTHOR_MENTION="@$PR_AUTHOR (GitHub)"
+              fi
+          
+              if [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
+                PR_STATUS="✅ *PR Merged*"
+              else
+                PR_STATUS="❌ *PR Closed*"
+              fi
+              ALL_MENTIONS="$AUTHOR_MENTION"
+              ;;
+          
+            "reopened")
+              PR_STATUS="♻️ *PR이 다시 열렸습니다!*"
+              ALL_MENTIONS=$(get_all_reviewers_mentions)
+              ;;
+          
+            *)
+              PR_STATUS="☝️ *PR 업데이트 알림*"
+              ALL_MENTIONS=$(get_all_reviewers_mentions)
+              ;;
+          esac
+          
+          if [ "$SLACK_AUTHOR_ID" == "Unknown" ]; then
+            AUTHOR_DISPLAY="@$PR_AUTHOR (GitHub)"
+          else
+            AUTHOR_DISPLAY="<@$SLACK_AUTHOR_ID>"
+          fi
+          
+          MESSAGE_TEXT="${PR_STATUS}\\n*PR 제목:* ${PR_TITLE} (#${PR_NUMBER})\\n*작성자:* ${AUTHOR_DISPLAY}"
+          
+          if [ -n "$ALL_MENTIONS" ]; then
+            case "$PR_ACTION" in
+              "closed")
+                ;;
+              *)
+                MESSAGE_TEXT="${MESSAGE_TEXT}\\n*리뷰어:* ${ALL_MENTIONS}"
+                ;;
+            esac
+          fi
+          
+          MESSAGE_TEXT="${MESSAGE_TEXT}\\n*링크:* ${PR_URL}"
+          
+          echo "Sending Slack notification: ${PR_STATUS}"
+          
+          curl -X POST \
+               -H 'Content-type: application/json' \
+               --data "{
+                 \"text\": \"${MESSAGE_TEXT}\"
+               }" \
+               ${{ secrets.SLACK_WEBHOOK_URL }}

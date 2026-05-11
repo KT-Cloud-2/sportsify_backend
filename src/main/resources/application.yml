@@ -9,9 +9,20 @@ spring:
       datetime:
         write-dates-as-timestamps: false
 
+mqtt:
+  broker-url: tcp://localhost:1883
+  client-id: ${MQTT_CLIENT_ID:notification-service}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:5173
+
 springdoc:
   api-docs:
     path: /v3/api-docs
+    version: OPENAPI_3_0
   swagger-ui:
     enabled: true
     path: /swagger

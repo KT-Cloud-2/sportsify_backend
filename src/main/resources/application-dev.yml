@@ -10,7 +10,7 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    locations: classpath:db/migration,classpath:db/seed
 
   jpa:
     hibernate:
@@ -50,14 +50,17 @@ spring:
             user-name-attribute: id
 
   mail:
-    host: localhost
-    port: 1025
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true
+          timeout: 5000
           starttls:
-            enable: false
+            enable: true
 
 jwt:
   secret: ${JWT_SECRET}
@@ -69,12 +72,10 @@ app:
     redirect-uri: ${FRONTEND_URL}/oauth2/callback
 
 mqtt:
-  broker:
-    url: tcp://${MQTT_HOST}:1883
-  client:
-    id: ${MQTT_CLIENT_ID:sportsify-dev}
-  username: ${MQTT_USERNAME}
-  password: ${MQTT_PASSWORD}
+  broker-url: tcp://${MQTT_HOST:localhost}:1883
+  client-id: ${MQTT_CLIENT_ID:sportsify-dev}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
 
 management:
   endpoints:

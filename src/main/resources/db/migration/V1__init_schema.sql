@@ -274,40 +274,19 @@ CREATE INDEX idx_price_policies_zone_grade ON price_policies (zone_grade_id);
 CREATE TABLE chat_rooms
 (
     id               BIGSERIAL PRIMARY KEY,
-    name             VARCHAR(100),
-    type             VARCHAR(20) NOT NULL, -- GAME | TEAM | PRIVATE | GROUP
+    name             VARCHAR(100) NOT NULL,
+    type             VARCHAR(20) NOT NULL, -- GAME | DIRECT
+    image_url        TEXT,
     game_id          BIGINT,
-    team_id          BIGINT,
-    created_by       BIGINT,
-    max_participants INT         NOT NULL DEFAULT 5000,
-    created_at       TIMESTAMP,
-    updated_at       TIMESTAMP,
+    created_by       BIGINT NOT NULL,
+    created_at       TIMESTAMP NOT NULL,
+    updated_at       TIMESTAMP NOT NULL,
+    status           VARCHAR(20) NOT NULL, -- ACTIVE | ARCHIVED | DELETED
     CONSTRAINT fk_chat_game FOREIGN KEY (game_id) REFERENCES games (id),
-    CONSTRAINT fk_chat_team FOREIGN KEY (team_id) REFERENCES teams (id),
     CONSTRAINT fk_chat_creator FOREIGN KEY (created_by) REFERENCES members (id)
 );
 
-CREATE INDEX idx_chat_rooms_type ON chat_rooms (type);
-CREATE INDEX idx_chat_rooms_game ON chat_rooms (game_id);
-CREATE INDEX idx_chat_rooms_team ON chat_rooms (team_id);
-
-CREATE TABLE chat_participants
-(
-    id                   BIGSERIAL PRIMARY KEY,
-    room_id              BIGINT      NOT NULL,
-    member_id            BIGINT      NOT NULL,
-    status               VARCHAR(20) NOT NULL DEFAULT 'JOINED', -- INVITED | JOINED | LEFT | KICKED
-    notification_enabled BOOLEAN     NOT NULL DEFAULT TRUE,
-    last_read_message_id BIGINT,
-    joined_at            TIMESTAMP,
-    left_at              TIMESTAMP,
-    CONSTRAINT fk_cp_room FOREIGN KEY (room_id) REFERENCES chat_rooms (id),
-    CONSTRAINT fk_cp_member FOREIGN KEY (member_id) REFERENCES members (id),
-    CONSTRAINT uq_cp UNIQUE (room_id, member_id)
-);
-
-CREATE INDEX idx_cp_room ON chat_participants (room_id, status);
-CREATE INDEX idx_cp_member ON chat_participants (member_id, status);
+CREATE INDEX idx_chat_rooms_game_id ON chat_rooms (game_id);
 
 CREATE TABLE chat_messages
 (
@@ -315,17 +294,36 @@ CREATE TABLE chat_messages
     room_id     BIGINT      NOT NULL,
     sender_id   BIGINT      NOT NULL,
     content     TEXT,
-    type        VARCHAR(20) NOT NULL DEFAULT 'MESSAGE', -- MESSAGE | CHEER | SYSTEM | FILE | IMAGE
+    type        VARCHAR(20) NOT NULL DEFAULT 'TEXT', -- TEXT | IMAGE | FILE | SYSTEM
     status      VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',  -- ACTIVE | DELETED
-    is_filtered BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMP   NOT NULL,
-    deleted_at  TIMESTAMP,
     CONSTRAINT fk_msg_room FOREIGN KEY (room_id) REFERENCES chat_rooms (id),
     CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id) REFERENCES members (id)
 );
 
-CREATE INDEX idx_msg_room_time ON chat_messages (room_id, created_at DESC);
+CREATE INDEX idx_messages_room_id_id ON chat_messages (room_id, id);
 CREATE INDEX idx_msg_sender ON chat_messages (sender_id);
+
+CREATE TABLE chat_room_members
+(
+    id                   BIGSERIAL PRIMARY KEY,
+    room_id              BIGINT      NOT NULL,
+    member_id            BIGINT      NOT NULL,
+    status               VARCHAR(20) NOT NULL DEFAULT 'JOINED', -- INVITED | JOINED | LEFT | BANNED
+    notification_enabled BOOLEAN     NOT NULL DEFAULT TRUE,
+    last_read_message_id BIGINT,
+    joined_at            TIMESTAMP   NOT NULL ,
+    updated_at           TIMESTAMP   NOT NULL,
+    CONSTRAINT fk_cp_room FOREIGN KEY (room_id) REFERENCES chat_rooms (id),
+    CONSTRAINT fk_cp_member FOREIGN KEY (member_id) REFERENCES members (id),
+    CONSTRAINT fk_cp_message FOREIGN KEY (last_read_message_id) REFERENCES chat_messages (id),
+    CONSTRAINT uq_cp UNIQUE (room_id, member_id)
+);
+
+CREATE INDEX idx_chat_room_members_room ON chat_room_members (room_id);
+CREATE INDEX idx_chat_room_members_member ON chat_room_members (member_id);
+
+
 
 -- ============================================================
 -- 알림 도메인
@@ -336,10 +334,11 @@ CREATE TABLE notification_settings
 (
     id                BIGSERIAL PRIMARY KEY,
     member_id         BIGINT  NOT NULL,
-    ticket_open_alert BOOLEAN NOT NULL DEFAULT TRUE,
-    game_start_alert  BOOLEAN NOT NULL DEFAULT TRUE,
-    payment_alert     BOOLEAN NOT NULL DEFAULT TRUE,
-    updated_at        TIMESTAMP,
+    ticket_open_alert   BOOLEAN NOT NULL DEFAULT TRUE,
+    game_start_alert    BOOLEAN NOT NULL DEFAULT TRUE,
+    payment_alert       BOOLEAN NOT NULL DEFAULT TRUE,
+    chat_mention_alert  BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at          TIMESTAMP,
     CONSTRAINT fk_ns_member FOREIGN KEY (member_id) REFERENCES members (id),
     CONSTRAINT uq_ns_member UNIQUE (member_id)
 );

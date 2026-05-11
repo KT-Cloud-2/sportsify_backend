@@ -1,4 +1,4 @@
-# Sortsify — 프로젝트 개요
+# Sportsify — 프로젝트 개요
 
 > 스포츠 경기 예매 + 팀 응원 채팅 서비스
 
@@ -44,20 +44,20 @@
 
 ### Backend
 
-| 항목 | 기술 | 버전 |
-|------|------|------|
-| Language | Java | 25 |
-| Framework | Spring Boot | 4.0.3 |
-| Build Tool | Gradle | 9.x |
-| ORM | Spring Data JPA + QueryDSL | Boot 기본 |
-| Database | PostgreSQL | 18.x |
-| Cache / 분산락 | Redis | 8.x |
-| Message Broker | Redis Streams (알림), WebSocket STOMP (채팅) | - |
-| MQTT Broker | Mosquitto | 2.x (EC2-2 운영) |
-| Security | Spring Security + JWT (JJWT) | - |
+| 항목 | 기술                                            | 버전 |
+|------|-----------------------------------------------|------|
+| Language | Java                                          | 25 |
+| Framework | Spring Boot                                   | 4.0.3 |
+| Build Tool | Gradle                                        | 9.x |
+| ORM | Spring Data JPA + QueryDSL                    | Boot 기본 |
+| Database | PostgreSQL                                    | 18.x |
+| Cache / 분산락 | Redis                                         | 8.x |
+| Message Broker | Redis Streams (알림), WebSocket STOMP (채팅)      | - |
+| MQTT Broker | Mosquitto                                     | 2.x (EC2-2 운영) |
+| Security | Spring Security + JWT (JJWT)                  | - |
 | OAuth2 | Spring Security OAuth2 Client (Google, Kakao) | - |
-| 문서화 | SpringDoc OpenAPI (Swagger UI) | 3.x |
-| 테스트 | JUnit 5, Mockito, AssertJ | Boot 기본 |
+| 문서화 | SpringDoc OpenAPI (Swagger UI) & Redocly      | 3.x |
+| 테스트 | JUnit 5, Mockito, AssertJ                     | Boot 기본 |
 
 ### Frontend
 
@@ -112,8 +112,8 @@
 ## ⑥ R&R (역할 분담)
 
 | 이름 | 역할 | 도메인 |
-|------|------|--------|
-| 강정훈 | 백엔드, 인프라, 팀장 | 알림, 인프라, CI/CD, 회원, 팀 |
+|------|-----|--------|
+| 강정훈 | 백엔드 | 알림, 회원, 팀 |
 | 손하영 | 백엔드 | 예매, 경기/좌석 |
 | 유창민 | 백엔드 | 결제 |
 | 주병규 | 백엔드 | 채팅 |
@@ -228,17 +228,17 @@ application-prod.yml   → 운영 전용 (환경변수 주입, INFO 로그, mana
 
 **개발 기간:** `2026-04-20` ~ `2026-05-20` (총 4주)
 
-| 목표 | 일정 | 세부사항 |
-|------|------|---------|
+| 목표 | 일정                  | 세부사항 |
+|------|---------------------|---------|
 | 도메인 기획, 요구사항 설계 | 04/20(월) ~ 04/22(수) | 도메인 정의, 요구사항 정의서 |
 | ERD, API 설계 | 04/22(수) ~ 04/23(목) | 1차 설계 (개발 중 수정 허용) |
 | **Sprint 1** — P1 기능 구현 | 04/23(목) ~ 04/29(수) | 공통 인프라 + 도메인별 핵심 기능 |
-| **Sprint 2** — P2 기능 + 성능 | 04/29(목) ~ 05/13(수) | 부하 테스트, 비기능 요구사항 |
-| 중간 발표 준비 | 04/30 ~ 05/06 | 05/06(수) 18:00까지 제출 |
-| **중간 발표** | **05/07(목)** | 팀당 20분 이내 |
-| 부하 테스트 + 개선 | 04/29 ~ 05/17 | JMeter 시나리오, 튜닝 |
-| 최종 발표 준비 | 05/14 ~ 05/19 | 05/20(수) 17:00까지 제출 |
-| **최종 발표** | **05/21(목)** | 발표 20분 + 질의응답 10분 |
+| **Sprint 2** — P2 기능 + 성능 | 04/29(목) ~ 05/15(수) | 부하 테스트, 비기능 요구사항 |
+| 중간 발표 준비 | 04/30 ~ 05/06       | 05/06(수) 18:00까지 제출 |
+| **중간 발표** | **05/07(목)**        | 팀당 20분 이내 |
+| 부하 테스트 + 개선 | 04/29 ~ 05/17       | JMeter 시나리오, 튜닝 |
+| 최종 발표 준비 | 05/14 ~ 05/19       | 05/20(수) 17:00까지 제출 |
+| **최종 발표** | **05/21(목)**        | 발표 20분 + 질의응답 10분 |
 
 ---
 
@@ -246,10 +246,10 @@ application-prod.yml   → 운영 전용 (환경변수 주입, INFO 로그, mana
 
 > 성능 비교·검증이 목적. 단순 구현이 아니라 **측정 결과를 문서화**해야 함.
 
-| 챌린지 | 내용 | 담당 |
-|--------|------|------|
-| 동시성 제어 비교 | 비관적 락 vs 낙관적 락 vs Redis 분산 락 (TPS, 에러율 비교) | 손하영, 유창민 |
+| 챌린지 | 내용                                            | 담당 |
+|--------|-----------------------------------------------|------|
+| 동시성 제어 비교 | 비관적 락 vs 낙관적 락 vs Redis 분산 락 (TPS, 에러율 비교)    | 손하영, 유창민 |
 | 캐싱 계층 구조 | Caffeine(L1) → Redis(L2) → DB(L3) hit rate 측정 | 전체 |
-| 대기열 성능 | Redis Sorted Set 기반 대기열 SSE 1,000 동시 연결 테스트 | 손하영 |
-| 부하 테스트 | JMeter 시나리오 (티켓 오픈 시뮬레이션) | 전체 |
-| 모니터링 | Prometheus + Grafana 대시보드 구성 | 강정훈 |
+| 대기열 성능 | Redis Sorted Set 기반 대기열 SSE 1,000 동시 연결 테스트   | 손하영 |
+| 부하 테스트 | JMeter 시나리오 (티켓 오픈 시뮬레이션)                     | 전체 |
+| 모니터링 | Prometheus + Grafana 대시보드 구성                  | 강정훈 | 

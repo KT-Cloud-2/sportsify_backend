@@ -59,9 +59,8 @@ app:
     redirect-uri: http://localhost:3000/oauth2/callback
 
 mqtt:
-  broker:
-    url: tcp://localhost:1883
-  client:
-    id: sportsify-test
-  username: test
-  password: test
+  enabled: false
+  broker-url: tcp://localhost:1883
+  client-id: sportsify-test
+  username: ""
+  password: ""
