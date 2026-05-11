@@ -120,5 +120,37 @@ public class ChatRoomController implements ChatRoomApi {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 5-7. 채팅방 아카이브
+     *
+     * @param memberId
+     * @param roomId
+     * @return ResponseEntity<ChatRoomArchiveResponse>
+     */
+    @PatchMapping("/{roomId}/archive")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public ResponseEntity<ChatRoomArchiveResponse> archive(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long roomId
+    ) {
+        return ResponseEntity.ok(chatRoomService.archive(roomId, memberId));
+    }
+
+    /**
+     * 5-8. 채팅방 아카이브 복원
+     *
+     * @param memberId
+     * @param roomId
+     * @return ResponseEntity<ChatRoomArchiveResponse>
+     */
+    @PatchMapping("/{roomId}/unarchive")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public ResponseEntity<ChatRoomArchiveResponse> unarchive(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long roomId
+    ) {
+        return ResponseEntity.ok(chatRoomService.unarchive(roomId, memberId));
+    }
+
 
 }

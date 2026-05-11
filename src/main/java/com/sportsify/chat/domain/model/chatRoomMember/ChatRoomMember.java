@@ -2,17 +2,25 @@ package com.sportsify.chat.domain.model.chatRoomMember;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
+import com.sportsify.chat.domain.model.event.EventType;
+import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
+import com.sportsify.chat.domain.model.event.chatRoomMember.MemberInvitePayload;
+import com.sportsify.chat.domain.model.event.chatRoomMember.MemberJoinPayload;
+import com.sportsify.chat.domain.model.event.chatRoomMember.MemberLeftPayload;
 import com.sportsify.chat.domain.model.message.MessageId;
 import lombok.Getter;
+import org.springframework.data.domain.AbstractAggregateRoot;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 /**
  * 채팅방 멤버 Aggregate Root
  */
 @Getter
-public class ChatRoomMember {
+public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
 
     private final ChatRoomId roomId;
     private final MemberId memberId;
@@ -45,20 +53,24 @@ public class ChatRoomMember {
      * 새 입장(공개 방 또는 자기 의지로 join)
      */
     public static ChatRoomMember newJoin(ChatRoomId roomId, MemberId memberId, LocalDateTime now) {
-        return new ChatRoomMember(
+        ChatRoomMember member = new ChatRoomMember(
                 null, roomId, memberId, MemberStatus.JOINED,
                 true, now, now, null
         );
+        member.registerEvent(EventEnvelope.of(EventType.MEMBER_JOINED, roomId, now.toInstant(ZoneOffset.UTC), new MemberJoinPayload(memberId.value())));
+        return member;
     }
 
     /**
      * 비공개 방으로 초대 발송
      */
-    public static ChatRoomMember newInvited(ChatRoomId roomId, MemberId memberId, LocalDateTime now) {
-        return new ChatRoomMember(
-                null, roomId, memberId, MemberStatus.INVITED,
+    public static ChatRoomMember newInvited(ChatRoomId roomId, MemberId inviter, MemberId invited, LocalDateTime now) {
+        ChatRoomMember member = new ChatRoomMember(
+                null, roomId, invited, MemberStatus.INVITED,
                 true, now, now, null
         );
+        member.registerEvent(EventEnvelope.of(EventType.MEMBER_INVITED, roomId, now.toInstant(ZoneOffset.UTC), new MemberInvitePayload(inviter.value(), invited.value())));
+        return member;
     }
 
     /**
@@ -102,6 +114,7 @@ public class ChatRoomMember {
         }
         this.status = MemberStatus.JOINED;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.MEMBER_JOINED, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberJoinPayload(this.memberId.value())));
     }
 
     /**
@@ -116,6 +129,7 @@ public class ChatRoomMember {
         }
         this.status = MemberStatus.LEFT;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.MEMBER_LEFT, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberLeftPayload(this.memberId.value())));
     }
 
     /**
@@ -138,6 +152,7 @@ public class ChatRoomMember {
         }
         this.status = MemberStatus.BANNED;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.MEMBER_BANNED, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberBannedPayload(this.memberId.value())));
     }
 
     /**

@@ -8,7 +8,9 @@ import com.sportsify.chat.domain.model.message.MessageId;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,8 +142,9 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
     }
 
     @Override
-    public boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, LocalDateTime now) {
-        return jpaRepo.updateLastReadMessageIfGreater(roomId.value(), memberId.value(), messageId.value(), now) != 0;
+    public boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, Instant now) {
+        return jpaRepo.updateLastReadMessageIfGreater(roomId.value(), memberId.value(), messageId.value(),
+                LocalDateTime.ofInstant(now, ZoneOffset.UTC)) != 0;
     }
 
 

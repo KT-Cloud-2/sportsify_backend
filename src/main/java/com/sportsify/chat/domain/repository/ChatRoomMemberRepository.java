@@ -6,6 +6,7 @@ import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.model.message.MessageId;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -42,5 +43,5 @@ public interface ChatRoomMemberRepository {
 
     Optional<ChatRoomMember> findByRoomAndMemberForUpdate(ChatRoomId roomId, MemberId memberId);
 
-    boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, LocalDateTime now);
+    boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, Instant now);
 }

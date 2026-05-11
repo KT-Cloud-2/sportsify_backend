@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MessageJpaRepositoryTest extends RepositoryTestSupport {
 
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 6, 12, 0);
+    private static final Instant INSTANT_NOW = Instant.parse("2026-05-06T12:00:00Z");
 
 
     @Autowired
@@ -233,6 +235,6 @@ class MessageJpaRepositoryTest extends RepositoryTestSupport {
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
 
     private MessageJpaEntity message(Long roomId, Long senderId, String content, String status) {
-        return new MessageJpaEntity(null, roomId, senderId, content, "TEXT", status, NOW);
+        return new MessageJpaEntity(null, roomId, senderId, content, "TEXT", status, INSTANT_NOW);
     }
 }

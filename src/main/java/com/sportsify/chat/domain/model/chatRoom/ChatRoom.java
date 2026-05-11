@@ -1,17 +1,24 @@
 package com.sportsify.chat.domain.model.chatRoom;
 
+import com.sportsify.chat.domain.model.event.EventEnvelope;
+import com.sportsify.chat.domain.model.event.EventType;
+import com.sportsify.chat.domain.model.event.chatRoom.RoomArchivedPayload;
+import com.sportsify.chat.domain.model.event.chatRoom.RoomDeletePayload;
+import com.sportsify.chat.domain.model.event.chatRoom.RoomUpdatePayload;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.Getter;
+import org.springframework.data.domain.AbstractAggregateRoot;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 /**
  * 채팅방 Aggregate Root.
  */
 @Getter
-public class ChatRoom {
+public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
 
     private final ChatRoomType type;    // DIRECT, GAME;
     private final GameId gameId;
@@ -107,6 +114,7 @@ public class ChatRoom {
         }
         this.name = newName;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.ROOM_UPDATED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomUpdatePayload(newName.value(), null)));
     }
 
     /**
@@ -123,6 +131,7 @@ public class ChatRoom {
         }
         this.imageUrl = imageUrl;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.ROOM_UPDATED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomUpdatePayload(null, imageUrl)));
     }
 
     /**
@@ -136,6 +145,21 @@ public class ChatRoom {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot archive deleted room");
         }
         this.status = ChatRoomStatus.ARCHIVED;
+        this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.ROOM_ARCHIVED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomArchivedPayload()));
+    }
+
+    /**
+     * 아카이브 복원 (ARCHIVED → ACTIVE)
+     */
+    public void unarchive(LocalDateTime now) {
+        if (this.status == ChatRoomStatus.ACTIVE) {
+            return;
+        }
+        if (this.status == ChatRoomStatus.DELETED) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot unarchive deleted room");
+        }
+        this.status = ChatRoomStatus.ACTIVE;
         this.updatedAt = now;
     }
 
@@ -152,6 +176,7 @@ public class ChatRoom {
         }
         this.status = ChatRoomStatus.DELETED;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.ROOM_DELETED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomDeletePayload()));
     }
 
     /* -------------------- 상태값 체크 -------------------- */

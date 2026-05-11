@@ -45,6 +45,11 @@ public class ChatRoomAdaptor implements ChatRoomRepository {
     }
 
     @Override
+    public boolean existsByIdAndTypeAndStatus(ChatRoomId id, ChatRoomType type, ChatRoomStatus status) {
+        return jpaRepository.existsByIdAndTypeAndStatus(id.value(), type.name(), status.name());
+    }
+
+    @Override
     public Optional<ChatRoom> findByIdForUpdateWrite(ChatRoomId id) {
         return jpaRepository.findByIdForUpdateWrite(id.value()).map(mapper::toDomain);
     }
@@ -89,9 +94,5 @@ public class ChatRoomAdaptor implements ChatRoomRepository {
                 .stream().map(mapper::toDomain).toList();
     }
 
-    @Override
-    public boolean existByIdandStatus(ChatRoomId id, ChatRoomStatus status) {
-        return jpaRepository.existsByIdAndStatus(id.value(), status.name());
-    }
 
 }

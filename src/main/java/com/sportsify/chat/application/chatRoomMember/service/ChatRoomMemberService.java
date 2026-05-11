@@ -125,7 +125,7 @@ public class ChatRoomMemberService {
             };
         }
 
-        ChatRoomMember newMember = ChatRoomMember.newInvited(room.getId(), MemberId.of(inviteeId), now);
+        ChatRoomMember newMember = ChatRoomMember.newInvited(room.getId(), MemberId.of(requesterId), MemberId.of(inviteeId), now);
         try {
             return ChatRoomMemberResponse.from(chatRoomMemberRepo.saveAndFlush(newMember));
         } catch (DataIntegrityViolationException e) {

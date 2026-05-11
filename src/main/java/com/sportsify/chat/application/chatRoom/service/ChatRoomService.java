@@ -51,7 +51,7 @@ public class ChatRoomService {
         List<ChatRoomMember> members = Stream.concat(
                 Stream.of(ChatRoomMember.newJoin(room.getId(), creatorId, now)),
                 request.inviteeIds().stream().map(MemberId::of).filter(mId -> !creatorId.equals(mId))
-                        .map(id -> ChatRoomMember.newInvited(room.getId(), id, now))
+                        .map(id -> ChatRoomMember.newInvited(room.getId(), creatorId, id, now))
         ).toList();
         chatRoomMemberRepo.saveAll(members);
         return ChatRoomResponse.from(room);
@@ -84,13 +84,43 @@ public class ChatRoomService {
     }
 
     /**
+     * 채팅방 아카이브 (ACTIVE → ARCHIVED)
+     */
+    @Transactional
+    public ChatRoomArchiveResponse archive(Long roomId, Long memberId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        MemberId requesterId = MemberId.of(memberId);
+        ChatRoom room = findActiveRoomForUpdate(roomId);
+        if (!requesterId.equals(room.getCreatedBy())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can archive room");
+        }
+        room.archive(now);
+        return ChatRoomArchiveResponse.from(chatRoomRepo.save(room));
+    }
+
+    /**
+     * 채팅방 아카이브 복원 (ARCHIVED → ACTIVE)
+     */
+    @Transactional
+    public ChatRoomArchiveResponse unarchive(Long roomId, Long memberId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        MemberId requesterId = MemberId.of(memberId);
+        ChatRoom room = findNonDeletedRoomForUpdate(roomId);
+        if (!requesterId.equals(room.getCreatedBy())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can unarchive room");
+        }
+        room.unarchive(now);
+        return ChatRoomArchiveResponse.from(chatRoomRepo.save(room));
+    }
+
+    /**
      * 방 삭제
      */
     @Transactional
     public void delete(Long roomId, Long memberId) {
         LocalDateTime now = LocalDateTime.now(clock);
         MemberId requesterId = MemberId.of(memberId);
-        ChatRoom room = findActiveRoomForUpdate(roomId);
+        ChatRoom room = findNonDeletedRoomForUpdate(roomId);
         if (!requesterId.equals(room.getCreatedBy())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can delete room");
         }
@@ -223,9 +253,21 @@ public class ChatRoomService {
     }
 
     /**
-     * select for update lock
+     * select for update lock (ACTIVE only)
      */
     private ChatRoom findActiveRoomForUpdate(Long roomId) {
+        ChatRoom room = chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(roomId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId));
+        if (room.getStatus() != ChatRoomStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId);
+        }
+        return room;
+    }
+
+    /**
+     * select for update lock (DELETED 제외)
+     */
+    private ChatRoom findNonDeletedRoomForUpdate(Long roomId) {
         ChatRoom room = chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(roomId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId));
         if (room.getStatus() == ChatRoomStatus.DELETED) {

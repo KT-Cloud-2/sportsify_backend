@@ -62,4 +62,20 @@ public interface ChatRoomApi {
             Long memberId,
             @PathVariable Long roomId
     );
+
+    @SwaggerApi(summary = "5-7. 채팅방 아카이브")
+    @SwaggerApiError(ErrorCode.FORBIDDEN)
+    @SwaggerApiError(ErrorCode.NOT_FOUND)
+    ResponseEntity<ChatRoomArchiveResponse> archive(
+            Long memberId,
+            @PathVariable Long roomId
+    );
+
+    @SwaggerApi(summary = "5-8. 채팅방 아카이브 복원")
+    @SwaggerApiError(ErrorCode.FORBIDDEN)
+    @SwaggerApiError(ErrorCode.NOT_FOUND)
+    ResponseEntity<ChatRoomArchiveResponse> unarchive(
+            Long memberId,
+            @PathVariable Long roomId
+    );
 }
