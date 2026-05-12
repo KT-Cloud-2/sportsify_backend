@@ -123,16 +123,16 @@
 
 ### 알림 (담당: 강정훈)
 
-- [ ] Redis Streams Consumer Group 설정 (모든 Stream 공통)
-- [ ] `notification_settings` 테이블 + 조회 API (`GET /api/notifications/settings`)
-- [ ] 알림 설정 변경 API (`PUT /api/notifications/settings`)
-- [ ] `notification_channels` 테이블 + CRUD API (`/api/notifications/channels`)
-- [ ] 알림 발송 이력 조회 (`GET /api/notifications/history`)
-- [ ] 티켓 오픈 알림 — `ticket.opened` Consumer
-- [ ] 결제 완료 알림 — `payment.completed` Consumer
-- [ ] 경기 시작 알림 — `game.starting` Consumer + @Scheduled
-- [ ] 멘션 알림 — `chat.mentioned` Consumer
-- [ ] Email 발송 — JavaMailSender + Thymeleaf 템플릿 (결제 완료)
+- [x] Redis Streams Consumer Group 설정 (모든 Stream 공통)
+- [x] `notification_settings` 테이블 + 조회 API (`GET /api/notifications/settings`)
+- [x] 알림 설정 변경 API (`PUT /api/notifications/settings`)
+- [x] `notification_channels` 테이블 + CRUD API (`/api/notifications/channels`)
+- [x] 알림 발송 이력 조회 (`GET /api/notifications/history`)
+- [x] 티켓 오픈 알림 — `ticket.opened` Consumer
+- [x] 결제 완료 알림 — `payment.completed` Consumer
+- [x] 경기 시작 알림 — `game.starting` Consumer + @Scheduled
+- [x] 멘션 알림 — `chat.mentioned` Consumer
+- [x] Email 발송 — JavaMailSender (SimpleMailMessage, Thymeleaf 미사용)
 
 ---
 
@@ -183,12 +183,12 @@
 
 ### 알림 (담당: 강정훈)
 
-- [ ] MQTT 알림 발행 — Mosquitto Broker 연동 (토픽: `notification/{memberId}`)
-- [ ] 알림 이벤트 DB 영속화 (`notification_events`) — Redis 발행 전 저장
-- [ ] 중복 알림 방지 — `notification_history` UNIQUE(event_id, user_id)
+- [x] MQTT 알림 발행 — Mosquitto Broker 연동 (토픽: `notification/{memberId}`)
+- [x] 알림 이벤트 DB 영속화 (`notification_events`) — Redis 발행 전 저장
+- [x] 중복 알림 방지 — `notifications` UNIQUE(event_id, member_id)
 - [ ] 알림 설정 Redis 캐싱 (`notification:settings:{memberId}`, TTL 1시간)
-- [ ] DLQ 실패 처리 — 3회 재시도 후 DLQ 적재
-- [ ] Fan-out Worker Pool 병렬 처리
+- [ ] DLQ 실패 처리 — 3회 재시도 후 DLQ 적재 (현재 PEL + Maintenance Scheduler로 대체)
+- [ ] Fan-out Worker Pool 병렬 처리 (현재 단일 스레드 청크 처리)
 
 ---
 

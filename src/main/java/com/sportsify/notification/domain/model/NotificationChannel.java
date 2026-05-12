@@ -1,5 +1,7 @@
 package com.sportsify.notification.domain.model;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -48,6 +50,12 @@ public class NotificationChannel {
         channel.channelTarget = channelTarget;
         channel.enabled = true;
         return channel;
+    }
+
+    public void validateOwner(Long memberId) {
+        if (!this.memberId.equals(memberId)) {
+            throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_NOT_FOUND);
+        }
     }
 
     public void toggle() {
