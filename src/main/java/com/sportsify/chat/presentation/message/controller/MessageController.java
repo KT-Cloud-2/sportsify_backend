@@ -18,7 +18,7 @@ public class MessageController implements MessageApi {
     private final MessageService messageService;
 
     /**
-     * 5-12. 채팅 이력 조회
+     * 5-14. 채팅 이력 조회
      *
      * @param memberId
      * @param roomId
@@ -35,7 +35,7 @@ public class MessageController implements MessageApi {
     }
 
     /**
-     * 5-14. 메시지 삭제
+     * 5-16. 메시지 삭제
      *
      * @param memberId
      * @param messageId
@@ -49,7 +49,7 @@ public class MessageController implements MessageApi {
     }
 
     /**
-     * 5-15. 채팅방 메시지 조회
+     * 5-17. 채팅방 메시지 조회
      *
      * @param memberId
      * @param roomId

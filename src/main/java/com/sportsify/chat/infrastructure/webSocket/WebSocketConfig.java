@@ -57,8 +57,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registration.addDecoratorFactory(handler -> new WebSocketHandlerDecorator(handler) {
             @Override
             public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-                session.getAttributes().put(WebSocketSessionRegistry.WS_SESSION_ATTR, session);
-                super.afterConnectionEstablished(session);
+                PrincipalWebSocketSession wrapped = new PrincipalWebSocketSession(session);
+                session.getAttributes().put(WebSocketSessionRegistry.WS_SESSION_ATTR, wrapped);
+                super.afterConnectionEstablished(wrapped);
             }
         });
     }

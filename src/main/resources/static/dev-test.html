@@ -1695,10 +1695,6 @@
 
     function connectWS() {
         const token = getToken();
-        if (!token) {
-            wsLog('토큰이 없습니다.', 'err');
-            return;
-        }
         if (stompClient?.connected) {
             wsLog('이미 연결됨', 'warn');
             return;
@@ -1706,7 +1702,7 @@
 
         stompClient = new StompJs.Client({
             webSocketFactory: () => new SockJS(`${window.location.origin}/ws/chat`),
-            connectHeaders: {Authorization: `Bearer ${token}`},
+            connectHeaders: token ? {Authorization: `Bearer ${token}`} : null,
             reconnectDelay: 0,
             debug: () => {
             },

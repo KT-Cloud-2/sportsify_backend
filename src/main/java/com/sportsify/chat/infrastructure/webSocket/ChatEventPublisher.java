@@ -6,12 +6,14 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChatEventPublisher {
     private final SimpMessagingTemplate template;
+    private final WebSocketSessionRegistry sessionRegistry;
 
     public void publishToRoom(long roomId, Object payload) {
         String destination = "/topic/rooms/" + roomId;
@@ -24,7 +26,15 @@ public class ChatEventPublisher {
     }
 
     public void publishToUser(long userId, Object payload, String queue) {
-        template.convertAndSendToUser(String.valueOf(userId), queue, envelope("USER", userId, payload));
+        Object env = envelope("USER", userId, payload);
+        Set<String> sids = sessionRegistry.getSessionIds(userId);
+        if (sids.isEmpty()) {
+            log.debug("publishToUser: no active sessions for userId={}", userId);
+            return;
+        }
+        sids.forEach(sid ->
+            template.convertAndSend(queue + "-user" + sid, env)
+        );
     }
 
     private Object envelope(String kind, Long roomId, Object payload) {

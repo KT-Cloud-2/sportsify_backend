@@ -131,6 +131,10 @@ public class WebSocketSessionRegistry {
         return Optional.ofNullable(sessions.get(sid));
     }
 
+    public Set<String> getSessionIds(Long memberId) {
+        return Set.copyOf(userSessions.getOrDefault(String.valueOf(memberId), Set.of()));
+    }
+
     public void updateExpiry(String sid, Instant newExpiry) {
         sessions.computeIfPresent(sid, (_, old) -> old.withTokenExpiresAt(newExpiry));
     }

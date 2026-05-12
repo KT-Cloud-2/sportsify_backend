@@ -17,7 +17,7 @@ public class ChatRoomMemberController implements ChatRoomMemberApi {
     private final ChatRoomMemberService chatRoomMemberService;
 
     /**
-     * 5-7. 채팅방 입장
+     * 5-9. 채팅방 입장
      *
      * @param memberId
      * @param roomId
@@ -33,7 +33,7 @@ public class ChatRoomMemberController implements ChatRoomMemberApi {
     }
 
     /**
-     * 5-8. 채팅방 나가기
+     * 5-10. 채팅방 나가기
      *
      * @param memberId
      * @param roomId
@@ -48,7 +48,7 @@ public class ChatRoomMemberController implements ChatRoomMemberApi {
     }
 
     /**
-     * 5-9. 참여자 초대
+     * 5-11. 참여자 초대
      *
      * @param memberId
      * @param roomId
@@ -66,7 +66,7 @@ public class ChatRoomMemberController implements ChatRoomMemberApi {
     }
 
     /**
-     * 5-10. 알림 설정 변경
+     * 5-12. 알림 설정 변경
      *
      * @param memberId
      * @param roomId
@@ -83,7 +83,7 @@ public class ChatRoomMemberController implements ChatRoomMemberApi {
     }
 
     /**
-     * 5-11. 채팅방 멤버 ban
+     * 5-13. 채팅방 멤버 ban
      *
      * @param memberId
      * @param roomId

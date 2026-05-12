@@ -37,8 +37,6 @@ public class ChatRoomController implements ChatRoomApi {
 
     /**
      * 5-2. 내 채팅방 목록 조회
-     * [!주의] 해당 controller는 아직 완성되지 않았습니다. 추후 message쪽 controller를 완성 후 lastMessage와 unreadCount를 붙이는 작업이
-     * 추가로 필요합니다.
      *
      * @param memberId
      * @param request  ChatRoomListResponse

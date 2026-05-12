@@ -52,6 +52,8 @@ public class MessageService {
     public MessageCreateResponse send(MessageCreateRequest request, Long memberId) {
         ChatRoomId chatRoomId = ChatRoomId.of(request.roomId());
         MemberId id = MemberId.of(memberId);
+        MessageContent content = MessageContent.of(request.content());
+
         ChatRoomStatus chatRoomStatus = chatRoomRepo.findByIdForUpdateWrite(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value())).getStatus();
 
         switch (chatRoomStatus) {
@@ -71,7 +73,7 @@ public class MessageService {
             }
             default -> throw new IllegalStateException("Unhandled status " + memberStatus);
         }
-        Message savedMessage = messageRepo.save(Message.send(chatRoomId, id, MessageContent.of(request.content()), parseType(request.type()), Instant.now(clock), request.clientMessageId()));
+        Message savedMessage = messageRepo.save(Message.send(chatRoomId, id, content, parseType(request.type()), Instant.now(clock), request.clientMessageId()));
         savedMessage.getEvents().forEach(eventPublisher::publishEvent);
         return MessageCreateResponse.from(savedMessage);
     }

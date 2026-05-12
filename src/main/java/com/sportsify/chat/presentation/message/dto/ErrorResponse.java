@@ -14,7 +14,7 @@ public record ErrorResponse(
                 event.name(),
                 clientMessageId,
                 e.getErrorCode().toString(),
-                e.getMessage()
+                e.getDetail() != null ? e.getDetail() : e.getMessage()
         );
     }
 

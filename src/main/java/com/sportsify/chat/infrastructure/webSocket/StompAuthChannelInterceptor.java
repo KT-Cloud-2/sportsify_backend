@@ -20,7 +20,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
-import java.security.Principal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -55,11 +54,24 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 default -> {
                 }
             }
+        } catch (MessageDeliveryException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error in STOMP interceptor: {}", e.getMessage());
             throw new MessageDeliveryException("Internal authentication error");
         }
+        populateUserFromRegistry(accessor);
         return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
+    }
+
+    private void populateUserFromRegistry(StompHeaderAccessor accessor) {
+        if (accessor.getUser() != null) return;
+        String sessionId = accessor.getSessionId();
+        if (sessionId == null) return;
+        webSocketSessionRegistry.get(sessionId)
+                .map(WebSocketSessionRegistry.SessionInfo::authentication)
+                .filter(auth -> auth != null)
+                .ifPresent(accessor::setUser);
     }
 
     private void handleConnect(StompHeaderAccessor accessor) {
@@ -83,7 +95,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         WebSocketSession ws = sessionAttributes == null ? null
                 : (WebSocketSession) sessionAttributes.get(WebSocketSessionRegistry.WS_SESSION_ATTR);
         if (ws == null) throw new MessageDeliveryException("Websocket Session missing");
-        accessor.setUser(new StompPrincipal(memberId));
+        if (ws instanceof PrincipalWebSocketSession pws) {
+            pws.setPrincipal(auth);
+        }
+        accessor.setUser(auth);
         Instant expiry = parsed.getExpiration().toInstant();
         webSocketSessionRegistry.register(accessor.getSessionId(), ws, auth, expiry, Instant.now(clock));
     }
@@ -105,21 +120,24 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                     webSocketSessionRegistry.subscribeRoom(accessor.getSessionId(), roomId.value());
                     return;
                 }
-                Principal user = accessor.getUser();
-                if (user == null) throw new MessageDeliveryException("Authentication required");
-                MemberId memberId = MemberId.of(((StompPrincipal) user).memberId());
+                MemberId memberId = resolveAuthenticatedMemberId(accessor.getSessionId());
                 if (!accessChecker.canSubscribe(chatRoom, memberId)) {
                     throw new MessageDeliveryException("Access denied to room: " + roomId.value());
                 }
                 webSocketSessionRegistry.subscribeRoom(accessor.getSessionId(), roomId.value());
             }
-        } else {
-            if (accessor.getUser() == null) throw new MessageDeliveryException("Authentication required");
         }
     }
 
     private void handleSend(StompHeaderAccessor accessor) {
-        if (accessor.getUser() == null) throw new MessageDeliveryException("Authentication required");
+        resolveAuthenticatedMemberId(accessor.getSessionId());
+    }
+
+    private MemberId resolveAuthenticatedMemberId(String sessionId) {
+        return webSocketSessionRegistry.get(sessionId)
+                .filter(info -> info.authentication() != null)
+                .map(info -> MemberId.of((Long) info.authentication().getPrincipal()))
+                .orElseThrow(() -> new MessageDeliveryException("Authentication required"));
     }
 
     private String extractToken(StompHeaderAccessor accessor) {
@@ -143,15 +161,6 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     public interface ChatRoomAccessChecker {
         boolean canSubscribe(ChatRoom room, MemberId memberId);
-
-    }
-
-    public record StompPrincipal(long memberId) implements Principal {
-
-        @Override
-        public String getName() {
-            return String.valueOf(memberId);
-        }
     }
 
 }
