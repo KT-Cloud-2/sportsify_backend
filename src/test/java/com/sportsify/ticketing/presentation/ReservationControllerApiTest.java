@@ -60,11 +60,10 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reqDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.orderId").value(1L))
-                .andExpect(jsonPath("$.data.memberId").value(1L))
-                .andExpect(jsonPath("$.data.gameId").value(1L))
-                .andExpect(jsonPath("$.data.status").value("PENDING"));
+                .andExpect(jsonPath("$.orderId").value(1L))
+                .andExpect(jsonPath("$.memberId").value(1L))
+                .andExpect(jsonPath("$.gameId").value(1L))
+                .andExpect(jsonPath("$.status").value("PENDING"));
 
 
     }
@@ -80,8 +79,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reqDto)))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("GAME_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
     }
 
 
@@ -96,8 +94,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reqDto)))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("SEAT_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("SEAT_NOT_FOUND"));
     }
 
     @Test
@@ -111,8 +108,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reqDto)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("SEAT_ALREADY_RESERVED"));
+                .andExpect(jsonPath("$.code").value("SEAT_ALREADY_RESERVED"));
     }
 
 
@@ -127,8 +123,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reqDto)))
                 .andExpect(status().is(422))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("GAME_NOT_ON_SALE"));
+                .andExpect(jsonPath("$.code").value("GAME_NOT_ON_SALE"));
     }
 
 
@@ -143,8 +138,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reqDto)))
                 .andExpect(status().is(422))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("TICKET_LIMIT_EXCEEDED"));
+                .andExpect(jsonPath("$.code").value("TICKET_LIMIT_EXCEEDED"));
     }
 
 }

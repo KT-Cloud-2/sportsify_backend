@@ -49,15 +49,17 @@ spring:
             user-name-attribute: id
 
   mail:
-    host: localhost
-    port: 1025
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true
+          timeout: 5000
           starttls:
-            enable: false
-
+            enable: true
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-32-chars}
   access-token-expiry-ms: 900000
@@ -65,7 +67,9 @@ jwt:
 
 app:
   oauth2:
-    redirect-uri: http://localhost:8080/oauth2/callback
+    redirect-uri: ${FRONTEND_URL:http://localhost:3000}/oauth2/callback
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:5173
 
 management:
   endpoints:
@@ -79,15 +83,15 @@ management:
 springdoc:
   api-docs:
     enabled: true
+  swagger-ui:
+    tags-sorter: alpha
 
-# MQTT — 구현 시 활성화
-#mqtt:
-#  broker:
-#    url: tcp://localhost:1883
-#  client:
-#    id: sportsify-local
-#  username: local
-#  password: local
+mqtt:
+  enabled: false
+  broker-url: tcp://localhost:1883
+  client-id: sportsify-local
+  username: ""
+  password: ""
 
 logging:
   level:

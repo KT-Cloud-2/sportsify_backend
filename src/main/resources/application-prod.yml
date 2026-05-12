@@ -49,7 +49,7 @@ spring:
             user-name-attribute: id
 
   mail:
-    host: ${MAIL_HOST}
+    host: smtp.gmail.com
     port: 587
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
@@ -57,6 +57,7 @@ spring:
       mail:
         smtp:
           auth: true
+          timeout: 5000
           starttls:
             enable: true
 
@@ -68,14 +69,15 @@ jwt:
 app:
   oauth2:
     redirect-uri: ${FRONTEND_URL}/oauth2/callback
+  cors:
+    allowed-origins:
+      - https://api.sportsify.com
 
 mqtt:
-  broker:
-    url: ssl://${MQTT_HOST}:8883
-  client:
-    id: ${MQTT_CLIENT_ID:sportsify-server}
-  username: ${MQTT_USERNAME}
-  password: ${MQTT_PASSWORD}
+  broker-url: ssl://${MQTT_HOST}:8883
+  client-id: ${MQTT_CLIENT_ID:sportsify-server}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
 
 management:
   endpoints:
