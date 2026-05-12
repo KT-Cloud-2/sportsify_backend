@@ -1,7 +1,7 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationDispatcher;
+import com.sportsify.notification.application.service.NotificationChunkService;
 import com.sportsify.notification.application.service.NotificationFanoutService;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
@@ -9,12 +9,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.SliceImpl;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -25,13 +27,13 @@ import static org.mockito.Mockito.verify;
 class NotificationFanoutServiceTest {
 
     @Mock private NotificationSettingRepository settingRepository;
-    @Mock private NotificationDispatcher dispatcher;
+    @Mock private NotificationChunkService chunkService;
 
     private NotificationFanoutService fanoutService;
 
     @BeforeEach
     void setUp() {
-        fanoutService = new NotificationFanoutService(settingRepository, dispatcher);
+        fanoutService = new NotificationFanoutService(settingRepository, chunkService);
     }
 
     @Test
@@ -43,8 +45,9 @@ class NotificationFanoutServiceTest {
 
         fanoutService.fanout(event, NotificationEventType.TICKET_OPEN, "{}");
 
-        verify(dispatcher).dispatchToMember(eq(event), eq(1L), any());
-        verify(dispatcher).dispatchToMember(eq(event), eq(2L), any());
+        ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
+        verify(chunkService).processChunk(eq(event), captor.capture(), any());
+        assertThat(captor.getValue()).containsExactly(1L, 2L);
     }
 
     @Test
@@ -56,7 +59,9 @@ class NotificationFanoutServiceTest {
 
         fanoutService.fanout(event, NotificationEventType.GAME_START, "{}");
 
-        verify(dispatcher).dispatchToMember(eq(event), eq(10L), any());
+        ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
+        verify(chunkService).processChunk(eq(event), captor.capture(), any());
+        assertThat(captor.getValue()).containsExactly(10L);
     }
 
     @Test
@@ -68,7 +73,9 @@ class NotificationFanoutServiceTest {
 
         fanoutService.fanout(event, NotificationEventType.PAYMENT_COMPLETED, "{}");
 
-        verify(dispatcher).dispatchToMember(eq(event), eq(5L), any());
+        ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
+        verify(chunkService).processChunk(eq(event), captor.capture(), any());
+        assertThat(captor.getValue()).containsExactly(5L);
     }
 
     @Test
@@ -79,7 +86,9 @@ class NotificationFanoutServiceTest {
 
         fanoutService.fanout(event, NotificationEventType.CHAT_MENTION, payload);
 
-        verify(dispatcher).dispatchToMember(eq(event), eq(42L), eq(payload));
+        ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
+        verify(chunkService).processChunk(eq(event), captor.capture(), eq(payload));
+        assertThat(captor.getValue()).containsExactly(42L);
         verify(settingRepository, never()).findMemberIdsByChatMentionAlertTrue(any());
     }
 
@@ -91,19 +100,24 @@ class NotificationFanoutServiceTest {
 
         boolean result = fanoutService.fanout(event, NotificationEventType.CHAT_MENTION, invalidPayload);
 
-        verify(dispatcher, never()).dispatchToMember(any(), any(), any());
-        assert result;
+        verify(chunkService, never()).processChunk(any(), any(), any());
+        assertThat(result).isTrue();
     }
 
     @Test
-    @DisplayName("대상 회원이 없으면 dispatcher를 호출하지 않는다")
-    void fanout_대상없음_dispatcher미호출() {
+    @DisplayName("대상 회원이 없으면 chunkService를 호출하지 않는다")
+    void fanout_대상없음_chunk미호출() {
         NotificationEvent event = NotificationEvent.withId(6L, NotificationEventType.TICKET_OPEN, "{}");
         given(settingRepository.findMemberIdsByTicketOpenAlertTrue(any()))
                 .willReturn(new SliceImpl<>(List.of()));
 
         fanoutService.fanout(event, NotificationEventType.TICKET_OPEN, "{}");
 
-        verify(dispatcher, never()).dispatchToMember(any(), any(), any());
+        verify(chunkService).processChunk(eq(event), eq(List.of()), any());
+    }
+
+    @SuppressWarnings("unchecked")
+    private ArgumentCaptor<List<Long>> memberIdsCaptor() {
+        return ArgumentCaptor.forClass((Class<List<Long>>) (Class<?>) List.class);
     }
 }

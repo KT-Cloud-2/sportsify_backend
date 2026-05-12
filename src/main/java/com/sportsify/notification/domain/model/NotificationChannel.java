@@ -3,6 +3,7 @@ package com.sportsify.notification.domain.model;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import jakarta.persistence.*;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,7 +54,7 @@ public class NotificationChannel {
     }
 
     public void validateOwner(Long memberId) {
-        if (!this.memberId.equals(memberId)) {
+        if (!Objects.equals(this.memberId, memberId)) {
             throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_NOT_FOUND);
         }
     }

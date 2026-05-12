@@ -8,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,7 +19,7 @@ public class NotificationFanoutService {
     private static final int CHUNK_SIZE = 500;
 
     private final NotificationSettingRepository settingRepository;
-    private final NotificationDispatcher dispatcher;
+    private final NotificationChunkService chunkService;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
         if (eventType == NotificationEventType.CHAT_MENTION) {
@@ -33,7 +31,7 @@ public class NotificationFanoutService {
     private boolean fanoutChatMention(NotificationEvent event, String payload) {
         try {
             Long memberId = ChatMentionPayloadParser.extractMemberId(payload);
-            return processChunk(event, List.of(memberId), payload);
+            return chunkService.processChunk(event, List.of(memberId), payload);
         } catch (Exception e) {
             log.error("CHAT_MENTION payload에서 memberId 추출 실패 payload={}", payload, e);
             return true;
@@ -47,26 +45,12 @@ public class NotificationFanoutService {
 
         do {
             chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, CHUNK_SIZE));
-            if (processChunk(event, chunk.getContent(), payload)) {
+            if (chunkService.processChunk(event, chunk.getContent(), payload)) {
                 anyFailed = true;
             }
             page++;
         } while (chunk.hasNext());
 
-        return anyFailed;
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean processChunk(NotificationEvent event, List<Long> memberIds, String payload) {
-        if (memberIds.isEmpty()) {
-            return false;
-        }
-        boolean anyFailed = false;
-        for (Long memberId : memberIds) {
-            if (dispatcher.dispatchToMember(event, memberId, payload)) {
-                anyFailed = true;
-            }
-        }
         return anyFailed;
     }
 
