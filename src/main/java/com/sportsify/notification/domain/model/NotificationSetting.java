@@ -1,5 +1,6 @@
 package com.sportsify.notification.domain.model;
 
+import com.sportsify.common.notification.NotificationEventType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
