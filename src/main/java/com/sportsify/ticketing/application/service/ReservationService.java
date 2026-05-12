@@ -55,11 +55,7 @@ public class ReservationService {
 
         availableSeats.forEach(seat -> {
             seat.updateSeatStatus(SeatStatus.RESERVED);
-            createdOrder.addOrderSeat(OrderSeat
-                    .builder()
-                    .order(createdOrder)
-                    .gameSeat(seat)
-                    .build());
+            createdOrder.addOrderSeat(OrderSeat.create(createdOrder, seat));
         });
 
         orderRepository.save(createdOrder);

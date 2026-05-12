@@ -41,7 +41,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
     @Autowired
     private OrderJpaRepository orderRepository;
-    
+
     @Autowired
     private ReservationService reservationService;
 
@@ -107,26 +107,33 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
         int threadCount = 3;
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount);
 
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
 
         for (ReservationSeatsRequestDto req : requests) {
             executor.submit(() -> {
+                ready.countDown();
                 try {
+                    start.await();
                     reservationService.reserveSeat(req);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();
                 } finally {
-                    latch.countDown();
+                    done.countDown();
                 }
             });
         }
 
-        latch.await();
-        executor.shutdown();
+        assertThat(ready.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        assertThat(done.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        executor.shutdownNow();
 
         assertThat(successCount.get()).isEqualTo(1);
         assertThat(failCount.get()).isEqualTo(2);
