@@ -63,21 +63,4 @@ class TicketTest {
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CANCELLED);
     }
 
-
-//    @Test
-//    @DisplayName("주문 좌석 생성 시 지정한 expiresAt으로 초기화된다.")
-//    void createOrderSeatWithExpiresAt() {
-//
-//        Order mockOrder = mock(Order.class);
-//        GameSeat mockGameSeat = mock(GameSeat.class);
-//
-//        LocalDateTime now = LocalDateTime.now();
-//        OrderSeat orderSeat = OrderSeat.create(mockOrder, mockGameSeat);
-//
-//        assertThat(orderSeat.getOrder()).isEqualTo(mockOrder);
-//        assertThat(orderSeat.getGameSeat()).isEqualTo(mockGameSeat);
-//        assertThat(orderSeat.getStatus()).isEqualTo(OrderSeatStatus.HOLDING);
-//        assertThat(orderSeat.getExpiresAt()).isEqualTo(now);
-//    }
-
 }
