@@ -6,13 +6,16 @@ import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -25,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,13 +46,22 @@ class ChatRoomServiceTest {
     private Clock clock;
     @Mock
     private AdvisoryLockAdaptor advisoryLockAdaptor;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private MessageRepository messageRepo;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(clock.instant()).thenReturn(FIXED);
+        lenient().when(clock.getZone()).thenReturn(ZoneOffset.UTC);
+    }
 
     // ──────────────────────── create ────────────────────────
 
     @Test
     @DisplayName("GAME 타입 채팅방을 생성한다")
     void create_GAME타입() {
-        stubClock();
         given(chatRoomRepo.save(any())).willReturn(chatRoom(10L, "한화 VS LG", ChatRoomType.GAME, 5L, 1L));
         given(chatRoomMemberRepo.saveAll(any())).willReturn(List.of());
 
@@ -63,7 +76,6 @@ class ChatRoomServiceTest {
     @Test
     @DisplayName("DIRECT 타입 채팅방을 생성한다")
     void create_DIRECT타입() {
-        stubClock();
         given(advisoryLockAdaptor.tryAcquireXactLock(any())).willReturn(true);
         given(chatRoomRepo.existByCreatorIdAndInviteId(1L, 2L)).willReturn(Optional.empty());
         given(chatRoomRepo.save(any())).willReturn(chatRoom(11L, "DM", ChatRoomType.DIRECT, null, 1L));
@@ -81,7 +93,6 @@ class ChatRoomServiceTest {
     @Test
     @DisplayName("채팅방 이름과 이미지를 수정한다")
     void update_수정성공() {
-        stubClock();
         ChatRoom room = chatRoom(10L, "한화 VS LG", ChatRoomType.GAME, 5L, 1L);
         given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(room));
         given(chatRoomRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
@@ -99,7 +110,6 @@ class ChatRoomServiceTest {
     @Test
     @DisplayName("채팅방을 삭제하고 멤버를 전원 퇴장시킨다")
     void delete_삭제성공() {
-        stubClock();
         ChatRoom room = chatRoom(10L, "한화 VS LG", ChatRoomType.GAME, 5L, 1L);
         given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(room));
         given(chatRoomRepo.save(any())).willReturn(room);
@@ -122,6 +132,7 @@ class ChatRoomServiceTest {
 
         given(chatRoomMemberRepo.findActiveByMember(memberId)).willReturn(List.of(membership));
         given(chatRoomRepo.findActiveByRoomIds(any(), eq(ChatRoomType.GAME), isNull(), anyInt())).willReturn(List.of(room));
+        given(messageRepo.findMyLatestByRooms(any(), any())).willReturn(List.of());
         given(chatRoomMemberRepo.countActiveByRooms(any())).willReturn(Map.of(roomId, 3L));
 
         ChatRoomListResponse result = chatRoomService.getMyRooms(new ChatRoomGetRequest("GAME", null, 20), 1L);
@@ -171,11 +182,6 @@ class ChatRoomServiceTest {
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
-
-    private void stubClock() {
-        given(clock.instant()).willReturn(FIXED);
-        given(clock.getZone()).willReturn(ZoneOffset.UTC);
-    }
 
     private ChatRoom chatRoom(Long id, String name, ChatRoomType type, Long gameId, Long createdBy) {
         return ChatRoom.restore(

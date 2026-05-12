@@ -10,8 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,14 +19,11 @@ class MessageTest {
     private static final ChatRoomId ROOM_ID = ChatRoomId.of(1L);
     private static final MemberId SENDER = MemberId.of(1L);
     private static final MessageContent CONTENT = MessageContent.of("안녕하세요");
-    private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 4, 12, 0);
-    private static final LocalDateTime LATER = NOW.plusHours(1);
     private static final Instant INSTANT_NOW = Instant.parse("2026-05-06T12:00:00Z");
-    private static final Instant INSTANT_LATER = INSTANT_NOW.plus(1, ChronoUnit.HOURS);
     // ──────────────────────── send ────────────────────────
 
     @Test
-    @DisplayName("send는 ACTIVE 상태의 메시지를 생성하고 MessageSentEvent를 추가한다")
+    @DisplayName("send는 ACTIVE 상태의 메시지를 생성하고 id와 이벤트는 아직 없다")
     void send_초기상태_검증() {
         String clientId = UUID.randomUUID().toString();
         Message msg = Message.send(ROOM_ID, SENDER, CONTENT, MessageType.TEXT, INSTANT_NOW, clientId);
@@ -40,12 +35,7 @@ class MessageTest {
         assertThat(msg.getStatus()).isEqualTo(MessageStatus.ACTIVE);
         assertThat(msg.getCreatedAt()).isEqualTo(INSTANT_NOW);
         assertThat(msg.getId()).isNull();
-        assertThat(msg.getEvents())
-                .hasSize(1)
-                .first()
-                .isInstanceOf(EventEnvelope.class)
-                .satisfies(e -> assertThat(((EventEnvelope<?>) e).payload())
-                        .isInstanceOf(MessageSentPayload.class));
+        assertThat(msg.getEvents()).isEmpty();
     }
 
     // ──────────────────────── system ────────────────────────
@@ -82,14 +72,20 @@ class MessageTest {
     // ──────────────────────── assignId ────────────────────────
 
     @Test
-    @DisplayName("새 메시지에 id를 부여한다")
-    void assignId_부여성공() {
+    @DisplayName("assignId 호출 시 MessageSentPayload 이벤트가 등록된다")
+    void assignId_이벤트등록() {
         String clientId = UUID.randomUUID().toString();
         Message msg = Message.send(ROOM_ID, SENDER, CONTENT, MessageType.TEXT, INSTANT_NOW, clientId);
 
-        msg.assignId(MessageId.of(50L));
+        msg.assignId(MessageId.of(99L));
 
-        assertThat(msg.getId()).isEqualTo(MessageId.of(50L));
+        assertThat(msg.getId()).isEqualTo(MessageId.of(99L));
+        assertThat(msg.getEvents())
+                .hasSize(1)
+                .first()
+                .isInstanceOf(EventEnvelope.class)
+                .satisfies(e -> assertThat(((EventEnvelope<?>) e).payload())
+                        .isInstanceOf(MessageSentPayload.class));
     }
 
     // ──────────────────────── softDelete ────────────────────────

@@ -32,8 +32,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class MessageServiceTest {
 
-    private static final Instant FIXED = Instant.parse("2026-05-04T12:00:00Z");
-    private static final LocalDateTime NOW = LocalDateTime.ofInstant(FIXED, ZoneOffset.UTC);
+    private static final Instant NOW_INSTANT = Instant.parse("2026-05-04T12:00:00Z");
+    private static final LocalDateTime NOW = LocalDateTime.ofInstant(NOW_INSTANT, ZoneOffset.UTC);
 
     @InjectMocks
     private MessageService messageService;
@@ -71,7 +71,7 @@ class MessageServiceTest {
                 new MessageCreateRequest(null, 10L, "TEXT", "안녕하세요"), 1L);
 
         assertThat(result.messageId()).isEqualTo(100L);
-        assertThat(result.createdAt()).isEqualTo(NOW);
+        assertThat(result.createdAt()).isEqualTo(NOW_INSTANT);
     }
 
     // ──────────────────────── delete ────────────────────────
@@ -111,7 +111,7 @@ class MessageServiceTest {
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.hasNext()).isFalse();
         assertThat(result.nextCursor()).isNull();
-        assertThat(result.items()).hasSize(2);
+        assertThat(result.messages()).hasSize(2);
     }
 
     @Test
@@ -132,15 +132,14 @@ class MessageServiceTest {
         assertThat(result.hasNext()).isTrue();
         assertThat(result.nextCursor()).isEqualTo(11L);
         assertThat(result.totalCount()).isEqualTo(2);
-        assertThat(result.items()).hasSize(2);
+        assertThat(result.messages()).hasSize(2);
     }
 
     // ──────────────────────── getMessages ────────────────────────
 
     @Test
-    @DisplayName("GAME 채팅방 메시지를 조회하고 마지막 읽은 메시지가 갱신된다")
+    @DisplayName("GAME 채팅방 메시지를 조회한다")
     void getMessages_GAME채팅방_메시지조회() {
-        stubClock();
         ChatRoom room = chatRoom(10L, ChatRoomType.GAME);
         List<Message> messages = List.of(
                 message(50L, 10L, 2L, "hello", MessageStatus.ACTIVE),
@@ -150,22 +149,18 @@ class MessageServiceTest {
         given(chatRoomRepo.findByIdForUpdateRead(ChatRoomId.of(10L))).willReturn(Optional.of(room));
         given(chatRoomMemberRepo.existsJoinedByRoomAndMember(ChatRoomId.of(10L), MemberId.of(1L))).willReturn(true);
         given(messageRepo.findByRoomBefore(eq(ChatRoomId.of(10L)), isNull(), eq(21))).willReturn(messages);
-        given(chatRoomMemberRepo.updateLastReadMessageIfGreater(any(), any(), any(), any())).willReturn(true);
 
         MessageListResponse result = messageService.getMessages(
                 new MessagePageNationRequest(null, 20), 10L, 1L);
 
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.hasNext()).isFalse();
-        assertThat(result.items()).hasSize(2);
-        verify(chatRoomMemberRepo).updateLastReadMessageIfGreater(
-                eq(ChatRoomId.of(10L)), eq(MemberId.of(1L)), eq(MessageId.of(51L)), any());
+        assertThat(result.messages()).hasSize(2);
     }
 
     @Test
     @DisplayName("DIRECT 채팅방에서 멤버가 메시지를 조회한다")
     void getMessages_DIRECT채팅방_멤버조회() {
-        stubClock();
         ChatRoom room = ChatRoom.restore(
                 ChatRoomId.of(20L), ChatRoomName.of("DM"), ChatRoomType.DIRECT, null,
                 null, NOW, NOW, ChatRoomStatus.ACTIVE, MemberId.of(1L));
@@ -176,19 +171,17 @@ class MessageServiceTest {
         given(chatRoomRepo.findByIdForUpdateRead(ChatRoomId.of(20L))).willReturn(Optional.of(room));
         given(chatRoomMemberRepo.existsJoinedByRoomAndMember(ChatRoomId.of(20L), MemberId.of(1L))).willReturn(true);
         given(messageRepo.findByRoomBefore(eq(ChatRoomId.of(20L)), isNull(), eq(21))).willReturn(messages);
-        given(chatRoomMemberRepo.updateLastReadMessageIfGreater(any(), any(), any(), any())).willReturn(true);
 
         MessageListResponse result = messageService.getMessages(
                 new MessagePageNationRequest(null, 20), 20L, 1L);
 
         assertThat(result.totalCount()).isEqualTo(1);
-        assertThat(result.items()).hasSize(1);
+        assertThat(result.messages()).hasSize(1);
     }
 
     @Test
     @DisplayName("메시지 조회 시 다음 페이지가 있으면 nextCursor가 반환된다")
     void getMessages_다음페이지있음() {
-        stubClock();
         ChatRoom room = chatRoom(10L, ChatRoomType.GAME);
         List<Message> messages = List.of(
                 message(50L, 10L, 2L, "msg1", MessageStatus.ACTIVE),
@@ -199,7 +192,6 @@ class MessageServiceTest {
         given(chatRoomRepo.findByIdForUpdateRead(ChatRoomId.of(10L))).willReturn(Optional.of(room));
         given(chatRoomMemberRepo.existsJoinedByRoomAndMember(ChatRoomId.of(10L), MemberId.of(1L))).willReturn(true);
         given(messageRepo.findByRoomBefore(eq(ChatRoomId.of(10L)), isNull(), eq(3))).willReturn(messages);
-        given(chatRoomMemberRepo.updateLastReadMessageIfGreater(any(), any(), any(), any())).willReturn(true);
 
         MessageListResponse result = messageService.getMessages(
                 new MessagePageNationRequest(null, 2), 10L, 1L);
@@ -212,8 +204,7 @@ class MessageServiceTest {
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
 
     private void stubClock() {
-        given(clock.instant()).willReturn(FIXED);
-        given(clock.getZone()).willReturn(ZoneOffset.UTC);
+        given(clock.instant()).willReturn(NOW_INSTANT);
     }
 
     private ChatRoom chatRoom(Long id, ChatRoomType type) {
@@ -234,7 +225,7 @@ class MessageServiceTest {
     private Message message(Long id, Long roomId, Long senderId, String content, MessageStatus status) {
         return Message.restore(
                 MessageId.of(id), ChatRoomId.of(roomId), MemberId.of(senderId),
-                MessageContent.of(content), MessageType.TEXT, status, NOW
+                MessageContent.of(content), MessageType.TEXT, status, NOW_INSTANT
         );
     }
 }

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
@@ -49,6 +50,8 @@ class ChatRoomMemberServiceTest {
     private Clock clock;
     @Mock
     private AdvisoryLockAdaptor advisoryLockAdaptor;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private Long ROOM_ID;
     private Long MEMBER_ID;
@@ -94,7 +97,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("신규 멤버가 GAME 채팅방에 입장한다")
     void join_신규멤버_GAME방_입장() {
-        stubClock();
         given(chatRoomRepo.findById(ChatRoomId.of(ROOM_ID))).willReturn(Optional.of(gameRoom()));
         given(advisoryLockAdaptor.tryAcquireXactLock(any())).willReturn(true);
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), any(), anyList())).willReturn(Optional.empty());
@@ -110,7 +112,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("INVITED 상태 멤버가 입장을 수락한다")
     void join_초대멤버_수락_입장() {
-        stubClock();
         given(chatRoomRepo.findById(ChatRoomId.of(ROOM_ID))).willReturn(Optional.of(gameRoom()));
         given(advisoryLockAdaptor.tryAcquireXactLock(any())).willReturn(true);
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), any(), anyList()))
@@ -127,7 +128,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("JOINED 멤버가 채팅방을 퇴장한다")
     void leave_퇴장() {
-        stubClock();
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), any(), anyList()))
                 .willReturn(Optional.of(member(MemberStatus.JOINED, MEMBER_ID)));
         given(chatRoomMemberRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
@@ -142,7 +142,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("신규 멤버를 채팅방에 초대한다")
     void invite_신규멤버_초대() {
-        stubClock();
         given(chatRoomRepo.findById(ChatRoomId.of(ROOM_ID))).willReturn(Optional.of(gameRoom()));
         given(chatRoomMemberRepo.existsJoinedByRoomAndMember(any(), eq(MemberId.of(MEMBER_ID)))).willReturn(true);
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), eq(MemberId.of(INVITEE_ID)), anyList()))
@@ -158,7 +157,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("LEFT 상태 멤버를 채팅방에 재초대한다")
     void invite_LEFT멤버_재초대() {
-        stubClock();
         given(chatRoomRepo.findById(ChatRoomId.of(ROOM_ID))).willReturn(Optional.of(gameRoom()));
         given(chatRoomMemberRepo.existsJoinedByRoomAndMember(any(), eq(MemberId.of(MEMBER_ID)))).willReturn(true);
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), eq(MemberId.of(INVITEE_ID)), anyList()))
@@ -176,7 +174,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("방장이 JOINED 멤버를 BAN 처리한다")
     void ban_멤버_BAN처리() {
-        stubClock();
         Long targetId = 3L;
         given(chatRoomRepo.findById(ChatRoomId.of(ROOM_ID))).willReturn(Optional.of(gameRoom()));
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), eq(MemberId.of(targetId)), anyList()))
@@ -194,7 +191,6 @@ class ChatRoomMemberServiceTest {
     @Test
     @DisplayName("채팅방 알림 설정을 변경한다")
     void changeNotification_알림_변경() {
-        stubClock();
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), any(), anyList()))
                 .willReturn(Optional.of(member(MemberStatus.JOINED, MEMBER_ID)));
         given(chatRoomMemberRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
@@ -206,11 +202,6 @@ class ChatRoomMemberServiceTest {
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
-
-    private void stubClock() {
-        given(clock.instant()).willReturn(FIXED_INSTANT);
-        given(clock.getZone()).willReturn(ZoneOffset.UTC);
-    }
 
     private ChatRoom gameRoom() {
         return ChatRoom.restore(

@@ -53,13 +53,13 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
     @Test
     @DisplayName("GET /api/chat/rooms — 200 내 채팅방 목록 조회 성공")
     void 내채팅방_목록_조회_성공() throws Exception {
-        ChatRoomSummaryResponse item = new ChatRoomSummaryResponse(ROOM_ID, "GAME", GAME_ID, "한화 VS LG", null, 3L, null, null, true, NOW, NOW);
+        ChatRoomSummaryResponse item = new ChatRoomSummaryResponse(ROOM_ID, "GAME", GAME_ID, "한화 VS LG", null, 3L, null, true, NOW, NOW);
         ChatRoomListResponse response = new ChatRoomListResponse(List.of(item), null, false, 1);
         given(chatRoomService.getMyRooms(any(ChatRoomGetRequest.class), eq(MEMBER_ID))).willReturn(response);
 
         mockMvc.perform(get("/api/chat/rooms")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ChatRoomGetRequest("GAME", null, 20)))
+                        .param("type", "GAME")
+                        .param("limit", "20")
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(1))
