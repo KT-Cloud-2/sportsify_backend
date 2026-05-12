@@ -181,9 +181,9 @@ CREATE INDEX idx_order_seats_expires ON orders (expires_at) WHERE status = 'PEND
 CREATE TABLE order_seats
 (
     id           BIGSERIAL PRIMARY KEY,
-    order_id     BIGINT NOT NULL,
-    game_seat_id BIGINT NOT NULL,
-    status       VARCHAR(30), -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
+    order_id     BIGINT      NOT NULL,
+    game_seat_id BIGINT      NOT NULL,
+    status       VARCHAR(30) NOT NULL, -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
     created_at   TIMESTAMP,
     CONSTRAINT fk_os_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_os_game_seat FOREIGN KEY (game_seat_id) REFERENCES game_seats (id)
@@ -332,13 +332,13 @@ CREATE INDEX idx_chat_room_members_member ON chat_room_members (member_id);
 -- 알림 설정 (사용자별 ON/OFF)
 CREATE TABLE notification_settings
 (
-    id                BIGSERIAL PRIMARY KEY,
-    member_id         BIGINT  NOT NULL,
-    ticket_open_alert   BOOLEAN NOT NULL DEFAULT TRUE,
-    game_start_alert    BOOLEAN NOT NULL DEFAULT TRUE,
-    payment_alert       BOOLEAN NOT NULL DEFAULT TRUE,
-    chat_mention_alert  BOOLEAN NOT NULL DEFAULT TRUE,
-    updated_at          TIMESTAMP,
+    id                 BIGSERIAL PRIMARY KEY,
+    member_id          BIGINT  NOT NULL,
+    ticket_open_alert  BOOLEAN NOT NULL DEFAULT TRUE,
+    game_start_alert   BOOLEAN NOT NULL DEFAULT TRUE,
+    payment_alert      BOOLEAN NOT NULL DEFAULT TRUE,
+    chat_mention_alert BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at         TIMESTAMP,
     CONSTRAINT fk_ns_member FOREIGN KEY (member_id) REFERENCES members (id),
     CONSTRAINT uq_ns_member UNIQUE (member_id)
 );

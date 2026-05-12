@@ -31,7 +31,7 @@ public class OrderSeat {
     private GameSeat gameSeat;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 30)
+    @Column(nullable = false, length = 30)
     private OrderSeatStatus status;
 
     @CreatedDate
