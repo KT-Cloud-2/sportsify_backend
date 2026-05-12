@@ -64,4 +64,18 @@ public interface MessageJpaRepository extends JpaRepository<MessageJpaEntity, Lo
     @Query("SELECT m FROM MessageJpaEntity m " +
             "WHERE m.id = :messageId")
     Optional<MessageJpaEntity> findByIdForUpdate(@Param("messageId") Long messageId);
+
+    @Query(value = """                                                                                                                                                                                                                                                                                                
+            SELECT m.* FROM chat_messages m                                                                                                                                                                                                                                                                               
+            INNER JOIN (
+              SELECT room_id, MAX(id) AS max_id
+              FROM chat_messages                                                                                                                                                                                                                                                                                            
+              WHERE room_id IN :roomIds AND sender_id = :memberId
+              GROUP BY room_id                                                                                                                                                                                                                                                                                        
+            ) latest ON m.id = latest.max_id                                                                                                                                                                                                                                                                        
+            """,
+            nativeQuery = true)
+    List<MessageJpaEntity> findMyLatestByRooms(
+            @Param("roomIds") List<Long> roomIds,
+            @Param("memberId") Long memberId);
 }

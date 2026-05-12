@@ -13,13 +13,12 @@ public record ChatRoomSummaryResponse(
         @Schema(description = "채팅방 이름", example = "한화 VS LG") String name,
         @Schema(description = "채팅방 이미지 URL", example = "https://image-040...") String imageUrl,
         @Schema(description = "채팅방 참여자 수", example = "200") long currentParticipants,
-        @Schema(description = "마지막으로 쓴 MESSAGE 정보", example = "lastMessage : {...}") Record lastMessage,
-        @Schema(description = "읽지 않는 MESSAGE 수", example = "110") Long unreadCount,
+        @Schema(description = "마지막으로 쓴 MESSAGE 정보", example = "lastMessage : {...}") ChatMessageResponse lastMessage,
         @Schema(description = "사용자 채팅방 일림 여부", example = "False") Boolean notificationEnabled,
         @Schema(description = "생성일", example = "2026-04-27T14:22:15Z") LocalDateTime createdAt,
         @Schema(description = "업데이트일", example = "2026-04-27T14:22:15Z") LocalDateTime updatedAt
 ) {
-    public static ChatRoomSummaryResponse of(ChatRoom room, long currentParticipants, ChatRoomMember membership) {
+    public static ChatRoomSummaryResponse of(ChatRoom room, long currentParticipants, ChatRoomMember membership, ChatMessageResponse message) {
         return new ChatRoomSummaryResponse(
                 room.getId().value(),
                 room.getType().name(),
@@ -27,8 +26,7 @@ public record ChatRoomSummaryResponse(
                 room.getName().value(),
                 room.getImageUrl(),
                 currentParticipants,
-                null,
-                null,
+                message,
                 membership != null ? membership.isNotificationEnabled() : null,
                 room.getCreatedAt(),
                 room.getUpdatedAt()

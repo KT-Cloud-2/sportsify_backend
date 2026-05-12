@@ -11,9 +11,11 @@ import com.sportsify.chat.domain.model.event.chatRoomMember.MemberLeftPayload;
 import com.sportsify.chat.domain.model.message.MessageId;
 import lombok.Getter;
 import org.springframework.data.domain.AbstractAggregateRoot;
+import org.springframework.data.domain.DomainEvents;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -194,6 +196,11 @@ public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
         if (this.status == MemberStatus.INVITED) return;
         this.status = MemberStatus.INVITED;
         this.updatedAt = now;
+    }
+
+    @DomainEvents
+    public Collection<Object> getEvents() {
+        return super.domainEvents();
     }
 
     /* -------------------- 상태값 체크 -------------------- */

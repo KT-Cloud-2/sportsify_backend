@@ -7,9 +7,12 @@ import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -21,7 +24,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/chat").setAllowedOrigins(
                 "http://localhost:3000",
-                "http://127.0.0.1:3000").withSockJS();
+                "http://127.0.0.1:3000",
+                "http://localhost:8080",
+                "http://127.0.0.1:8080").withSockJS();
     }
 
     @Bean
@@ -45,5 +50,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(stompAuthChannelInterceptor);
+    }
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration.addDecoratorFactory(handler -> new WebSocketHandlerDecorator(handler) {
+            @Override
+            public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+                session.getAttributes().put(WebSocketSessionRegistry.WS_SESSION_ATTR, session);
+                super.afterConnectionEstablished(session);
+            }
+        });
     }
 }

@@ -20,31 +20,28 @@ public class ChatEventHandler {
     private final WebSocketSessionRegistry webSocketSessionRegistry;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async("send event broadcastExecutor")
+    @Async
     public void sendEvent(EventEnvelope<?> event) {
         publisher.publishToRoom(
                 event.roomId(), event
         );
     }
 
-
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async("ban event broadExecutor")
+    @Async
     public void handleMemberBanned(EventEnvelope<MemberBannedPayload> event) {
         webSocketSessionRegistry.forceDisconnectByMemberInRoom(event.payload().memberId(), event.roomId(), "Banned");
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async("room delete broadExecutor")
+    @Async
     public void handleRoomDelete(EventEnvelope<RoomDeletePayload> event) {
         webSocketSessionRegistry.forceDisconnectAllInRoom(event.roomId(), "Room deleted");
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async("room archived broadExecutor")
+    @Async
     public void handleRoomArchived(EventEnvelope<RoomArchivedPayload> event) {
         webSocketSessionRegistry.forceDisconnectAllInRoom(event.roomId(), "Room archived");
     }
-
-
 }

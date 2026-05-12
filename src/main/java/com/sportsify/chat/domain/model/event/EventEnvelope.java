@@ -1,5 +1,6 @@
 package com.sportsify.chat.domain.model.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.ResolvableTypeProvider;
@@ -18,6 +19,7 @@ public record EventEnvelope<T>(
     }
 
     @Override
+    @JsonIgnore
     public ResolvableType getResolvableType() {
         return ResolvableType.forClassWithGenerics(EventEnvelope.class, payload.getClass());
     }

@@ -4,14 +4,17 @@ import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.event.EventType;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomArchivedPayload;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomDeletePayload;
+import com.sportsify.chat.domain.model.event.chatRoom.RoomUnarchivedPayload;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomUpdatePayload;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.Getter;
 import org.springframework.data.domain.AbstractAggregateRoot;
+import org.springframework.data.domain.DomainEvents;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -161,6 +164,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
         }
         this.status = ChatRoomStatus.ACTIVE;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.ROOM_UNARCHIVED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomUnarchivedPayload()));
     }
 
     /**
@@ -177,6 +181,11 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
         this.status = ChatRoomStatus.DELETED;
         this.updatedAt = now;
         this.registerEvent(EventEnvelope.of(EventType.ROOM_DELETED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomDeletePayload()));
+    }
+
+    @DomainEvents
+    public Collection<Object> getEvents() {
+        return super.domainEvents();
     }
 
     /* -------------------- 상태값 체크 -------------------- */

@@ -7,5 +7,5 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ErrorResponseSchema(
         @Schema(description = "에러 코드", example = "INVALID_INPUT") String code,
         @Schema(description = "에러 메시지", example = "입력값이 올바르지 않습니다.") String message,
-        @Schema(description = "상세 정보", nullable = true, example = "nickname: 2자 이상 입력해주세요.") String detail
+        @Schema(description = "상세 정보", nullable = true, example = "field: 유효하지 않은 값입니다.") String detail
 ) {}

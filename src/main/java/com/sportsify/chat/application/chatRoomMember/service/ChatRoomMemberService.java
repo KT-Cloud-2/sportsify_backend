@@ -11,6 +11,7 @@ import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class ChatRoomMemberService {
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final AdvisoryLockAdaptor advisoryLockAdaptor;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 채팅방 입장
@@ -49,7 +51,9 @@ public class ChatRoomMemberService {
             }
             ChatRoomMember newMember = ChatRoomMember.newJoin(room.getId(), id, now);
             try {
-                return ChatRoomMemberResponse.from(chatRoomMemberRepo.saveAndFlush(newMember));
+                ChatRoomMember saved = chatRoomMemberRepo.saveAndFlush(newMember);
+                saved.getEvents().forEach(eventPublisher::publishEvent);
+                return ChatRoomMemberResponse.from(saved);
             } catch (DataIntegrityViolationException e) {
                 throw new BusinessException(ErrorCode.CONFLICT, "Already exists in this room: " + roomId + " member: " + memberId);
             }
@@ -62,7 +66,9 @@ public class ChatRoomMemberService {
             case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "This user is banned");
             default -> {
                 member.accept(now);
-                yield ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
+                ChatRoomMember saved = chatRoomMemberRepo.save(member);
+                saved.getEvents().forEach(eventPublisher::publishEvent);
+                yield ChatRoomMemberResponse.from(saved);
             }
         };
     }
@@ -85,7 +91,9 @@ public class ChatRoomMemberService {
             case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "This user is banned");
             default -> {
                 member.leave(now);
-                yield ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
+                ChatRoomMember saved = chatRoomMemberRepo.save(member);
+                saved.getEvents().forEach(eventPublisher::publishEvent);
+                yield ChatRoomMemberResponse.from(saved);
             }
         };
     }
@@ -120,14 +128,18 @@ public class ChatRoomMemberService {
                         throw new BusinessException(ErrorCode.FORBIDDEN, "Banned member cannot be invited: " + inviteeId);
                 default -> {
                     member.changeStatusToInvite(now);
-                    yield ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
+                    ChatRoomMember saved = chatRoomMemberRepo.save(member);
+                    saved.getEvents().forEach(eventPublisher::publishEvent);
+                    yield ChatRoomMemberResponse.from(saved);
                 }
             };
         }
 
         ChatRoomMember newMember = ChatRoomMember.newInvited(room.getId(), MemberId.of(requesterId), MemberId.of(inviteeId), now);
         try {
-            return ChatRoomMemberResponse.from(chatRoomMemberRepo.saveAndFlush(newMember));
+            ChatRoomMember saved = chatRoomMemberRepo.saveAndFlush(newMember);
+            saved.getEvents().forEach(eventPublisher::publishEvent);
+            return ChatRoomMemberResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(ErrorCode.CONFLICT, "Already exists in this room: " + roomId);
         }
@@ -158,7 +170,9 @@ public class ChatRoomMemberService {
         }
 
         target.ban(now);
-        return ChatRoomMemberResponse.from(chatRoomMemberRepo.save(target));
+        ChatRoomMember saved = chatRoomMemberRepo.save(target);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
+        return ChatRoomMemberResponse.from(saved);
     }
 
     /**

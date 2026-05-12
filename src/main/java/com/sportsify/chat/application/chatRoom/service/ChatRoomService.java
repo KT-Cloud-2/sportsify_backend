@@ -3,13 +3,16 @@ package com.sportsify.chat.application.chatRoom.service;
 import com.sportsify.chat.application.chatRoom.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
+import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,8 @@ public class ChatRoomService {
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final AdvisoryLockAdaptor advisoryLockAdaptor;
+    private final ApplicationEventPublisher eventPublisher;
+    private final MessageRepository messageRepo;
 
     /**
      * 채팅방 생성
@@ -54,6 +59,7 @@ public class ChatRoomService {
                         .map(id -> ChatRoomMember.newInvited(room.getId(), creatorId, id, now))
         ).toList();
         chatRoomMemberRepo.saveAll(members);
+        members.forEach(m -> m.getEvents().forEach(eventPublisher::publishEvent));
         return ChatRoomResponse.from(room);
     }
 
@@ -80,7 +86,9 @@ public class ChatRoomService {
             room.changeImage(imageUrl, now, requesterId);
         }
 
-        return ChatRoomUpdateResponse.from(chatRoomRepo.save(room));
+        ChatRoom saved = chatRoomRepo.save(room);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
+        return ChatRoomUpdateResponse.from(saved);
     }
 
     /**
@@ -95,7 +103,9 @@ public class ChatRoomService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can archive room");
         }
         room.archive(now);
-        return ChatRoomArchiveResponse.from(chatRoomRepo.save(room));
+        ChatRoom saved = chatRoomRepo.save(room);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
+        return ChatRoomArchiveResponse.from(saved);
     }
 
     /**
@@ -110,7 +120,9 @@ public class ChatRoomService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can unarchive room");
         }
         room.unarchive(now);
-        return ChatRoomArchiveResponse.from(chatRoomRepo.save(room));
+        ChatRoom saved = chatRoomRepo.save(room);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
+        return ChatRoomArchiveResponse.from(saved);
     }
 
     /**
@@ -125,7 +137,8 @@ public class ChatRoomService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can delete room");
         }
         room.delete(now, requesterId);
-        chatRoomRepo.save(room);
+        ChatRoom saved = chatRoomRepo.save(room);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
         chatRoomMemberRepo.leaveAllMembersByRoom(room.getId(), now);
     }
 
@@ -136,8 +149,9 @@ public class ChatRoomService {
     public ChatRoomListResponse getMyRooms(ChatRoomGetRequest request, Long memberId) {
         ChatRoomType roomType = parseType(request.type());
         Long cursor = request.cursor();
+        MemberId id = MemberId.of(memberId);
 
-        List<ChatRoomMember> memberships = chatRoomMemberRepo.findActiveByMember(MemberId.of(memberId));
+        List<ChatRoomMember> memberships = chatRoomMemberRepo.findActiveByMember(id);
 
         List<ChatRoomId> roomIds = memberships.stream()
                 .filter(ChatRoomMember::isJoined)
@@ -151,16 +165,22 @@ public class ChatRoomService {
         List<ChatRoom> paged = hasNext ? rooms.subList(0, request.limit()) : rooms;
         Long nextCursor = hasNext ? paged.getLast().getId().value() : null;
 
-        Map<ChatRoomId, Long> countMap = chatRoomMemberRepo.countActiveByRooms(paged.stream().map(ChatRoom::getId).toList());
+        List<ChatRoomId> pagedIds = paged.stream().map(ChatRoom::getId).toList();
+
+        Map<ChatRoomId, Message> lastMessages = messageRepo.findMyLatestByRooms(pagedIds, id)
+                .stream()
+                .collect(Collectors.toMap(Message::getRoomId, m -> m));
+
+        Map<ChatRoomId, Long> countMap = chatRoomMemberRepo.countActiveByRooms(pagedIds);
         Map<ChatRoomId, ChatRoomMember> membershipMap = memberships.stream()
-                .filter(ChatRoomMember::isJoined)
                 .collect(Collectors.toMap(ChatRoomMember::getRoomId, m -> m));
 
         List<ChatRoomSummaryResponse> items = paged.stream()
                 .map(r -> ChatRoomSummaryResponse.of(
                         r,
                         countMap.getOrDefault(r.getId(), 0L),
-                        membershipMap.get(r.getId())
+                        membershipMap.get(r.getId()),
+                        ChatMessageResponse.of(lastMessages.get(r.getId()))
                 ))
                 .toList();
 

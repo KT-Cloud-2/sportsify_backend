@@ -25,4 +25,7 @@ public interface MessageRepository {
     List<Message> findByRoomAndMemberBefore(ChatRoomId roomId, MemberId memberId, Long beforeMessageId, int limit);
 
     long countAfter(ChatRoomId roomId, Long afterMessageId);
+
+
+    List<Message> findMyLatestByRooms(List<ChatRoomId> roomIds, MemberId memberId);
 }

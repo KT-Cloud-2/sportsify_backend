@@ -45,10 +45,9 @@ public class ChatRoomController implements ChatRoomApi {
      * @return ResponseEntity<CommonResponse < ChatRoomListResponse>>
      */
     @GetMapping
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public ResponseEntity<ChatRoomListResponse> getMyRooms(
             @AuthenticationPrincipal Long memberId,
-            @Valid @RequestBody ChatRoomGetRequest request
+            @Valid @ModelAttribute ChatRoomGetRequest request
     ) {
         return ResponseEntity.ok(chatRoomService.getMyRooms(request, memberId));
     }

@@ -28,6 +28,7 @@ public class Message extends AbstractAggregateRoot<Message> {
     private final MessageContent content;
     private MessageId id;
     private MessageStatus status;   // ACTIVE, DELETED
+    private String pendingClientMessageId;  // assignId 후 이벤트 등록에 사용
 
     private Message(MessageId id,
                     ChatRoomId roomId,
@@ -55,7 +56,7 @@ public class Message extends AbstractAggregateRoot<Message> {
                                Instant now,
                                String clientMessageId) {
         Message msg = new Message(null, roomId, senderId, content, type, MessageStatus.ACTIVE, now);
-        msg.registerEvent(EventEnvelope.of(EventType.MESSAGE_SENT, roomId, now, MessageSentPayload.from(msg, clientMessageId)));
+        msg.pendingClientMessageId = clientMessageId; // ID 할당 후 이벤트 등록
         return msg;
     }
 
@@ -92,6 +93,11 @@ public class Message extends AbstractAggregateRoot<Message> {
             throw new IllegalStateException("MessageId already assigned");
         }
         this.id = Objects.requireNonNull(id, "id");
+        if (pendingClientMessageId != null) {
+            registerEvent(EventEnvelope.of(EventType.MESSAGE_SENT, roomId, createdAt,
+                    MessageSentPayload.from(this, pendingClientMessageId)));
+            pendingClientMessageId = null;
+        }
     }
 
     /**

@@ -29,7 +29,7 @@ public class MessageController implements MessageApi {
     public ResponseEntity<MessageListResponse> history(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long roomId,
-            @Valid @RequestBody MessagePageNationRequest request
+            @Valid @ModelAttribute MessagePageNationRequest request
     ) {
         return ResponseEntity.ok(messageService.getHistory(request, roomId, memberId));
     }
@@ -60,7 +60,7 @@ public class MessageController implements MessageApi {
     public ResponseEntity<MessageListResponse> getMessages(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long roomId,
-            @Valid @RequestBody MessagePageNationRequest request
+            @Valid @ModelAttribute MessagePageNationRequest request
     ) {
         return ResponseEntity.ok(messageService.getMessages(request, roomId, memberId));
     }

@@ -29,18 +29,17 @@ public class MessageRepositoryAdaptor implements MessageRepository {
 
     @Override
     public Message save(Message message) {
-        MessageJpaEntity entity;
         if (message.getId() == null) {
-            entity = mapper.toNewJpaEntity(message);
-        } else {
-            Long id = message.getId().value();
-            entity = jpaRepository.findById(id)
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Message not found for update: id=" + id));
-            mapper.applyToJpa(entity, message);
+            MessageJpaEntity saved = jpaRepository.save(mapper.toNewJpaEntity(message));
+            message.assignId(MessageId.of(saved.getId()));
+            return message;
         }
-        MessageJpaEntity saved = jpaRepository.save(entity);
-        return mapper.toDomain(saved);
+        Long id = message.getId().value();
+        MessageJpaEntity entity = jpaRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Message not found for update: id=" + id));
+        mapper.applyToJpa(entity, message);
+        jpaRepository.save(entity);
+        return message;
     }
 
     @Override
@@ -90,4 +89,12 @@ public class MessageRepositoryAdaptor implements MessageRepository {
         }
         return jpaRepository.countAfter(roomId.value(), afterMessageId);
     }
+
+    @Override
+    public List<Message> findMyLatestByRooms(List<ChatRoomId> roomIds, MemberId memberId) {
+        return jpaRepository.findMyLatestByRooms(roomIds.stream().map(ChatRoomId::value).toList(), memberId.value())
+                .stream().map(mapper::toDomain).collect(Collectors.toList());
+    }
+
+
 }

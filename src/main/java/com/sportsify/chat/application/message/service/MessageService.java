@@ -14,6 +14,8 @@ import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MessageService {
@@ -39,6 +42,7 @@ public class MessageService {
     final private ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final StringRedisTemplate redisTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 메시지 전송
@@ -50,10 +54,8 @@ public class MessageService {
         ChatRoomStatus chatRoomStatus = chatRoomRepo.findByIdForUpdateWrite(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value())).getStatus();
 
         switch (chatRoomStatus) {
-            case DELETED ->
-                    throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value());
-            case ARCHIVED ->
-                    throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "This room is archived : " + chatRoomId.value());
+            case DELETED -> throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value());
+            case ARCHIVED -> throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "This room is archived : " + chatRoomId.value());
             case ACTIVE -> {
             }
             default -> throw new IllegalStateException("Unhandled status " + chatRoomStatus);
@@ -62,15 +64,14 @@ public class MessageService {
 
         switch (memberStatus) {
             case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "Banned user: " + id.value());
-            case DELETED, LEFT ->
-                    throw new BusinessException(ErrorCode.FORBIDDEN, "User is not room member: " + id.value());
-            case INVITED ->
-                    throw new BusinessException(ErrorCode.FORBIDDEN, "User has not accepted invite: " + id.value());
+            case DELETED, LEFT -> throw new BusinessException(ErrorCode.FORBIDDEN, "User is not room member: " + id.value());
+            case INVITED -> throw new BusinessException(ErrorCode.FORBIDDEN, "User has not accepted invite: " + id.value());
             case JOINED -> {
             }
             default -> throw new IllegalStateException("Unhandled status " + memberStatus);
         }
         Message savedMessage = messageRepo.save(Message.send(chatRoomId, id, MessageContent.of(request.content()), parseType(request.type()), Instant.now(clock), request.clientMessageId()));
+        savedMessage.getEvents().forEach(eventPublisher::publishEvent);
         return MessageCreateResponse.from(savedMessage);
     }
 
@@ -91,6 +92,7 @@ public class MessageService {
         Instant now = Instant.now(clock);
         message.softDelete(id, now);
         Message savedMessage = messageRepo.save(message);
+        savedMessage.getEvents().forEach(eventPublisher::publishEvent);
         return MessageDeleteResponse.from(savedMessage);
     }
 
@@ -121,7 +123,8 @@ public class MessageService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value());
         }
         boolean isMember = chatRoomMemberRepo.existsJoinedByRoomAndMember(chatRoomId, id);
-        if (chatRoom.getType() == ChatRoomType.DIRECT && !isMember) {
+
+        if (ChatRoomType.DIRECT == chatRoom.getType() && !isMember) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "User is not room member : " + id.value());
         }
         List<Message> messages = messageRepo.findByRoomBefore(chatRoomId, request.cursor(), request.limit() + 1);
@@ -129,16 +132,19 @@ public class MessageService {
         PageResult page = paginate(messages, request.limit());
 
         if (!page.items().isEmpty() && roomStatus == ChatRoomStatus.ACTIVE && isMember) {
-            Instant now = Instant.now(clock);
-            chatRoomMemberRepo.updateLastReadMessageIfGreater(
-                    chatRoomId, id,
-                    page.items().getLast().getId(), now);
+            read(chatRoomId.value(), id.value(), page.items().getLast().getId().value());
         }
         return new MessageListResponse(page.items().stream().map(MessageResponse::from).toList(), page.nextCursor(), page.hasNext(), page.items().size());
     }
 
 
     public void read(Long roomId, Long memberId, Long lastReadMessageId) {
+        boolean isDirect = chatRoomRepo.findById(ChatRoomId.of(roomId))
+                .map(r -> r.getType() == ChatRoomType.DIRECT)
+                .orElse(false);
+        if (!isDirect) {
+            return;
+        }
         String key = String.format(RedisKeySchema.LAST_READ_KEY_PREFIX, roomId, memberId);
         redisTemplate.execute(CAS_SCRIPT, List.of(key),
                 String.valueOf(lastReadMessageId), String.valueOf(RedisKeySchema.LAST_READ_TTL_SECONDS));

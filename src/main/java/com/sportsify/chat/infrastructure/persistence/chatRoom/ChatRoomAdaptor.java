@@ -25,18 +25,18 @@ public class ChatRoomAdaptor implements ChatRoomRepository {
 
     @Override
     public ChatRoom save(ChatRoom chatRoom) {
-        ChatRoomJpaEntity entity;
         if (chatRoom.getId() == null) {
-            entity = mapper.toNewJpaEntity(chatRoom);
-        } else {
-            Long id = chatRoom.getId().value();
-            entity = jpaRepository.findById(id)
-                    .orElseThrow(() -> new IllegalStateException(
-                            "ChatRoom not found for update: id=" + id));
-            mapper.applyToJpa(entity, chatRoom);
+            ChatRoomJpaEntity saved = jpaRepository.save(mapper.toNewJpaEntity(chatRoom));
+            chatRoom.assignId(ChatRoomId.of(saved.getId()));
+            return chatRoom;
         }
-        ChatRoomJpaEntity saved = jpaRepository.save(entity);
-        return mapper.toDomain(saved);
+        Long id = chatRoom.getId().value();
+        ChatRoomJpaEntity entity = jpaRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException(
+                        "ChatRoom not found for update: id=" + id));
+        mapper.applyToJpa(entity, chatRoom);
+        jpaRepository.save(entity);
+        return chatRoom;
     }
 
     @Override

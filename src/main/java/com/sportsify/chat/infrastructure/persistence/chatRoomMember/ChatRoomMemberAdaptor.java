@@ -32,7 +32,7 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
         ChatRoomMemberJpaEntity entity = prepareEntity(member);
         ChatRoomMemberJpaEntity saved = jpaRepo.save(entity);
         if (member.getId() == null) member.assignId(saved.getId());
-        return mapper.toDomain(saved);
+        return member;
     }
 
     @Override
@@ -40,7 +40,7 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
         ChatRoomMemberJpaEntity entity = prepareEntity(member);
         ChatRoomMemberJpaEntity saved = jpaRepo.saveAndFlush(entity);
         if (member.getId() == null) member.assignId(saved.getId());
-        return mapper.toDomain(saved);
+        return member;
     }
 
     private ChatRoomMemberJpaEntity prepareEntity(ChatRoomMember member) {
@@ -71,9 +71,13 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
                 })
                 .toList();
 
-        return jpaRepo.saveAll(entities).stream()
-                .map(mapper::toDomain)
-                .toList();
+        List<ChatRoomMemberJpaEntity> saved = jpaRepo.saveAll(entities);
+        for (int i = 0; i < members.size(); i++) {
+            if (members.get(i).getId() == null) {
+                members.get(i).assignId(saved.get(i).getId());
+            }
+        }
+        return members;
     }
 
     @Override

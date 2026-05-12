@@ -26,7 +26,6 @@ public class MessageJpaEntity {
     @Column(name = "sender_id", nullable = false)
     private Long senderId;
 
-    @Lob
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 

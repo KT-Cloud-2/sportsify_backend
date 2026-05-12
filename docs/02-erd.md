@@ -1,4 +1,4 @@
-# ERD — Sortsify
+# ERD — Sportsify
 
 > 모든 테이블은 PostgreSQL 18 기준으로 작성.  
 > `BIGSERIAL` = auto-increment Long PK.  
@@ -25,9 +25,9 @@
 | tickets | 예매 | 발급된 티켓 |
 | payments | 결제 | 결제 정보 |
 | refunds | 결제 | 환불 정보 |
-| chat_rooms | 채팅 | 채팅방 |
-| chat_participants | 채팅 | 채팅방 참여자 |
-| chat_messages | 채팅 | 채팅 메시지 |
+| chat_rooms | 채팅 | 채팅방 (type: DIRECT/GAME, status: ACTIVE/ARCHIVED/DELETED) |
+| chat_room_members | 채팅 | 채팅방 참여자 (status: INVITED/JOINED/LEFT/BANNED/DELETED) |
+| chat_messages | 채팅 | 채팅 메시지 (type: TEXT/IMAGE/FILE/SYSTEM) |
 | notification_settings | 알림 | 사용자별 알림 ON/OFF 설정 |
 | notification_channels | 알림 | 사용자별 알림 채널 (EMAIL/MQTT/SLACK) |
 | notification_events | 알림 | 발행된 알림 이벤트 (영속화) |
@@ -294,59 +294,60 @@ CREATE TABLE refunds (
 
 ```sql
 -- 채팅방
+-- type: DIRECT(1:1) | GAME(경기방)
+-- status: ACTIVE | ARCHIVED | DELETED
 CREATE TABLE chat_rooms (
-    id                BIGSERIAL   PRIMARY KEY,
-    name              VARCHAR(100),
-    type              VARCHAR(20) NOT NULL,  -- GAME | TEAM | PRIVATE | GROUP
-    game_id           BIGINT,
-    team_id           BIGINT,
-    created_by        BIGINT,
-    max_participants  INT         NOT NULL DEFAULT 5000,
-    created_at        TIMESTAMP,
-    updated_at        TIMESTAMP,
+    id          BIGSERIAL    PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    type        VARCHAR(20)  NOT NULL,
+    image_url   VARCHAR(500),
+    game_id     BIGINT,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',
+    created_at  TIMESTAMP    NOT NULL,
+    updated_at  TIMESTAMP    NOT NULL,
+    created_by  BIGINT       NOT NULL,
     CONSTRAINT fk_chat_game    FOREIGN KEY (game_id)    REFERENCES games(id),
-    CONSTRAINT fk_chat_team    FOREIGN KEY (team_id)    REFERENCES teams(id),
     CONSTRAINT fk_chat_creator FOREIGN KEY (created_by) REFERENCES members(id)
 );
 
-CREATE INDEX idx_chat_rooms_type    ON chat_rooms(type);
-CREATE INDEX idx_chat_rooms_game    ON chat_rooms(game_id);
-CREATE INDEX idx_chat_rooms_team    ON chat_rooms(team_id);
+CREATE INDEX idx_chat_rooms_type ON chat_rooms(type);
+CREATE INDEX idx_chat_rooms_game ON chat_rooms(game_id);
 
 -- 채팅방 참여자
-CREATE TABLE chat_participants (
-    id             BIGSERIAL   PRIMARY KEY,
-    room_id        BIGINT      NOT NULL,
-    member_id      BIGINT      NOT NULL,
-    status         VARCHAR(20) NOT NULL DEFAULT 'JOINED',  -- INVITED | JOINED | LEFT | KICKED
-    notification_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+-- status: INVITED | JOINED | LEFT | BANNED | DELETED
+-- BANNED: 강퇴(재입장 불가), DELETED: 방 삭제 시 일괄 처리
+CREATE TABLE chat_room_members (
+    id                   BIGSERIAL   PRIMARY KEY,
+    room_id              BIGINT      NOT NULL,
+    member_id            BIGINT      NOT NULL,
+    status               VARCHAR(20) NOT NULL DEFAULT 'JOINED',
+    notification_enabled BOOLEAN     NOT NULL DEFAULT TRUE,
     last_read_message_id BIGINT,
-    joined_at      TIMESTAMP,
-    left_at        TIMESTAMP,
-    CONSTRAINT fk_cp_room   FOREIGN KEY (room_id)   REFERENCES chat_rooms(id),
-    CONSTRAINT fk_cp_member FOREIGN KEY (member_id) REFERENCES members(id),
-    CONSTRAINT uq_cp        UNIQUE (room_id, member_id)
+    joined_at            TIMESTAMP   NOT NULL,
+    updated_at           TIMESTAMP   NOT NULL,
+    CONSTRAINT fk_crm_room   FOREIGN KEY (room_id)   REFERENCES chat_rooms(id),
+    CONSTRAINT fk_crm_member FOREIGN KEY (member_id) REFERENCES members(id),
+    CONSTRAINT uk_chat_room_members_room_member UNIQUE (room_id, member_id)
 );
 
-CREATE INDEX idx_cp_room   ON chat_participants(room_id, status);
-CREATE INDEX idx_cp_member ON chat_participants(member_id, status);
+CREATE INDEX idx_crm_room   ON chat_room_members(room_id, status);
+CREATE INDEX idx_crm_member ON chat_room_members(member_id, status);
 
 -- 채팅 메시지
+-- type: TEXT | IMAGE | FILE | SYSTEM
+-- status: ACTIVE | DELETED (soft delete)
 CREATE TABLE chat_messages (
-    id          BIGSERIAL    PRIMARY KEY,
-    room_id     BIGINT       NOT NULL,
-    sender_id   BIGINT       NOT NULL,
-    content     TEXT,
-    type        VARCHAR(20)  NOT NULL DEFAULT 'MESSAGE',  -- MESSAGE | CHEER | SYSTEM | FILE | IMAGE
-    status      VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',   -- ACTIVE | DELETED
-    is_filtered BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMP    NOT NULL,
-    deleted_at  TIMESTAMP,
+    id         BIGSERIAL   PRIMARY KEY,
+    room_id    BIGINT      NOT NULL,
+    sender_id  BIGINT      NOT NULL,
+    content    TEXT        NOT NULL,
+    type       VARCHAR(20) NOT NULL DEFAULT 'TEXT',
+    status     VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP   NOT NULL,
     CONSTRAINT fk_msg_room   FOREIGN KEY (room_id)   REFERENCES chat_rooms(id),
     CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id) REFERENCES members(id)
 );
 
--- 채팅 메시지 순서 보장: created_at 인덱스 필수
 CREATE INDEX idx_msg_room_time ON chat_messages(room_id, created_at DESC);
 CREATE INDEX idx_msg_sender    ON chat_messages(sender_id);
 ```
@@ -363,6 +364,7 @@ CREATE TABLE notification_settings (
     ticket_open_alert   BOOLEAN   NOT NULL DEFAULT TRUE,
     game_start_alert    BOOLEAN   NOT NULL DEFAULT TRUE,
     payment_alert       BOOLEAN   NOT NULL DEFAULT TRUE,
+    chat_mention_alert  BOOLEAN   NOT NULL DEFAULT TRUE,
     updated_at          TIMESTAMP,
     CONSTRAINT fk_ns_member FOREIGN KEY (member_id) REFERENCES members(id),
     CONSTRAINT uq_ns_member UNIQUE (member_id)
