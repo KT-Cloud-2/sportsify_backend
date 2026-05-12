@@ -28,4 +28,5 @@ public interface MessageRepository {
 
 
     List<Message> findMyLatestByRooms(List<ChatRoomId> roomIds, MemberId memberId);
+
 }

@@ -93,5 +93,8 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
             @Param("messageId") Long messageId,
             @Param("now") LocalDateTime now);
 
+    @Query("SELECT m.memberId, m.lastReadMessageId FROM ChatRoomMemberJpaEntity m " +
+            "WHERE m.roomId = :roomId AND m.status = 'JOINED'")
+    List<Object[]> findLastReadMessageIdsByRoomId(@Param("roomId") Long roomId);
 
 }

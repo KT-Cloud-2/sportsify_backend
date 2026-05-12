@@ -11,6 +11,7 @@ public record ChatMessageResponse(
         Instant createdAt
 ) {
     public static ChatMessageResponse of(Message message) {
+        if (message == null) return null;
         return new ChatMessageResponse(
                 message.getId().value(),
                 message.getContent().value(),

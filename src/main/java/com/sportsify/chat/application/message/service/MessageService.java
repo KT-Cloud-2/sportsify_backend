@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -106,7 +107,7 @@ public class MessageService {
         List<Message> messages = messageRepo.findByRoomAndMemberBefore(chatRoomId, id, request.cursor(), request.limit() + 1);
 
         PageResult page = paginate(messages, request.limit());
-        return new MessageListResponse(page.items().stream().map(MessageSummaryResponse::from).toList(), page.nextCursor(), page.hasNext(), page.items().size());
+        return new MessageListResponse(page.items().stream().map(MessageSummaryResponse::from).toList(), null, page.nextCursor(), page.hasNext(), page.items().size());
 
     }
 
@@ -131,10 +132,17 @@ public class MessageService {
 
         PageResult page = paginate(messages, request.limit());
 
+        Map<MemberId, MessageId> chatRoomMembersInfo = chatRoomMemberRepo.findLastMessageIdsAndMemberIdsByRoomId(chatRoomId);
+
         if (!page.items().isEmpty() && roomStatus == ChatRoomStatus.ACTIVE && isMember) {
             read(chatRoomId.value(), id.value(), page.items().getLast().getId().value());
         }
-        return new MessageListResponse(page.items().stream().map(MessageResponse::from).toList(), page.nextCursor(), page.hasNext(), page.items().size());
+        return new MessageListResponse(
+                page.items().stream().map(MessageResponse::from).toList(),
+                MessageMemberInfoSummaryResponse.of(chatRoomMembersInfo),
+                page.nextCursor(),
+                page.hasNext(),
+                page.items().size());
     }
 
 

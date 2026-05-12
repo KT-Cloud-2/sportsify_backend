@@ -151,5 +151,16 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
                 LocalDateTime.ofInstant(now, ZoneOffset.UTC)) != 0;
     }
 
+    @Override
+    public Map<MemberId, MessageId> findLastMessageIdsAndMemberIdsByRoomId(ChatRoomId roomId) {
+        return jpaRepo.findLastReadMessageIdsByRoomId(roomId.value())
+                .stream()
+                .filter(row -> row[1] != null)
+                .collect(Collectors.toMap(
+                        row -> MemberId.of((Long) row[0]),
+                        row -> MessageId.of((Long) row[1])
+                ));
+    }
+
 
 }
