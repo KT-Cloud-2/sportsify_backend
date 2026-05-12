@@ -1,5 +1,6 @@
 package com.sportsify.payment.application.service;
 
+import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
 import com.sportsify.payment.application.dto.PaymentResponse;
@@ -47,14 +48,7 @@ public class PaymentService {
 
         Payment savedPayment = paymentRepository.save(payment);
 
-        return PaymentResponse.builder()
-                .paymentId(savedPayment.getId())
-                .orderId(savedPayment.getOrderId())
-                .amount(savedPayment.getAmount())
-                .paymentMethod(savedPayment.getPaymentMethod())
-                .status(savedPayment.getStatus().name())
-                .requestedAt(savedPayment.getRequestedAt())
-                .build();
+        return toResponse(savedPayment);
     }
 
     @Transactional
@@ -84,16 +78,7 @@ public class PaymentService {
                 parseApprovedAt(tossResponse.getApprovedAt())
         );
 
-        return PaymentResponse.builder()
-                .paymentId(payment.getId())
-                .orderId(payment.getOrderId())
-                .paymentKey(payment.getPaymentKey())
-                .amount(payment.getAmount())
-                .paymentMethod(payment.getPaymentMethod())
-                .status(payment.getStatus().name())
-                .requestedAt(payment.getRequestedAt())
-                .approvedAt(payment.getApprovedAt())
-                .build();
+        return toResponse(payment);
     }
 
     @Transactional
@@ -117,6 +102,36 @@ public class PaymentService {
                 LocalDateTime.now()
         );
 
+        return toResponse(payment);
+    }
+
+    @Transactional
+    public PaymentResponse cancelPayment(Long paymentId, CancelPaymentRequest request) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException("존재하지 않는 결제입니다."));
+
+        if (payment.getStatus() == PaymentStatus.CANCELED) {
+            throw new InvalidPaymentStatusException("이미 취소된 결제입니다.");
+        }
+
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            throw new InvalidPaymentStatusException("완료된 결제만 취소할 수 있습니다.");
+        }
+
+        if (payment.getPaymentKey() == null || payment.getPaymentKey().isBlank()) {
+            throw new InvalidPaymentStatusException("결제 키가 없는 결제는 취소할 수 없습니다.");
+        }
+
+        if (!payment.getPaymentKey().startsWith("MOCK_")) {
+            tossPaymentClient.cancel(payment.getPaymentKey(), request.getCancelReason());
+        }
+
+        payment.markCanceled(request.getCancelReason(), LocalDateTime.now());
+
+        return toResponse(payment);
+    }
+
+    private PaymentResponse toResponse(Payment payment) {
         return PaymentResponse.builder()
                 .paymentId(payment.getId())
                 .orderId(payment.getOrderId())

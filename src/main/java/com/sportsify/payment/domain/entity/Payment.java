@@ -62,6 +62,12 @@ public class Payment {
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
+    @Column(name = "canceled_at")
+    private LocalDateTime canceledAt;
+
+    @Column(name = "cancel_reason", length = 255)
+    private String cancelReason;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -82,7 +88,9 @@ public class Payment {
             String paymentMethod,
             PaymentStatus status,
             LocalDateTime requestedAt,
-            LocalDateTime approvedAt
+            LocalDateTime approvedAt,
+            LocalDateTime canceledAt,
+            String cancelReason
     ) {
         this.userId = userId;
         this.matchId = matchId;
@@ -95,6 +103,8 @@ public class Payment {
         this.status = status;
         this.requestedAt = requestedAt;
         this.approvedAt = approvedAt;
+        this.canceledAt = canceledAt;
+        this.cancelReason = cancelReason;
     }
 
     public void markCompleted(String paymentKey, String paymentMethod, LocalDateTime approvedAt) {
@@ -102,5 +112,11 @@ public class Payment {
         this.paymentMethod = paymentMethod;
         this.status = PaymentStatus.COMPLETED;
         this.approvedAt = approvedAt;
+    }
+
+    public void markCanceled(String cancelReason, LocalDateTime canceledAt) {
+        this.status = PaymentStatus.CANCELED;
+        this.cancelReason = cancelReason;
+        this.canceledAt = canceledAt;
     }
 }

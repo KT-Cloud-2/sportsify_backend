@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -23,8 +24,7 @@ public class TossPaymentClient {
     private String confirmUrl;
 
     public TossConfirmResponse confirm(TossConfirmRequest request) {
-        String encodedSecretKey = Base64.getEncoder()
-                .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
+        String encodedSecretKey = createEncodedSecretKey();
 
         return RestClient.create()
                 .post()
@@ -34,5 +34,23 @@ public class TossPaymentClient {
                 .body(request)
                 .retrieve()
                 .body(TossConfirmResponse.class);
+    }
+
+    public void cancel(String paymentKey, String cancelReason) {
+        String encodedSecretKey = createEncodedSecretKey();
+
+        RestClient.create()
+                .post()
+                .uri("https://api.tosspayments.com/v1/payments/{paymentKey}/cancel", paymentKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Basic " + encodedSecretKey)
+                .body(Map.of("cancelReason", cancelReason))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    private String createEncodedSecretKey() {
+        return Base64.getEncoder()
+                .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
     }
 }
