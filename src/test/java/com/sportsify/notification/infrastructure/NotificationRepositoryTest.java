@@ -5,7 +5,7 @@ import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import com.sportsify.support.RepositoryTestSupport;

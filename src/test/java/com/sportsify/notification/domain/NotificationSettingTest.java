@@ -1,6 +1,6 @@
 package com.sportsify.notification.domain;
 
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.domain.model.NotificationSetting;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
