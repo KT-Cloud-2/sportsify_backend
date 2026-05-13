@@ -30,8 +30,8 @@ public class ReservationService {
     private final GameRepository gameRepository;
 
     @Transactional
-    public ReservationSeatsResponseDto reserveSeat(ReservationSeatsRequestDto reqDto) {
-        Member member = memberRepository.findById(reqDto.buyerId())
+    public ReservationSeatsResponseDto reserveSeat(Long memberId, ReservationSeatsRequestDto reqDto) {
+        Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         Game game = gameRepository.findById(reqDto.gameId())

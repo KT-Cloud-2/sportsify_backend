@@ -70,9 +70,9 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     void createOrder() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds, member.getId());
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
 
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(reqDto);
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
 
         assertThat(resDto.gameId()).isEqualTo(game.getId());
         assertThat(resDto.memberId()).isEqualTo(member.getId());
@@ -99,18 +99,17 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     void concurrentReservation_onlyOneSucceeds(int users, int threadCount) throws InterruptedException {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 1);
 
-        ArrayList<Member> members = new ArrayList<>();
+        ArrayList<Long> memberIds = new ArrayList<>();
         ArrayList<ReservationSeatsRequestDto> requests = new ArrayList<>();
 
         for (int i = 0; i < users; i++) {
-            members.add(fixture.createMemberWithNum(i));
+            memberIds.add(fixture.createMemberWithNum(i).getId());
         }
 
         Random random = new Random();
 
         for (int i = 0; i < threadCount; i++) {
-            int value = random.nextInt(users);
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), gameSeatIds, members.get(value).getId()));
+            requests.add(ReservationSeatsRequestDto.from(game.getId(), gameSeatIds));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -127,7 +126,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
                 ready.countDown();
                 try {
                     start.await();
-                    reservationService.reserveSeat(req);
+                    reservationService.reserveSeat(memberIds.get(random.nextInt(users)), req);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();
@@ -158,15 +157,15 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     void concurrentReservation_allSucceeds(int users, int threadCount) throws InterruptedException {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, threadCount);
 
-        ArrayList<Member> members = new ArrayList<>();
+        ArrayList<Long> memberIds = new ArrayList<>();
         ArrayList<ReservationSeatsRequestDto> requests = new ArrayList<>();
 
         for (int i = 0; i < users; i++) {
-            members.add(fixture.createMemberWithNum(i));
+            memberIds.add(fixture.createMemberWithNum(i).getId());
         }
 
         for (int i = 0; i < threadCount; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i)), members.get(i).getId()));
+            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i))));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -178,12 +177,13 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
 
-        for (ReservationSeatsRequestDto req : requests) {
+        for (int i = 0; i < threadCount; i++) {
+            int finalI = i;
             executor.submit(() -> {
                 ready.countDown();
                 try {
                     start.await();
-                    reservationService.reserveSeat(req);
+                    reservationService.reserveSeat(memberIds.get(finalI), requests.get(finalI));
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();
@@ -214,19 +214,18 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     void concurrentReservation_halfSucceeds(int users, int threadCount) throws InterruptedException {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, threadCount);
 
-        ArrayList<Member> members = new ArrayList<>();
+        ArrayList<Long> memberIds = new ArrayList<>();
         ArrayList<ReservationSeatsRequestDto> requests = new ArrayList<>();
 
         for (int i = 0; i < users; i++) {
-            members.add(fixture.createMemberWithNum(i));
+            memberIds.add(fixture.createMemberWithNum(i).getId());
         }
 
         Random random = new Random();
 
         for (int i = 0; i < threadCount / 2; i++) {
-            int value = random.nextInt(users);
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2), gameSeatIds.get(i * 2 + 1)), members.get(value).getId()));
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2)), members.get(value).getId()));
+            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2), gameSeatIds.get(i * 2 + 1))));
+            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2))));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -243,7 +242,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
                 ready.countDown();
                 try {
                     start.await();
-                    reservationService.reserveSeat(req);
+                    reservationService.reserveSeat(memberIds.get(random.nextInt(users)), req);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();
@@ -262,14 +261,13 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         assertThat(failCount.get()).isEqualTo(threadCount / 2);
     }
 
-
     @Test
     @DisplayName("만료된 주문의 좌석이 AVAILABLE로 복구된다")
     void expiredOrder_seatBecomesAvailable() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds, member.getId());
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(reqDto);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
         Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
         order.updateExpiresAt(order.getExpiresAt().minusMinutes(16));

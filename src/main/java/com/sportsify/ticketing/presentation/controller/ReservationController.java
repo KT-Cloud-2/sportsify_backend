@@ -6,6 +6,7 @@ import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,7 +21,8 @@ public class ReservationController {
 
     @PostMapping
     public ResponseEntity<ReservationSeatsResponseDto> reserveSeats(
+            @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody ReservationSeatsRequestDto reqDto) {
-        return ResponseEntity.ok(reservationService.reserveSeat(reqDto));
+        return ResponseEntity.ok(reservationService.reserveSeat(memberId, reqDto));
     }
 }
