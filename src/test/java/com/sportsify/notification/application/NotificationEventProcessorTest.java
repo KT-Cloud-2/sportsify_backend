@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,6 +63,18 @@ class NotificationEventProcessorTest {
         given(fanoutService.fanout(any(), any(), any())).willReturn(true);
 
         processor.process(NotificationEventType.PAYMENT_COMPLETED, "{}");
+
+        verify(statusService).markEventStatus(1L, true);
+    }
+
+    @Test
+    @DisplayName("fanout에서 예외 발생해도 이벤트 상태를 FAILED로 마킹한다")
+    void process_fanout예외_FAILED마킹() {
+        NotificationEvent event = NotificationEvent.withId(1L, NotificationEventType.TICKET_OPEN, "{}");
+        given(statusService.saveEvent(any(), any())).willReturn(event);
+        willThrow(new RuntimeException("예기치 못한 예외")).given(fanoutService).fanout(any(), any(), any());
+
+        processor.process(NotificationEventType.TICKET_OPEN, "{}");
 
         verify(statusService).markEventStatus(1L, true);
     }

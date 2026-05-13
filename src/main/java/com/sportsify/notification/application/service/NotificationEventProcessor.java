@@ -16,7 +16,13 @@ public class NotificationEventProcessor {
 
     public void process(NotificationEventType eventType, String payload) {
         NotificationEvent event = statusService.saveEvent(eventType, payload);
-        boolean anyFailed = fanoutService.fanout(event, eventType, payload);
-        statusService.markEventStatus(event.getId(), anyFailed);
+        boolean anyFailed = true;
+        try {
+            anyFailed = fanoutService.fanout(event, eventType, payload);
+        } catch (Exception e) {
+            log.error("fanout 중 예외 발생 eventId={} eventType={}", event.getId(), eventType, e);
+        } finally {
+            statusService.markEventStatus(event.getId(), anyFailed);
+        }
     }
 }
