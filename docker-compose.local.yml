@@ -1,8 +1,21 @@
+# 로컬 개발용 인프라 (postgres + redis)
+# 실행:  docker compose -f docker-compose.local.yml up -d
+# 종료:  docker compose -f docker-compose.local.yml down
+#
+# [postgres 스키마 초기화]
+# 1) 볼륨 포함 전체 삭제 후 재기동 (Flyway가 마이그레이션 재실행)
+#    docker compose -f docker-compose.local.yml down -v
+#    docker compose -f docker-compose.local.yml up -d
+#
+# 2) DB만 DROP & CREATE 후 재기동
+#    docker exec -it sportsify-postgres psql -U sportsify -c "DROP DATABASE sportsify;"
+#    docker exec -it sportsify-postgres psql -U sportsify -c "CREATE DATABASE sportsify;"
+
 services:
   postgres:
     image: postgres:18
     container_name: sportsify-postgres
-    env_file: .env.local
+    env_file: .env
     environment:
       POSTGRES_DB: ${DB_NAME:-sportsify}
       POSTGRES_USER: ${DB_USERNAME:-sportsify}
@@ -11,15 +24,22 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sportsify}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:8-alpine
     container_name: sportsify-redis
+    # redis.conf 공식 기본값 기준 (https://raw.githubusercontent.com/redis/redis/8.0/redis.conf)
+    # M2 Air 로컬 개발 기준: 영속성 비활성화, 메모리 상한 256m, LRU 축출
+    command: >
+      redis-server
+      --save ""
+      --appendonly no
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --hz 10
+      --loglevel warning
+      --databases 1
+      --tcp-keepalive 300
     ports:
       - "6379:6379"
     volumes:
@@ -30,34 +50,6 @@ services:
       timeout: 3s
       retries: 5
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: sportsify-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: sportsify-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on:
-      - prometheus
-
 volumes:
   postgres_data:
   redis_data:
-  prometheus_data:
-  grafana_data:
