@@ -6,5 +6,6 @@ public record TicketOpenPayload(
         Long gameId,
         String homeTeam,
         String awayTeam,
+        LocalDateTime salesStartAt,
         LocalDateTime gameStartAt
 ) implements NotificationPayload {}
