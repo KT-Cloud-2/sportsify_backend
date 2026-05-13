@@ -9,8 +9,8 @@ public class TossConfirmResponse {
 
     private String paymentKey;
     private String orderId;
-    private Long totalAmount;
-    private String method;
-    private String approvedAt;
     private String status;
+    private String method;
+    private Long totalAmount;
+    private String approvedAt;
 }
