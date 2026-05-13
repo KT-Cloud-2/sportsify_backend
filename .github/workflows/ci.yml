@@ -35,7 +35,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build
-        run: ./gradlew build -x test --no-daemon
+        run: ./gradlew build
 
 # CD는 인프라 구성 완료 후 추가 예정
 # deploy job: main 브랜치 push 시 EC2-1 Blue/Green 배포

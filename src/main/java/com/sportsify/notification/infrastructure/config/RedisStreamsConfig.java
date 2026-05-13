@@ -2,7 +2,7 @@ package com.sportsify.notification.infrastructure.config;
 
 import com.sportsify.common.exception.InfrastructureErrorCode;
 import com.sportsify.common.exception.InfrastructureException;
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

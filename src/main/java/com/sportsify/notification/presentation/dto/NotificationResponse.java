@@ -1,7 +1,7 @@
 package com.sportsify.notification.presentation.dto;
 
 import com.sportsify.notification.application.dto.NotificationResult;
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;

@@ -39,4 +39,20 @@ public class GameSeat {
         this.price = price;
     }
 
+    public void updateSeatStatus(SeatStatus status) {
+        this.seatStatus = status;
+    }
+
+    public String getZoneGradeName() {
+        return seat.getZoneGrade().getName();
+    }
+
+    public String getSectionName() {
+        return seat.getSection().getName();
+    }
+
+    public Long getSeatId() {
+        return seat.getId();
+    }
+
 }

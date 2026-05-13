@@ -94,4 +94,11 @@ public class Game {
         this.saleEndAt = saleEndAt;
     }
 
+    public boolean isOnSale() {
+        return this.status == GameStatus.ON_SALE;
+    }
+
+    public void updateStatus(GameStatus status) {
+        this.status = status;
+    }
 }

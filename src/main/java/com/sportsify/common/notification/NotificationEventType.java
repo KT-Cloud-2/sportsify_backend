@@ -1,4 +1,4 @@
-package com.sportsify.notification.domain.model;
+package com.sportsify.common.notification;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

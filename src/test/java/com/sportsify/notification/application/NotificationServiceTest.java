@@ -6,7 +6,7 @@ import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;

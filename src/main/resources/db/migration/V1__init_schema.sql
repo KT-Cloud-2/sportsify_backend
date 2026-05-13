@@ -168,28 +168,28 @@ CREATE TABLE orders
     id         BIGSERIAL PRIMARY KEY,
     member_id  BIGINT,
     status     VARCHAR(20) NOT NULL, -- PENDING | CONFIRMED | CANCELLED
+    expires_at TIMESTAMP,            -- 선점 만료 시각 (15분)
     created_at TIMESTAMP   NOT NULL,
     updated_at TIMESTAMP,
     CONSTRAINT fk_order_member FOREIGN KEY (member_id) REFERENCES members (id)
 );
 
 CREATE INDEX idx_orders_member ON orders (member_id);
+CREATE INDEX idx_order_seats_expires ON orders (expires_at) WHERE status = 'PENDING';
 
 -- 주문 좌석 (주문 1건에 여러 좌석 가능, 선점 만료 포함)
 CREATE TABLE order_seats
 (
     id           BIGSERIAL PRIMARY KEY,
-    order_id     BIGINT NOT NULL,
-    game_seat_id BIGINT NOT NULL,
-    status       VARCHAR(30), -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
-    expires_at   TIMESTAMP,   -- 선점 만료 시각 (15분)
+    order_id     BIGINT      NOT NULL,
+    game_seat_id BIGINT      NOT NULL,
+    status       VARCHAR(30) NOT NULL, -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
     created_at   TIMESTAMP,
     CONSTRAINT fk_os_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_os_game_seat FOREIGN KEY (game_seat_id) REFERENCES game_seats (id)
 );
 
 CREATE INDEX idx_order_seats_order ON order_seats (order_id);
-CREATE INDEX idx_order_seats_expires ON order_seats (expires_at) WHERE status = 'HOLDING';
 
 -- 티켓 (결제 완료 후 발급, UUID 기반 고유 번호)
 CREATE TABLE tickets
@@ -276,15 +276,15 @@ CREATE INDEX idx_price_policies_zone_grade ON price_policies (zone_grade_id);
 
 CREATE TABLE chat_rooms
 (
-    id               BIGSERIAL PRIMARY KEY,
-    name             VARCHAR(100) NOT NULL,
-    type             VARCHAR(20) NOT NULL, -- GAME | DIRECT
-    image_url        TEXT,
-    game_id          BIGINT,
-    created_by       BIGINT NOT NULL,
-    created_at       TIMESTAMP NOT NULL,
-    updated_at       TIMESTAMP NOT NULL,
-    status           VARCHAR(20) NOT NULL, -- ACTIVE | ARCHIVED | DELETED
+    id         BIGSERIAL PRIMARY KEY,
+    name       VARCHAR(100) NOT NULL,
+    type       VARCHAR(20)  NOT NULL, -- GAME | DIRECT
+    image_url  TEXT,
+    game_id    BIGINT,
+    created_by BIGINT       NOT NULL,
+    created_at TIMESTAMP    NOT NULL,
+    updated_at TIMESTAMP    NOT NULL,
+    status     VARCHAR(20)  NOT NULL, -- ACTIVE | ARCHIVED | DELETED
     CONSTRAINT fk_chat_game FOREIGN KEY (game_id) REFERENCES games (id),
     CONSTRAINT fk_chat_creator FOREIGN KEY (created_by) REFERENCES members (id)
 );
@@ -293,13 +293,13 @@ CREATE INDEX idx_chat_rooms_game_id ON chat_rooms (game_id);
 
 CREATE TABLE chat_messages
 (
-    id          BIGSERIAL PRIMARY KEY,
-    room_id     BIGINT      NOT NULL,
-    sender_id   BIGINT      NOT NULL,
-    content     TEXT,
-    type        VARCHAR(20) NOT NULL DEFAULT 'TEXT', -- TEXT | IMAGE | FILE | SYSTEM
-    status      VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',  -- ACTIVE | DELETED
-    created_at  TIMESTAMP   NOT NULL,
+    id         BIGSERIAL PRIMARY KEY,
+    room_id    BIGINT      NOT NULL,
+    sender_id  BIGINT      NOT NULL,
+    content    TEXT,
+    type       VARCHAR(20) NOT NULL DEFAULT 'TEXT',   -- TEXT | IMAGE | FILE | SYSTEM
+    status     VARCHAR(20) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE | DELETED
+    created_at TIMESTAMP   NOT NULL,
     CONSTRAINT fk_msg_room FOREIGN KEY (room_id) REFERENCES chat_rooms (id),
     CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id) REFERENCES members (id)
 );
@@ -315,7 +315,7 @@ CREATE TABLE chat_room_members
     status               VARCHAR(20) NOT NULL DEFAULT 'JOINED', -- INVITED | JOINED | LEFT | BANNED
     notification_enabled BOOLEAN     NOT NULL DEFAULT TRUE,
     last_read_message_id BIGINT,
-    joined_at            TIMESTAMP   NOT NULL ,
+    joined_at            TIMESTAMP   NOT NULL,
     updated_at           TIMESTAMP   NOT NULL,
     CONSTRAINT fk_cp_room FOREIGN KEY (room_id) REFERENCES chat_rooms (id),
     CONSTRAINT fk_cp_member FOREIGN KEY (member_id) REFERENCES members (id),
@@ -335,13 +335,13 @@ CREATE INDEX idx_chat_room_members_member ON chat_room_members (member_id);
 -- 알림 설정 (사용자별 ON/OFF)
 CREATE TABLE notification_settings
 (
-    id                BIGSERIAL PRIMARY KEY,
-    member_id         BIGINT  NOT NULL,
-    ticket_open_alert   BOOLEAN NOT NULL DEFAULT TRUE,
-    game_start_alert    BOOLEAN NOT NULL DEFAULT TRUE,
-    payment_alert       BOOLEAN NOT NULL DEFAULT TRUE,
-    chat_mention_alert  BOOLEAN NOT NULL DEFAULT TRUE,
-    updated_at          TIMESTAMP,
+    id                 BIGSERIAL PRIMARY KEY,
+    member_id          BIGINT  NOT NULL,
+    ticket_open_alert  BOOLEAN NOT NULL DEFAULT TRUE,
+    game_start_alert   BOOLEAN NOT NULL DEFAULT TRUE,
+    payment_alert      BOOLEAN NOT NULL DEFAULT TRUE,
+    chat_mention_alert BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at         TIMESTAMP,
     CONSTRAINT fk_ns_member FOREIGN KEY (member_id) REFERENCES members (id),
     CONSTRAINT uq_ns_member UNIQUE (member_id)
 );
@@ -368,12 +368,15 @@ CREATE TABLE notification_events
     id           BIGSERIAL PRIMARY KEY,
     event_type   VARCHAR(50) NOT NULL,                   -- TICKET_OPEN | GAME_START | PAYMENT_COMPLETED | CHAT_MENTION
     payload      JSONB,
-    status       VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING | PUBLISHED | FAILED
+    status       VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING | PROCESSING | PUBLISHED | FAILED | CANCELLED
     created_at   TIMESTAMP   NOT NULL,
-    published_at TIMESTAMP
+    published_at TIMESTAMP,
+    scheduled_at TIMESTAMP NULL                          -- 예약 발송 시각 (null = 즉시 발송)
 );
 
 CREATE INDEX idx_ne_status ON notification_events (status, created_at);
+CREATE INDEX idx_ne_scheduled ON notification_events (status, scheduled_at)
+    WHERE scheduled_at IS NOT NULL;
 
 -- 사용자 인박스 알림
 CREATE TABLE notifications

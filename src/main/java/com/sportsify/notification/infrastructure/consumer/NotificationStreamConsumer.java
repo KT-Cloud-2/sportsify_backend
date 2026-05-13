@@ -1,7 +1,7 @@
 package com.sportsify.notification.infrastructure.consumer;
 
 import com.sportsify.notification.application.service.NotificationEventProcessor;
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
