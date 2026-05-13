@@ -22,18 +22,23 @@ public class NotificationFanoutService {
     private final NotificationChunkService chunkService;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
-        if (eventType == NotificationEventType.CHAT_MENTION) {
-            return fanoutChatMention(event, payload);
+        if (isSingleTarget(eventType)) {
+            return fanoutSingleTarget(event, eventType, payload);
         }
         return fanoutBroadcast(event, eventType, payload);
     }
 
-    private boolean fanoutChatMention(NotificationEvent event, String payload) {
+    private boolean isSingleTarget(NotificationEventType eventType) {
+        return eventType == NotificationEventType.CHAT_MENTION
+                || eventType == NotificationEventType.PAYMENT_COMPLETED;
+    }
+
+    private boolean fanoutSingleTarget(NotificationEvent event, NotificationEventType eventType, String payload) {
         try {
-            Long memberId = ChatMentionPayloadParser.extractMemberId(payload);
+            Long memberId = NotificationPayloadParser.extractMemberId(payload, eventType.name());
             return chunkService.processChunk(event, List.of(memberId), payload);
         } catch (Exception e) {
-            log.error("CHAT_MENTION payload에서 memberId 추출 실패 payload={}", payload, e);
+            log.error("{} payload에서 memberId 추출 실패", eventType.name(), e);
             return true;
         }
     }
@@ -58,8 +63,7 @@ public class NotificationFanoutService {
         return switch (eventType) {
             case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue(pageable);
             case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue(pageable);
-            case PAYMENT_COMPLETED -> settingRepository.findMemberIdsByPaymentAlertTrue(pageable);
-            case CHAT_MENTION -> throw new IllegalStateException("CHAT_MENTION은 fanoutChatMention으로 처리");
+            default -> throw new IllegalStateException("단건 발송 이벤트는 fanoutSingleTarget으로 처리: " + eventType);
         };
     }
 }

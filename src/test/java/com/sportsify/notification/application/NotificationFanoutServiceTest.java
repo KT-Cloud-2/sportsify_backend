@@ -65,23 +65,35 @@ class NotificationFanoutServiceTest {
     }
 
     @Test
-    @DisplayName("PAYMENT_COMPLETED는 paymentAlert ON 회원 전체에게 fan-out한다")
-    void fanout_결제완료_전체발송() {
+    @DisplayName("PAYMENT_COMPLETED는 payload의 memberId 단 한 명에게만 발송한다")
+    void fanout_결제완료_단건발송() {
         NotificationEvent event = NotificationEvent.withId(3L, NotificationEventType.PAYMENT_COMPLETED, "{}");
-        given(settingRepository.findMemberIdsByPaymentAlertTrue(any()))
-                .willReturn(new SliceImpl<>(List.of(5L)));
+        String payload = "{\"paymentId\":99,\"memberId\":5,\"amount\":10000}";
 
-        fanoutService.fanout(event, NotificationEventType.PAYMENT_COMPLETED, "{}");
+        fanoutService.fanout(event, NotificationEventType.PAYMENT_COMPLETED, payload);
 
         ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
-        verify(chunkService).processChunk(eq(event), captor.capture(), any());
+        verify(chunkService).processChunk(eq(event), captor.capture(), eq(payload));
         assertThat(captor.getValue()).containsExactly(5L);
+        verify(settingRepository, never()).findMemberIdsByPaymentAlertTrue(any());
+    }
+
+    @Test
+    @DisplayName("PAYMENT_COMPLETED payload에 memberId 없으면 발송하지 않고 실패 반환한다")
+    void fanout_결제완료_memberId없음_실패() {
+        NotificationEvent event = NotificationEvent.withId(4L, NotificationEventType.PAYMENT_COMPLETED, "{}");
+        String invalidPayload = "{\"paymentId\":99,\"amount\":10000}";
+
+        boolean result = fanoutService.fanout(event, NotificationEventType.PAYMENT_COMPLETED, invalidPayload);
+
+        verify(chunkService, never()).processChunk(any(), any(), any());
+        assertThat(result).isTrue();
     }
 
     @Test
     @DisplayName("CHAT_MENTION은 payload의 memberId 단 한 명에게만 발송한다")
     void fanout_채팅알림_단건발송() {
-        NotificationEvent event = NotificationEvent.withId(4L, NotificationEventType.CHAT_MENTION, "{}");
+        NotificationEvent event = NotificationEvent.withId(5L, NotificationEventType.CHAT_MENTION, "{}");
         String payload = "{\"roomId\":7,\"memberId\":42}";
 
         fanoutService.fanout(event, NotificationEventType.CHAT_MENTION, payload);
@@ -95,7 +107,7 @@ class NotificationFanoutServiceTest {
     @Test
     @DisplayName("CHAT_MENTION payload에 memberId 없으면 발송하지 않고 실패 반환한다")
     void fanout_채팅알림_memberId없음_실패() {
-        NotificationEvent event = NotificationEvent.withId(5L, NotificationEventType.CHAT_MENTION, "{}");
+        NotificationEvent event = NotificationEvent.withId(6L, NotificationEventType.CHAT_MENTION, "{}");
         String invalidPayload = "{\"roomId\":7}";
 
         boolean result = fanoutService.fanout(event, NotificationEventType.CHAT_MENTION, invalidPayload);
@@ -105,9 +117,9 @@ class NotificationFanoutServiceTest {
     }
 
     @Test
-    @DisplayName("대상 회원이 없으면 chunkService를 호출하지 않는다")
-    void fanout_대상없음_chunk미호출() {
-        NotificationEvent event = NotificationEvent.withId(6L, NotificationEventType.TICKET_OPEN, "{}");
+    @DisplayName("대상 회원이 없으면 chunkService를 빈 리스트로 호출한다")
+    void fanout_대상없음_빈리스트로chunk호출() {
+        NotificationEvent event = NotificationEvent.withId(7L, NotificationEventType.TICKET_OPEN, "{}");
         given(settingRepository.findMemberIdsByTicketOpenAlertTrue(any()))
                 .willReturn(new SliceImpl<>(List.of()));
 
