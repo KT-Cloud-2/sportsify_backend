@@ -104,7 +104,7 @@ public class PaymentEventListener {
         }
 
         order.updateStatus(OrderStatus.PENDING);
-        order.updateExpiresAt(event.failedAt().plusMinutes(15));
+        order.updateExpiresAt(event.occurredAt().plusMinutes(15));
     }
 
 }

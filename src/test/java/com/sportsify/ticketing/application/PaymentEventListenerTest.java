@@ -1,9 +1,5 @@
 package com.sportsify.ticketing.application;
 
-import com.sportsify.common.event.PaymentCancelledEvent;
-import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentFailedEvent;
-import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
@@ -14,6 +10,7 @@ import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.domain.model.OrderSeatStatus;
 import com.sportsify.ticketing.domain.model.OrderStatus;
+import com.sportsify.ticketing.fixture.PaymentEventListenerTestFixture;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
@@ -52,6 +49,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     private ReservationService reservationService;
     @Autowired
     private TicketingTestFixture fixture;
+    @Autowired
+    private PaymentEventListenerTestFixture eventFixture;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
@@ -82,7 +81,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.updateStatus(OrderStatus.CONFIRMED);
 
-        eventPublisher.publishEvent(new PaymentStartedEvent(orderId));
+        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
 
         Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
 
@@ -97,7 +96,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        eventPublisher.publishEvent(new PaymentStartedEvent(orderId));
+        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
 
         Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
 
@@ -117,7 +116,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
             Order order = orderRepository.findById(orderId).orElseThrow();
             order.updateStatus(status);
 
-            eventPublisher.publishEvent(new PaymentCompletedEvent(orderId));
+            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -138,8 +137,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(new PaymentStartedEvent(orderId));
-            eventPublisher.publishEvent(new PaymentCompletedEvent(orderId));
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -174,7 +173,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
             Order order = orderRepository.findById(orderId).orElseThrow();
             order.updateStatus(status);
 
-            eventPublisher.publishEvent(new PaymentCancelledEvent(orderId));
+            eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -195,8 +194,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(new PaymentStartedEvent(orderId));
-            eventPublisher.publishEvent(new PaymentCancelledEvent(orderId));
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -227,12 +226,12 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        LocalDateTime failedAt = LocalDateTime.now();
+        LocalDateTime occurredAt = LocalDateTime.now();
 
         transactionTemplate.executeWithoutResult(s -> {
             Order order = orderRepository.findById(orderId).orElseThrow();
             order.updateStatus(status);
-            eventPublisher.publishEvent(new PaymentFailedEvent(orderId, failedAt));
+            eventPublisher.publishEvent(eventFixture.createFailedEventByOrderId(orderId, occurredAt));
         });
 
         assertThat(output.getOut()).contains("결제 실패 처리 불가 상태");
@@ -245,18 +244,18 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        LocalDateTime failedAt = LocalDateTime.now();
+        LocalDateTime occurredAt = LocalDateTime.now();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(new PaymentStartedEvent(orderId));
-            eventPublisher.publishEvent(new PaymentFailedEvent(orderId, failedAt));
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createFailedEventByOrderId(orderId, occurredAt));
         });
 
         transactionTemplate.executeWithoutResult(s -> {
             Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
 
             assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
-            assertThat(updatedOrder.getExpiresAt()).isEqualTo(failedAt.plusMinutes(15));
+            assertThat(updatedOrder.getExpiresAt()).isEqualTo(occurredAt.plusMinutes(15));
             assertThat(updatedOrder.getOrderSeats())
                     .extracting(OrderSeat::getStatus)
                     .containsOnly(OrderSeatStatus.HOLDING);
