@@ -28,6 +28,7 @@ public class RedisStreamNotificationEventPublisher implements NotificationEventP
             redisTemplate.opsForStream().add(eventType.getStreamKey(), Map.of(PAYLOAD_KEY, json));
             log.info("알림 이벤트 발행 stream={}", eventType.getStreamKey());
         } catch (Exception e) {
+            log.warn("알림 이벤트 발행 실패 eventType={}", eventType, e);
             throw new IllegalArgumentException("알림 payload 직렬화 실패 eventType=" + eventType, e);
         }
     }
