@@ -115,6 +115,10 @@ public class Payment {
     }
 
     public void markCanceled(String cancelReason, LocalDateTime canceledAt) {
+        if (this.status != PaymentStatus.COMPLETED) {
+            throw new IllegalStateException("COMPLETED 상태의 결제만 취소할 수 있습니다.");
+        }
+
         this.status = PaymentStatus.CANCELED;
         this.cancelReason = cancelReason;
         this.canceledAt = canceledAt;
