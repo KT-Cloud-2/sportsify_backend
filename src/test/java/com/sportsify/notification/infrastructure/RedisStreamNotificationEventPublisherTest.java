@@ -46,7 +46,7 @@ class RedisStreamNotificationEventPublisherTest {
     @Test
     @DisplayName("TICKET_OPEN 이벤트를 올바른 스트림 키로 발행한다")
     void publish_티켓오픈_올바른스트림키() throws Exception {
-        TicketOpenPayload payload = new TicketOpenPayload(1L, "KIA", "삼성", LocalDateTime.now());
+        TicketOpenPayload payload = new TicketOpenPayload(1L, "KIA", "삼성", LocalDateTime.now(), LocalDateTime.now().plusHours(2));
         given(redisTemplate.opsForStream()).willReturn(streamOperations);
         given(objectMapper.writeValueAsString(payload)).willReturn("{}");
 
