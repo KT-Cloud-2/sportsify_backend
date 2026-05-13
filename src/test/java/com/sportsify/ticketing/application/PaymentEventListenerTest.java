@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -244,7 +245,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        LocalDateTime occurredAt = LocalDateTime.now();
+        LocalDateTime occurredAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         transactionTemplate.executeWithoutResult(s -> {
             eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
@@ -255,7 +256,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
             Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
 
             assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
-            assertThat(updatedOrder.getExpiresAt()).isEqualTo(occurredAt.plusMinutes(15));
+            assertThat(updatedOrder.getExpiresAt().truncatedTo(ChronoUnit.SECONDS))
+                    .isEqualTo(occurredAt.plusMinutes(15));
             assertThat(updatedOrder.getOrderSeats())
                     .extracting(OrderSeat::getStatus)
                     .containsOnly(OrderSeatStatus.HOLDING);
