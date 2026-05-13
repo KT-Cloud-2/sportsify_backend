@@ -12,18 +12,21 @@ import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatRoomService {
@@ -49,13 +52,16 @@ public class ChatRoomService {
         if (type == ChatRoomType.GAME && request.gameId() == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "GAME type requires gameId");
         }
-
         GameId gameId = type == ChatRoomType.GAME ? GameId.of(request.gameId()) : null;
         ChatRoomName name = resolveName(request.name(), type);
         ChatRoom room = chatRoomRepo.save(ChatRoom.create(name, type, request.imageUrl(), gameId, creatorId, now));
         List<ChatRoomMember> members = Stream.concat(
                 Stream.of(ChatRoomMember.newJoin(room.getId(), creatorId, now)),
-                request.inviteeIds().stream().map(MemberId::of).filter(mId -> !creatorId.equals(mId))
+                Optional.ofNullable(request.inviteeIds())
+                        .orElse(List.of())
+                        .stream()
+                        .map(MemberId::of)
+                        .filter(mId -> !creatorId.equals(mId))
                         .map(id -> ChatRoomMember.newInvited(room.getId(), creatorId, id, now))
         ).toList();
         chatRoomMemberRepo.saveAll(members);
@@ -173,11 +179,11 @@ public class ChatRoomService {
                 .collect(Collectors.toMap(Message::getRoomId, m -> m));
 
         Map<ChatRoomId, Long> countMap = chatRoomMemberRepo.countActiveByRooms(pagedIds);
-        Map<ChatRoomId,Long> lastReadMap = pagedIds.stream()
-                .collect(Collectors.toMap(
-                        roomId -> roomId,
-                        roomId -> membershipMap.get(roomId).getLastReadMessageId()
-                ));
+        Map<ChatRoomId, Long> lastReadMap = new HashMap<>();
+        pagedIds.forEach(roomId -> {
+            Long lastReadId = membershipMap.get(roomId).getLastReadMessageId();
+            lastReadMap.put(roomId, lastReadId != null ? lastReadId : 0L);
+        });
         Map<ChatRoomId, Long> unreadCountMap = messageRepo.countUnreadByRooms(lastReadMap);
 
         List<ChatRoomSummaryResponse> items = paged.stream()
@@ -284,7 +290,7 @@ public class ChatRoomService {
     private ChatRoom findActiveRoomForUpdate(Long roomId) {
         ChatRoom room = chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(roomId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId));
-        if (room.getStatus() != ChatRoomStatus.ACTIVE) {
+        if (room.getStatus() != ChatRoomStatus.ACTIVE && room.getStatus() != ChatRoomStatus.EMPTY) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId);
         }
         return room;

@@ -37,8 +37,10 @@ class ChatStompControllerTest {
     private static final long ROOM_ID = 1L;
     private static final String CLIENT_MESSAGE_ID = "client-uuid-1";
 
-    @Mock MessageService messageService;
-    @Mock ChatEventPublisher chatEventPublisher;
+    @Mock
+    MessageService messageService;
+    @Mock
+    ChatEventPublisher chatEventPublisher;
 
     ChatStompController controller;
     Principal principal = new StompPrincipal(MEMBER_ID);
@@ -89,7 +91,7 @@ class ChatStompControllerTest {
 
         controller.markRead(payload, principal);
 
-        verify(messageService).read(ROOM_ID, MEMBER_ID, lastReadMessageId);
+        verify(messageService).read(ROOM_ID, MEMBER_ID, lastReadMessageId, true);
     }
 
     // ── typing ────────────────────────────────────────────────

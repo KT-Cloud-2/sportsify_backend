@@ -46,6 +46,7 @@ public class SecurityConfig {
             "/webjars/**",
             "/docs.html",
             "/api/chat/rooms/**",
+            "/api/chat/messages/getMessages/**",
             "/ws/chat/**"
     );
     private static final List<String> LOCAL_ONLY_PATHS = List.of(

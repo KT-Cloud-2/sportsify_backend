@@ -12,12 +12,12 @@ public record MessageMemberInfoSummaryResponse(
         @Schema(description = "채팅방 멈버의 마지막으로 읽은 message ID", example = "1233") Long lastReadMessageId
 ) {
     public static List<MessageMemberInfoSummaryResponse> of(Map<MemberId, MessageId> chatRoomMembersInfo) {
-        return chatRoomMembersInfo.entrySet()
+        return chatRoomMembersInfo != null ? chatRoomMembersInfo.entrySet()
                 .stream()
                 .map(entry -> new MessageMemberInfoSummaryResponse(
                         entry.getKey().value(),
                         entry.getValue().value()
                 ))
-                .toList();
+                .toList() : null;
     }
 }

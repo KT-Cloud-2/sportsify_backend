@@ -168,6 +168,27 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
     }
 
     /**
+     * 마지막 멤버 퇴장 시 EMPTY 전환 (ACTIVE → EMPTY)
+     */
+    public void markEmpty(LocalDateTime now) {
+        if (this.status == ChatRoomStatus.EMPTY) return;
+        if (this.status == ChatRoomStatus.DELETED) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot mark deleted room as empty");
+        }
+        this.status = ChatRoomStatus.EMPTY;
+        this.updatedAt = now;
+    }
+
+    /**
+     * 첫 멤버 입장 시 ACTIVE 복원 (EMPTY → ACTIVE)
+     */
+    public void reactivate(LocalDateTime now) {
+        if (this.status != ChatRoomStatus.EMPTY) return;
+        this.status = ChatRoomStatus.ACTIVE;
+        this.updatedAt = now;
+    }
+
+    /**
      * 채팅방 삭제
      */
     public void delete(LocalDateTime now, MemberId createdBy) {
@@ -191,7 +212,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
     /* -------------------- 상태값 체크 -------------------- */
 
     private void ensureActive() {
-        if (status != ChatRoomStatus.ACTIVE) {
+        if (status != ChatRoomStatus.ACTIVE && status != ChatRoomStatus.EMPTY) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "ChatRoom is not active: status=" + status);
         }
     }

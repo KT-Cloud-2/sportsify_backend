@@ -107,7 +107,6 @@ public class MessageService {
         ChatRoomId chatRoomId = ChatRoomId.of(roomId);
         MemberId id = MemberId.of(memberId);
         List<Message> messages = messageRepo.findByRoomAndMemberBefore(chatRoomId, id, request.cursor(), request.limit() + 1);
-
         PageResult page = paginate(messages, request.limit());
         return new MessageListResponse(page.items().stream().map(MessageSummaryResponse::from).toList(), null, page.nextCursor(), page.hasNext(), page.items().size());
 
@@ -119,25 +118,25 @@ public class MessageService {
     @Transactional
     public MessageListResponse getMessages(MessagePageNationRequest request, Long roomId, Long memberId) {
         ChatRoomId chatRoomId = ChatRoomId.of(roomId);
-        MemberId id = MemberId.of(memberId);
+        MemberId id = memberId != null ? MemberId.of(memberId) : null;
         ChatRoom chatRoom = chatRoomRepo.findByIdForUpdateRead(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value()));
         ChatRoomStatus roomStatus = chatRoom.getStatus();
         if (roomStatus == ChatRoomStatus.DELETED) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value());
         }
-        boolean isMember = chatRoomMemberRepo.existsJoinedByRoomAndMember(chatRoomId, id);
-
-        if (ChatRoomType.DIRECT == chatRoom.getType() && !isMember) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "User is not room member : " + id.value());
+        boolean isMember = id != null && chatRoomMemberRepo.existsJoinedByRoomAndMember(chatRoomId, id);
+        boolean isDirectRoom = ChatRoomType.DIRECT == chatRoom.getType();
+        if (isDirectRoom && !isMember) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "User is not room member : " + (id != null ? id.value() : "anonymous"));
         }
         List<Message> messages = messageRepo.findByRoomBefore(chatRoomId, request.cursor(), request.limit() + 1);
 
         PageResult page = paginate(messages, request.limit());
 
-        Map<MemberId, MessageId> chatRoomMembersInfo = chatRoomMemberRepo.findLastMessageIdsAndMemberIdsByRoomId(chatRoomId);
+        Map<MemberId, MessageId> chatRoomMembersInfo = isDirectRoom ? chatRoomMemberRepo.findLastMessageIdsAndMemberIdsByRoomId(chatRoomId) : null;
 
-        if (!page.items().isEmpty() && roomStatus == ChatRoomStatus.ACTIVE && isMember) {
-            read(chatRoomId.value(), id.value(), page.items().getLast().getId().value());
+        if (!page.items().isEmpty() && roomStatus == ChatRoomStatus.ACTIVE && isMember && isDirectRoom) {
+            read(chatRoomId.value(), id.value(), page.items().getLast().getId().value(), false);
         }
         return new MessageListResponse(
                 page.items().stream().map(MessageResponse::from).toList(),
@@ -148,12 +147,14 @@ public class MessageService {
     }
 
 
-    public void read(Long roomId, Long memberId, Long lastReadMessageId) {
-        boolean isDirect = chatRoomRepo.findById(ChatRoomId.of(roomId))
-                .map(r -> r.getType() == ChatRoomType.DIRECT)
-                .orElse(false);
-        if (!isDirect) {
-            return;
+    public void read(Long roomId, Long memberId, Long lastReadMessageId, boolean needDirectCheck) {
+        if (needDirectCheck) {
+            boolean isDirect = chatRoomRepo.findById(ChatRoomId.of(roomId))
+                    .map(r -> r.getType() == ChatRoomType.DIRECT)
+                    .orElse(false);
+            if (!isDirect) {
+                return;
+            }
         }
         String key = String.format(RedisKeySchema.LAST_READ_KEY_PREFIX, roomId, memberId);
         redisTemplate.execute(CAS_SCRIPT, List.of(key),

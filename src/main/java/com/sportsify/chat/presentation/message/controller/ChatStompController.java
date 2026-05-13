@@ -58,7 +58,7 @@ public class ChatStompController {
     @MessageMapping("/chat.read")
     public void markRead(@Payload ChatReadPayload payload, Principal principal) {
         long memberId = Long.parseLong(principal.getName());
-        messageService.read(payload.roomId(), memberId, payload.lastReadMessageId());
+        messageService.read(payload.roomId(), memberId, payload.lastReadMessageId(), true);
     }
 
     /**

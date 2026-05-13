@@ -6,6 +6,7 @@ import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.model.message.MessageId;
 import com.sportsify.chat.domain.model.message.MessageStatus;
 import com.sportsify.chat.domain.repository.MessageRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 /**
  * MessageRepository(도메인 포트) 의 JPA 어댑터 구현체.
  */
+@Slf4j
 @Repository
 public class MessageRepositoryAdaptor implements MessageRepository {
 
@@ -78,6 +80,7 @@ public class MessageRepositoryAdaptor implements MessageRepository {
         }
         PageRequest pageable = PageRequest.of(0, limit);
         List<MessageJpaEntity> rows;
+        log.info(roomId.value() + " " + memberId.value() + " " + beforeMessageId);
         if (beforeMessageId == null) {
             rows = jpaRepository.findLatestBySenderAndRoom(roomId.value(), memberId.value(), pageable);
         } else {
