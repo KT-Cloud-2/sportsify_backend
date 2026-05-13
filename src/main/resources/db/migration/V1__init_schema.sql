@@ -211,6 +211,7 @@ CREATE TABLE tickets
 CREATE INDEX idx_tickets_status ON tickets (member_id, status);
 
 -- 결제
+-- 결제
 CREATE TABLE payments
 (
     id              BIGSERIAL PRIMARY KEY,
@@ -218,18 +219,20 @@ CREATE TABLE payments
     member_id       BIGINT,
     payment_key     VARCHAR(200), -- PG사 거래 ID
     idempotency_key VARCHAR(100), -- 중복 결제 방지 키
-    method          VARCHAR(30),  -- CARD | KAKAO_PAY | TOSS_PAY
-    total_amount    INT,
-    discount_amount INT       NOT NULL DEFAULT 0,
-    final_amount    INT,
+
+    payment_method  VARCHAR(30),  -- CARD | KAKAO_PAY | TOSS_PAY
+    amount          INT       NOT NULL,
+
     status          VARCHAR(30),  -- PENDING | COMPLETED | REFUNDED | FAILED | CANCELLED
     requested_at    TIMESTAMP,
     approved_at     TIMESTAMP,
     failed_at       TIMESTAMP,
     created_at      TIMESTAMP NOT NULL,
     updated_at      TIMESTAMP,
+
     CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_payment_member FOREIGN KEY (member_id) REFERENCES members (id),
+    CONSTRAINT uq_payment_key UNIQUE (payment_key),
     CONSTRAINT uq_idempotency UNIQUE (idempotency_key)
 );
 
