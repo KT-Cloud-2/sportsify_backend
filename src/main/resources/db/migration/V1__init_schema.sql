@@ -184,6 +184,7 @@ CREATE TABLE order_seats
     order_id     BIGINT      NOT NULL,
     game_seat_id BIGINT      NOT NULL,
     status       VARCHAR(30) NOT NULL, -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
+    price        INT         NOT NULL,
     created_at   TIMESTAMP,
     CONSTRAINT fk_os_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_os_game_seat FOREIGN KEY (game_seat_id) REFERENCES game_seats (id)
@@ -214,22 +215,22 @@ CREATE INDEX idx_tickets_status ON tickets (member_id, status);
 CREATE TABLE payments
 (
     id              BIGSERIAL PRIMARY KEY,
-    user_id         BIGINT        NOT NULL,
-    match_id        BIGINT        NOT NULL,
-    seat_id         BIGINT        NOT NULL,
-    order_id        VARCHAR(50)   NOT NULL UNIQUE,
-    payment_key     VARCHAR(100)  UNIQUE,
-    idempotency_key VARCHAR(100)  NOT NULL UNIQUE,
+    user_id         BIGINT       NOT NULL,
+    match_id        BIGINT       NOT NULL,
+    seat_id         BIGINT       NOT NULL,
+    order_id        VARCHAR(50)  NOT NULL UNIQUE,
+    payment_key     VARCHAR(100) UNIQUE,
+    idempotency_key VARCHAR(100) NOT NULL UNIQUE,
 
-    amount          BIGINT        NOT NULL,
-    payment_method  VARCHAR(20)   NOT NULL,
-    status          VARCHAR(20)   NOT NULL,
-    requested_at    TIMESTAMP     NOT NULL,
+    amount          BIGINT       NOT NULL,
+    payment_method  VARCHAR(20)  NOT NULL,
+    status          VARCHAR(20)  NOT NULL,
+    requested_at    TIMESTAMP    NOT NULL,
     approved_at     TIMESTAMPTZ,
     canceled_at     TIMESTAMP,
     cancel_reason   VARCHAR(255),
-    created_at      TIMESTAMP     NOT NULL,
-    updated_at      TIMESTAMP     NOT NULL
+    created_at      TIMESTAMP    NOT NULL,
+    updated_at      TIMESTAMP    NOT NULL
 );
 
 CREATE INDEX idx_payments_user ON payments (user_id);
@@ -367,7 +368,7 @@ CREATE TABLE notification_events
     status       VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING | PROCESSING | PUBLISHED | FAILED | CANCELLED
     created_at   TIMESTAMP   NOT NULL,
     published_at TIMESTAMP,
-    scheduled_at TIMESTAMP NULL                          -- 예약 발송 시각 (null = 즉시 발송)
+    scheduled_at TIMESTAMP   NULL                        -- 예약 발송 시각 (null = 즉시 발송)
 );
 
 CREATE INDEX idx_ne_status ON notification_events (status, created_at);

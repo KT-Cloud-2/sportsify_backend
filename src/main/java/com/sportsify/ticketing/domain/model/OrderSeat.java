@@ -34,19 +34,23 @@ public class OrderSeat {
     @Column(nullable = false, length = 30)
     private OrderSeatStatus status;
 
+    @Column(nullable = false)
+    private Integer price;
+
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Builder
-    private OrderSeat(Order order, GameSeat gameSeat) {
+    private OrderSeat(Order order, GameSeat gameSeat, Integer price) {
         this.order = order;
         this.gameSeat = gameSeat;
         this.status = OrderSeatStatus.HOLDING;
+        this.price = price;
     }
 
-    public static OrderSeat create(Order order, GameSeat gameSeat) {
-        return new OrderSeat(order, gameSeat);
+    public static OrderSeat create(Order order, GameSeat gameSeat, Integer price) {
+        return new OrderSeat(order, gameSeat, price);
     }
 
     public void updateStatus(OrderSeatStatus status) {

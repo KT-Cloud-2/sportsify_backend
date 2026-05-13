@@ -19,11 +19,12 @@ class OrderSeatTest {
         Order mockOrder = mock(Order.class);
         GameSeat mockGameSeat = mock(GameSeat.class);
 
-        OrderSeat orderSeat = OrderSeat.create(mockOrder, mockGameSeat);
+        OrderSeat orderSeat = OrderSeat.create(mockOrder, mockGameSeat, 10000);
 
         assertThat(orderSeat.getOrder()).isEqualTo(mockOrder);
         assertThat(orderSeat.getGameSeat()).isEqualTo(mockGameSeat);
         assertThat(orderSeat.getStatus()).isEqualTo(OrderSeatStatus.HOLDING);
+        assertThat(orderSeat.getPrice()).isEqualTo(10000);
     }
 
 }
