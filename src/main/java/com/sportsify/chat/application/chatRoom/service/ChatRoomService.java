@@ -166,21 +166,27 @@ public class ChatRoomService {
         Long nextCursor = hasNext ? paged.getLast().getId().value() : null;
 
         List<ChatRoomId> pagedIds = paged.stream().map(ChatRoom::getId).toList();
-
-        Map<ChatRoomId, Message> lastMessages = messageRepo.findMyLatestByRooms(pagedIds, id)
+        Map<ChatRoomId, ChatRoomMember> membershipMap = memberships.stream()
+                .collect(Collectors.toMap(ChatRoomMember::getRoomId, m -> m));
+        Map<ChatRoomId, Message> lastMessages = messageRepo.findLastestByRooms(pagedIds)
                 .stream()
                 .collect(Collectors.toMap(Message::getRoomId, m -> m));
 
         Map<ChatRoomId, Long> countMap = chatRoomMemberRepo.countActiveByRooms(pagedIds);
-        Map<ChatRoomId, ChatRoomMember> membershipMap = memberships.stream()
-                .collect(Collectors.toMap(ChatRoomMember::getRoomId, m -> m));
+        Map<ChatRoomId,Long> lastReadMap = pagedIds.stream()
+                .collect(Collectors.toMap(
+                        roomId -> roomId,
+                        roomId -> membershipMap.get(roomId).getLastReadMessageId()
+                ));
+        Map<ChatRoomId, Long> unreadCountMap = messageRepo.countUnreadByRooms(lastReadMap);
 
         List<ChatRoomSummaryResponse> items = paged.stream()
                 .map(r -> ChatRoomSummaryResponse.of(
                         r,
                         countMap.getOrDefault(r.getId(), 0L),
                         membershipMap.get(r.getId()),
-                        ChatMessageResponse.of(lastMessages.get(r.getId()))
+                        ChatMessageResponse.of(lastMessages.get(r.getId())),
+                        unreadCountMap.getOrDefault(r.getId(), 0L)
                 ))
                 .toList();
 

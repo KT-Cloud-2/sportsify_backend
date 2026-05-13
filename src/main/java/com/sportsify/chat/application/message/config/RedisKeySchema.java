@@ -4,4 +4,5 @@ public final class RedisKeySchema {
     public static final String SCAN_PATTERN = "chat:read:*";
     public static final String LAST_READ_KEY_PREFIX = "chat:read:%d:%d";
     public static final long LAST_READ_TTL_SECONDS = 60 * 60 * 24L;
+    public static final String UNREAD_COUNT_PATTERN = "chat:unread:count:%d";
 }

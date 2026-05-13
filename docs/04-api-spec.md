@@ -1562,6 +1562,7 @@ Response Body
         "type": "TEXT",
         "createdAt": "2026-04-27T14:22:15Z"
       },
+      "unRead": 50,
       "notificationEnabled": true,
       "createdAt": "2026-04-21T09:00:00Z",
       "updatedAt": "2026-04-27T14:22:15Z"
@@ -1584,6 +1585,7 @@ Response Field
 | `imageUrl`            | String \| null | 프로필 이미지                |
 | `currentParticipants` | Integer        | 현재 참여 인원               |
 | `lastMessage`         | Object \| null | 마지막 메시지 요약             |
+| `unRead`              | Long           | 읽지 않은 message 수        |
 | `notificationEnabled` | Boolean        | 해당 방 알림 수신 여부          |
 | `createdAt`           | DateTime       | 생성 시각                  |
 | `updatedAt`           | DateTime       | 마지막 갱신 시각              |
