@@ -57,6 +57,8 @@ jwt:
 app:
   oauth2:
     redirect-uri: http://localhost:3000/oauth2/callback
+  cors:
+    allowed-origins: http://localhost:3000
 
 mqtt:
   enabled: false
@@ -64,3 +66,8 @@ mqtt:
   client-id: sportsify-test
   username: ""
   password: ""
+
+toss:
+  payments:
+    secret-key: test-toss-secret-key
+    confirm-url: https://api.tosspayments.com/v1/payments/confirm

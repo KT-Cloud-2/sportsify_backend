@@ -1465,29 +1465,36 @@ POST /api/payments/{paymentId}/refund
 
 ### 엔드포인트 목록
 
-| method | path                                    | auth required | 설명                                |
-|--------|-----------------------------------------|---------------|-----------------------------------|
-| POST   | /api/chat/rooms                         | O             | 채팅방 생성 (5-1)                      |
-| GET    | /api/chat/rooms                         | O             | 내 채팅방 목록 조회 (5-2)                 |
-| GET    | /api/chat/rooms/game/{gameId}           | N             | 게임별 채팅방 조회 (5-3)                  |
-| GET    | /api/chat/rooms/{roomId}                | O/N           | 채팅방 상세 조회 (5-4)                   |
-| PATCH  | /api/chat/rooms/{roomId}                | O             | 채팅방 정보 수정 name/imageUrl (5-5)     |
-| DELETE | /api/chat/rooms/{roomId}                | O             | 채팅방 삭제 (5-6, 방장만 가능)              |
-| POST   | /api/chat/rooms/{roomId}/join           | O             | 채팅방 입장 (5-7)                      |
-| DELETE | /api/chat/rooms/{roomId}/leave          | O             | 채팅방 나가기 (5-8)                     |
-| POST   | /api/chat/rooms/{roomId}/invite         | O             | 참여자 초대 (5-9, ?inviteeId=)         |
-| PATCH  | /api/chat/rooms/{roomId}/notification   | O             | 채팅방 알림 설정 변경 (5-10, ?enabled=)    |
-| POST   | /api/chat/rooms/{roomId}/ban            | O             | 멤버 BAN (5-11, 방장만 가능, ?targetId=) |
-| GET    | /api/chat/messages/history/{roomId}     | O             | 채팅 이력 조회 — 내가 있을 때 메시지 (5-12)     |
-| DELETE | /api/chat/messages/{messageId}          | O             | 메시지 삭제 soft delete (5-14)         |
-| GET    | /api/chat/messages/getMessages/{roomId} | O             | 채팅방 메시지 조회 + lastRead 갱신 (5-15)   |
+| method | path                                    | auth required | 설명                              |
+|--------|-----------------------------------------|---------------|---------------------------------|
+| POST   | /api/chat/rooms                         | O             | 채팅방 생성 (5-1)                    |
+| GET    | /api/chat/rooms                         | O             | 내 채팅방 목록 조회 (5-2)               |
+| GET    | /api/chat/rooms/game/{gameId}           | N             | 게임별 채팅방 조회 (5-3)                |
+| GET    | /api/chat/rooms/{roomId}                | O/N           | 채팅방 상세 조회 (5-4)                 |
+| PATCH  | /api/chat/rooms/{roomId}                | O             | 채팅방 정보 수정 name/imageUrl (5-5)   |
+| DELETE | /api/chat/rooms/{roomId}                | O             | 채팅방 삭제 (5-6, 방장만 가능)            |
+| PATCH  | /api/chat/rooms/{roomId}/archive        | O             | 채팅방 아카이브 (5-7)                  |
+| PATCH  | /api/chat/rooms/{roomId}/unarchive      | O             | 채팅방 아카이브 복원 (5-8)               |
+| POST   | /api/chat/rooms/{roomId}/join           | O             | 채팅방 입장 (5-9)                    |
+| DELETE | /api/chat/rooms/{roomId}/leave          | O             | 채팅방 나가기 (5-10)                  |
+| POST   | /api/chat/rooms/{roomId}/invite         | O             | 참여자 초대 (5-11)                   |
+| PATCH  | /api/chat/rooms/{roomId}/notification   | O             | 채팅방 알림 설정 변경 (5-12)             |
+| POST   | /api/chat/rooms/{roomId}/ban            | O             | 멤버 BAN (5-13)                   |
+| GET    | /api/chat/messages/history/{roomId}     | O             | 채팅 이력 조회 — 내가 있을 때 메시지 (5-14)   |
+| WS     | /ws/chat                                | O/N           | websocket 연결(5-15-1)            |
+| SUB    | /topic/rooms/{roomId}                   | O/N           | 구독 (5-15-2)                     |
+| PUB    | SEND  /app/chat.send                    | O             | 메시지 전송 (5-15-3-1)               |
+| PUB    | SEND  /app/chat.read                    | O             | 읽음 상태 갱신 (5-15-3-2)             |
+| PUB    | SEND  /app/chat.typing                  | O             | 타이핑 인디케이터 (5-15-3-3)            |
+| DELETE | /api/chat/messages/{messageId}          | O             | 메시지 삭제 soft delete (5-16)       |
+| GET    | /api/chat/messages/getMessages/{roomId} | O             | 채팅방 메시지 조회 + lastRead 갱신 (5-17) |
 
 ---
 
 ### 5-1. 채팅방 생성
 
 ```
-POST /api/chat/rooms
+POST /api/chat/create
 ```
 
 Auth Required: **O**
@@ -1531,7 +1538,7 @@ Validation / Business Rules
 ### 5-2. 내 채팅방 목록 조회
 
 ```
-GET /api/chat/rooms
+POST /api/chat/rooms
 ```
 
 Auth Required: **O**
@@ -1546,7 +1553,7 @@ Query Parameter
 
 Response Body
 
-```json
+```
 {
   "items": [
     {
@@ -1571,6 +1578,7 @@ Response Body
   "nextCursor": 0,
   "hasNext": false,
   "totalCount": 5
+
 }
 ```
 
@@ -1623,22 +1631,25 @@ Query Parameter
 
 Response Body
 
-```json
+```
 {
-  "items": [
-    {
-      "roomId": 305,
-      "type": "GAME",
-      "gameId": 5,
-      "title": "KIA 타이거즈 응원방",
-      "imageUrl": "https://cdn.example.com/teams/kia.png",
-      "currentParticipants": 2154,
-      "createdAt": "2026-03-01T00:00:00Z"
-    }
-  ],
-  "nextCursor": null,
-  "hasNext": false,
-  "totalCount": 1
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "roomId": 305,
+        "type": "GAME",
+        "gameId": 5,
+        "title": "KIA 타이거즈 응원방",
+        "imageUrl": "https://cdn.example.com/teams/kia.png",
+        "currentParticipants": 2154,
+        "createdAt": "2026-03-01T00:00:00Z"
+      }
+    ],
+    "nextCursor": null,
+    "hasNext": false,
+    "totalCount": 1
+  }
 }
 ```
 
@@ -1680,23 +1691,25 @@ Path Parameter
 
 Response Body
 
-```json
+```
 {
-  "roomId": 201,
-  "type": "GAME",
-  "gameId": 101,
-  "title": "KIA vs 삼성 경기 채팅",
-  "imageUrl": null,
-  "currentParticipants": 432,
-  "createdBy": 9,
-  "createdAt": "2026-04-21T09:00:00Z",
-  "myMembership": {
-    "status": "JOINED",
-    "notificationEnabled": true,
-    "lastReadMessageId": 9974,
-    "joinedAt": "2026-04-21T09:00:00Z"
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "type": "GAME",
+    "gameId": 101,
+    "title": "KIA vs 삼성 경기 채팅",
+    "imageUrl": null,
+    "currentParticipants": 432,
+    "createdBy": 9,
+    "createdAt": "2026-04-21T09:00:00Z",
+    "myMembership": {
+      "status": "JOINED",
+      "notificationEnabled": true,
+      "lastReadMessageId": 9974,
+      "joinedAt": "2026-04-21T09:00:00Z"
+    }
   }
-  
 }
 ```
 
@@ -1749,12 +1762,15 @@ Request Body
 
 Response Body
 
-```json
+```
 {
-  "roomId": 201,
-  "title": "KIA vs 삼성 응원방",
-  "imageUrl": "https://cdn.example.com/rooms/201.png",
-  "updatedAt": "2026-04-27T15:00:00Z"
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "title": "KIA vs 삼성 응원방",
+    "imageUrl": "https://cdn.example.com/rooms/201.png",
+    "updatedAt": "2026-04-27T15:00:00Z"
+  }
 }
 ```
 
@@ -1772,14 +1788,14 @@ Validation / Business Rules
 
 - 인증된 사용자 + 해당 채팅방의 활성 멤버만 가능.
 - `DM` 은 수정 불가 (`FORBIDDEN`).
-- 변경 후 `updated` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+- 변경 후 `ROOM_UPDATED` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
-### 5-6. 채팅방 삭제
+### 5-6. 채팅방 입장
 
 ```
-DELETE /api/chat/rooms/{roomId}
+POST /api/chat/rooms/{roomId}/join
 ```
 
 Auth Required: **O**
@@ -1793,17 +1809,34 @@ Path Parameter
 Response Body
 
 ```
-""
+{
+  "success": true,
+  "data": {
+    "roomId": 201,
+    "memberId": 9,
+    "status": "JOINED",
+    "joinedAt": "2026-04-27T15:01:11Z"
+  }
+}
 ```
 
 Response Field
 
-void
+| 필드         | 타입       | 설명               |
+|------------|----------|------------------|
+| `success`  | String   | 성공여부             |
+| `roomId`   | Long     | 채팅방 ID           |
+| `memberId` | Long     | 사용자 ID           |
+| `status`   | String   | 사용자의 채팅방에서의 현 상태 |
+| `joinedAt` | DateTime | 사용자의 채팅방 입장 날짜   |
 
 Validation / Business Rules
 
-- 인증된 사용자 + 해당 채팅방의 생성자 멤버만 가능.
-- 변경 후 `delete` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+- 인증된 사용자만 입장 가능.
+- `DM` / 비공개 방은 사전에 `INVITED` 상태여야 입장 가능.
+- 이미 `JOINED` → `ALREADY_JOINED`.
+- `BANNED` → `BANNED_MEMBER`.
+- 입장 성공 시 `MEMBER_JOINED` 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
@@ -1842,7 +1875,7 @@ Response Field
 Validation / Business Rules
 
 - 인증된 사용자 + 해당 채팅방의 생성자 멤버만 가능.
-- 변경 후 `archived` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+- 변경 후 `ROOM_ARCHIVED` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
@@ -1881,14 +1914,14 @@ Response Field
 Validation / Business Rules
 
 - 인증된 사용자 + 해당 채팅방의 생성자 멤버만 가능.
-- 변경 후 `unarchived` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+- 변경 후 `ROOM_UNARCHIVED` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
-### 5-9. 채팅방 입장
+### 5-9. 채팅방 삭제
 
 ```
-POST /api/chat/rooms/{roomId}/join
+DELETE /api/chat/rooms/{roomId}
 ```
 
 Auth Required: **O**
@@ -1903,30 +1936,16 @@ Response Body
 
 ```json
 {
-  "roomId": 201,
-  "memberId": 9,
-  "status": "JOINED",
-  "joinedAt": "2026-04-27T15:01:11Z"
+  
 }
 ```
 
 Response Field
 
-| 필드         | 타입       | 설명               |
-|------------|----------|------------------|
-| `success`  | String   | 성공여부             |
-| `roomId`   | Long     | 채팅방 ID           |
-| `memberId` | Long     | 사용자 ID           |
-| `status`   | String   | 사용자의 채팅방에서의 현 상태 |
-| `joinedAt` | DateTime | 사용자의 채팅방 입장 날짜   |
-
 Validation / Business Rules
 
-- 인증된 사용자만 입장 가능.
-- `DM` / 비공개 방은 사전에 `INVITED` 상태여야 입장 가능.
-- 이미 `JOINED` → `ALREADY_JOINED`.
-- `BANNED` → `BANNED_MEMBER`.
-- 입장 성공 시 `joined` 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+- 인증된 사용자 + 해당 채팅방의 생성자 멤버만 가능.
+- 삭제 후 `ROOM_DELETE` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
@@ -1969,7 +1988,7 @@ Validation / Business Rules
 
 - 인증된 사용자 + 해당 방의 멤버만 가능.
 - 이미 `LEFT` → `ALREADY_LEFT`.
-- 나가기 성공 시 `left` 이벤트가 같은 방 멤버에게 브로드캐스트된다.
+- 나간 후 `MEMBER_LEFT` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
@@ -2018,7 +2037,7 @@ Validation / Business Rules
 - 초대 가능 대상은 `DM` 외의 비공개 그룹 방. (공개 방은 그냥 join)
 - 초대자 본인이 해당 방의 멤버여야 함.
 - 이미 `JOINED` / `BANNED` 인 사용자는 `skipped` 에 사유와 함께 반환.
-- 신규 `INVITED` 멤버에게 `invited` 이벤트 발송.
+- 초대 후 `MEMBER_INVITED` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
@@ -2111,7 +2130,7 @@ Response Field
 Validation / Business Rules
 
 - 인증된 사용자 + 해당 방의 활성 멤버만 가능.
-- 채팅장 멤버들에게 `banned` 이벤트 발송.
+- 초대 후 `MEMBER_BANNED` STOMP 이벤트가 같은 방 멤버에게 브로드캐스트된다.
 
 ---
 
@@ -2420,7 +2439,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-13-3-5. DISCONNECT
+#### 5-15-3-5. DISCONNECT
 
 - STOMP `DISCONNECT` 또는 TCP 연결 종료 시 서버는 다음을 수행한다:
     - in-memory `userId ↔ session` 매핑에서 해당 sessionId 제거.
@@ -2609,6 +2628,8 @@ Validation / Business Rules
 | 첨부 파일 업로드                             | `POST /api/chat/messages/upload`                           |
 | 이력 조회                                 | `GET /api/chat/history/{roomId}`                           |
 | 목록 조회                                 | `GET /api/chat/rooms`, `GET /api/chat/rooms/game/{gameId}` |
+
+---
 
 ## 6. Notification 도메인
 

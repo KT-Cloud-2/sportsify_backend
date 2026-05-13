@@ -2,7 +2,7 @@ package com.sportsify.notification.application.dto;
 
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
-import com.sportsify.notification.domain.model.NotificationEventType;
+import com.sportsify.common.notification.NotificationEventType;
 
 import java.time.LocalDateTime;
 

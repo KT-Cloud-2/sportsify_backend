@@ -30,7 +30,18 @@ public enum ErrorCode {
     NOTIFICATION_CHANNEL_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_CHANNEL_NOT_FOUND", "알림 채널을 찾을 수 없습니다."),
     NOTIFICATION_CHANNEL_ALREADY_EXISTS(HttpStatus.CONFLICT, "NOTIFICATION_CHANNEL_ALREADY_EXISTS", "이미 등록된 알림 채널입니다."),
     NOTIFICATION_CHANNEL_TYPE_UNSUPPORTED(HttpStatus.BAD_REQUEST, "NOTIFICATION_CHANNEL_TYPE_UNSUPPORTED", "지원하지 않는 알림 채널 타입입니다."),
-    NOTIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "NOTIFICATION_SEND_FAILED", "알림 발송에 실패했습니다.");
+    NOTIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "NOTIFICATION_SEND_FAILED", "알림 발송에 실패했습니다."),
+
+    // 예매
+    GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "GAME_NOT_FOUND", "존재하지 않는 경기입니다."),
+    GAME_NOT_ON_SALE(HttpStatus.valueOf(422), "GAME_NOT_ON_SALE", "판매 중이 아닌 경기입니다."),
+    SEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "SEAT_NOT_FOUND", "존재하지 않는 좌석입니다."),
+    SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "SEAT_ALREADY_RESERVED", "이미 선점된 좌석입니다."),
+    SEAT_IS_NULL(HttpStatus.NOT_FOUND, "SEAT_IS_NULL", "선택된 좌석이 없습니다."),
+    SEAT_DUPLICATED(HttpStatus.BAD_REQUEST, "SEAT_DUPLICATED", "중복된 좌석이 있습니다."),
+    TICKET_LIMIT_EXCEEDED(HttpStatus.valueOf(422), "TICKET_LIMIT_EXCEEDED", "경기당 1인 최대 4매를 초과했습니다."),
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "존재하지 않는 주문입니다."),
+    ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
