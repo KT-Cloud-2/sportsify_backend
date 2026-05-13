@@ -14,14 +14,17 @@ import com.sportsify.payment.infrastructure.toss.TossPaymentClient;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmRequest;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Objects;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -177,6 +180,11 @@ public class PaymentService {
             return LocalDateTime.now();
         }
 
-        return OffsetDateTime.parse(approvedAt).toLocalDateTime();
+        try {
+            return OffsetDateTime.parse(approvedAt).toLocalDateTime();
+        } catch (DateTimeParseException e) {
+            log.warn("Toss approvedAt 파싱 실패. approvedAt={}, fallback=now", approvedAt, e);
+            return LocalDateTime.now();
+        }
     }
 }
