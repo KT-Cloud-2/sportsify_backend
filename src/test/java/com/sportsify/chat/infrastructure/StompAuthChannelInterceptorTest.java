@@ -23,6 +23,8 @@ import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.time.Clock;
@@ -30,6 +32,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -84,24 +88,26 @@ class StompAuthChannelInterceptorTest {
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
-    private Message<byte[]> subscribeMessage(String destination, Long memberId) {
+    private Message<byte[]> subscribeMessage(String destination) {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
         accessor.setSessionId(SID);
         accessor.setDestination(destination);
-        if (memberId != null) {
-            accessor.setUser(new StompAuthChannelInterceptor.StompPrincipal(memberId));
-        }
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
-    private Message<byte[]> sendMessage(Long memberId) {
+    private Message<byte[]> sendMessage() {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
         accessor.setSessionId(SID);
         accessor.setDestination("/app/chat.send");
-        if (memberId != null) {
-            accessor.setUser(new StompAuthChannelInterceptor.StompPrincipal(memberId));
-        }
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    /** 세션 레지스트리에 인증된 세션을 stub한다 */
+    private void stubAuthenticatedSession(long memberId) {
+        Authentication auth = new UsernamePasswordAuthenticationToken(memberId, null, List.of());
+        WebSocketSessionRegistry.SessionInfo info = new WebSocketSessionRegistry.SessionInfo(
+                SID, wsSession, auth, NOW, TOKEN_EXPIRY, new HashSet<>());
+        given(registry.get(SID)).willReturn(Optional.of(info));
     }
 
     private ChatRoom mockActiveRoom(ChatRoomType type) {
@@ -134,7 +140,8 @@ class StompAuthChannelInterceptorTest {
         Message<?> result = interceptor.preSend(connectMessage(false, false), channel);
 
         assertThat(result).isNotNull();
-        verifyNoInteractions(jwtProvider, registry);
+        verifyNoInteractions(jwtProvider);
+        verify(registry, never()).register(any(), any(), any(), any(), any());
     }
 
     // ── CONNECT 실패 ──────────────────────────────────────────
@@ -181,7 +188,7 @@ class StompAuthChannelInterceptorTest {
         ChatRoom room = mockActiveRoom(ChatRoomType.GAME);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
 
-        interceptor.preSend(subscribeMessage("/topic/rooms/1", null), channel);
+        interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel);
 
         verify(registry).subscribeRoom(SID, 1L);
     }
@@ -189,22 +196,23 @@ class StompAuthChannelInterceptorTest {
     @Test
     @DisplayName("DIRECT 방을 인증된 멤버가 구독하면 subscribeRoom이 호출된다")
     void subscribe_DIRECT방_인증멤버_구독성공() {
+        stubAuthenticatedSession(MEMBER_ID);
         ChatRoom room = mockActiveRoom(ChatRoomType.DIRECT);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
         given(accessChecker.canSubscribe(eq(room), any())).willReturn(true);
 
-        interceptor.preSend(subscribeMessage("/topic/rooms/1", MEMBER_ID), channel);
+        interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel);
 
         verify(registry).subscribeRoom(SID, 1L);
     }
 
     @Test
-    @DisplayName("방이 아닌 destination을 인증된 유저가 구독하면 통과된다")
-    void subscribe_비방목적지_인증유저_통과() {
-        Message<?> result = interceptor.preSend(subscribeMessage("/user/queue/errors", MEMBER_ID), channel);
+    @DisplayName("방이 아닌 destination은 인증된 유저도 인증 없이도 구독할 수 있다")
+    void subscribe_비방목적지_통과() {
+        Message<?> result = interceptor.preSend(subscribeMessage("/user/queue/errors"), channel);
 
         assertThat(result).isNotNull();
-        verifyNoInteractions(chatRoomRepository, registry);
+        verifyNoInteractions(chatRoomRepository);
     }
 
     // ── SUBSCRIBE 실패 ────────────────────────────────────────
@@ -214,7 +222,7 @@ class StompAuthChannelInterceptorTest {
     void subscribe_방없음_예외() {
         given(chatRoomRepository.findById(any())).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1", MEMBER_ID), channel))
+        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
                 .isInstanceOf(MessageDeliveryException.class);
     }
 
@@ -225,7 +233,7 @@ class StompAuthChannelInterceptorTest {
         given(room.getStatus()).willReturn(ChatRoomStatus.ARCHIVED);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
 
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1", MEMBER_ID), channel))
+        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
                 .isInstanceOf(MessageDeliveryException.class);
     }
 
@@ -234,26 +242,21 @@ class StompAuthChannelInterceptorTest {
     void subscribe_DIRECT방_미인증_예외() {
         ChatRoom room = mockActiveRoom(ChatRoomType.DIRECT);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
+        // registry.get(SID) 기본값 Optional.empty() → resolveAuthenticatedMemberId 에서 예외
 
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1", null), channel))
+        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
                 .isInstanceOf(MessageDeliveryException.class);
     }
 
     @Test
     @DisplayName("DIRECT 방 구독 시 접근 권한이 없으면 예외가 발생한다")
     void subscribe_DIRECT방_권한없음_예외() {
+        stubAuthenticatedSession(MEMBER_ID);
         ChatRoom room = mockActiveRoom(ChatRoomType.DIRECT);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
         given(accessChecker.canSubscribe(eq(room), any())).willReturn(false);
 
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1", MEMBER_ID), channel))
-                .isInstanceOf(MessageDeliveryException.class);
-    }
-
-    @Test
-    @DisplayName("방이 아닌 destination을 미인증 유저가 구독하면 예외가 발생한다")
-    void subscribe_비방목적지_미인증_예외() {
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/user/queue/errors", null), channel))
+        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
                 .isInstanceOf(MessageDeliveryException.class);
     }
 
@@ -262,7 +265,9 @@ class StompAuthChannelInterceptorTest {
     @Test
     @DisplayName("인증된 유저의 SEND는 통과된다")
     void send_인증유저_통과() {
-        Message<?> result = interceptor.preSend(sendMessage(MEMBER_ID), channel);
+        stubAuthenticatedSession(MEMBER_ID);
+
+        Message<?> result = interceptor.preSend(sendMessage(), channel);
 
         assertThat(result).isNotNull();
     }
@@ -270,7 +275,8 @@ class StompAuthChannelInterceptorTest {
     @Test
     @DisplayName("미인증 유저의 SEND는 예외가 발생한다")
     void send_미인증_예외() {
-        assertThatThrownBy(() -> interceptor.preSend(sendMessage(null), channel))
+        // registry.get(SID) 기본값 Optional.empty() → resolveAuthenticatedMemberId 에서 예외
+        assertThatThrownBy(() -> interceptor.preSend(sendMessage(), channel))
                 .isInstanceOf(MessageDeliveryException.class);
     }
 
@@ -286,6 +292,6 @@ class StompAuthChannelInterceptorTest {
         Message<?> result = interceptor.preSend(message, channel);
 
         assertThat(result).isNotNull();
-        verifyNoInteractions(jwtProvider, registry, chatRoomRepository);
+        verifyNoInteractions(jwtProvider, chatRoomRepository);
     }
 }

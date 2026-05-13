@@ -93,7 +93,6 @@ class ChatRoomMemberServiceTest {
 
     // ──────────────────────── join ────────────────────────
 
-    // [!경고] GAME이 구현이 완료되지 않은 관계로 제대로된 테스트를 하지 못하고 있습니다. 이후 해당 SERVICE가 구현되면 INSERT 후 테스트 해야 합니다.
     @Test
     @DisplayName("신규 멤버가 GAME 채팅방에 입장한다")
     void join_신규멤버_GAME방_입장() {
@@ -130,7 +129,8 @@ class ChatRoomMemberServiceTest {
     void leave_퇴장() {
         given(chatRoomMemberRepo.findByRoomAndMemberWithStatus(any(), any(), anyList()))
                 .willReturn(Optional.of(member(MemberStatus.JOINED, MEMBER_ID)));
-        given(chatRoomMemberRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(chatRoomMemberRepo.saveAndFlush(any())).willAnswer(inv -> inv.getArgument(0));
+        given(chatRoomMemberRepo.countActiveByRoom(any())).willReturn(1L);
 
         ChatRoomMemberResponse result = chatRoomMemberService.leave(ROOM_ID, MEMBER_ID);
 
@@ -198,7 +198,7 @@ class ChatRoomMemberServiceTest {
         ChatRoomMemberResponse result = chatRoomMemberService.changeNotification(ROOM_ID, MEMBER_ID, false);
 
         assertThat(result.roomId()).isEqualTo(ROOM_ID);
-        assertThat(result.status()).isEqualTo("JOINED");
+        assertThat(result.status()).isEqualTo("NOTIFICATION");
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────

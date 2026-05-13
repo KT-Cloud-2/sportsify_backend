@@ -16,18 +16,20 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class MessageServiceTest {
@@ -52,6 +54,9 @@ class MessageServiceTest {
 
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
+
+    @Mock
+    private StringRedisTemplate redisTemplate;
 
     // ──────────────────────── send ────────────────────────
 
@@ -171,6 +176,7 @@ class MessageServiceTest {
         given(chatRoomRepo.findByIdForUpdateRead(ChatRoomId.of(20L))).willReturn(Optional.of(room));
         given(chatRoomMemberRepo.existsJoinedByRoomAndMember(ChatRoomId.of(20L), MemberId.of(1L))).willReturn(true);
         given(messageRepo.findByRoomBefore(eq(ChatRoomId.of(20L)), isNull(), eq(21))).willReturn(messages);
+        given(chatRoomMemberRepo.findLastMessageIdsAndMemberIdsByRoomId(ChatRoomId.of(20L))).willReturn(Map.of());
 
         MessageListResponse result = messageService.getMessages(
                 new MessagePageNationRequest(null, 20), 20L, 1L);
@@ -199,6 +205,50 @@ class MessageServiceTest {
         assertThat(result.hasNext()).isTrue();
         assertThat(result.nextCursor()).isEqualTo(51L);
         assertThat(result.totalCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("익명 사용자가 GAME 채팅방 메시지를 조회한다")
+    void getMessages_익명사용자_GAME방_조회성공() {
+        ChatRoom room = chatRoom(10L, ChatRoomType.GAME);
+        List<Message> messages = List.of(
+                message(50L, 10L, 2L, "공개메시지", MessageStatus.ACTIVE)
+        );
+
+        given(chatRoomRepo.findByIdForUpdateRead(ChatRoomId.of(10L))).willReturn(Optional.of(room));
+        given(messageRepo.findByRoomBefore(eq(ChatRoomId.of(10L)), isNull(), eq(21))).willReturn(messages);
+
+        MessageListResponse result = messageService.getMessages(
+                new MessagePageNationRequest(null, 20), 10L, null);
+
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.messages()).hasSize(1);
+    }
+
+    // ──────────────────────── read ────────────────────────
+
+    @Test
+    @DisplayName("needDirectCheck=true이고 DIRECT 방이면 Redis에 lastRead를 기록한다")
+    void read_DIRECT방_Redis기록() {
+        ChatRoom directRoom = ChatRoom.restore(
+                ChatRoomId.of(10L), ChatRoomName.of("DM"), ChatRoomType.DIRECT, null,
+                null, NOW, NOW, ChatRoomStatus.ACTIVE, MemberId.of(1L));
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(directRoom));
+
+        messageService.read(10L, 1L, 100L, true);
+
+        org.mockito.Mockito.verify(redisTemplate).execute(any(), Collections.singletonList(any()), any(), any());
+    }
+
+    @Test
+    @DisplayName("needDirectCheck=true이고 GAME 방이면 Redis 기록을 건너뛴다")
+    void read_GAME방_Redis스킵() {
+        ChatRoom gameRoom = chatRoom(10L, ChatRoomType.GAME);
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(gameRoom));
+
+        messageService.read(10L, 1L, 100L, true);
+
+        org.mockito.Mockito.verifyNoInteractions(redisTemplate);
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────

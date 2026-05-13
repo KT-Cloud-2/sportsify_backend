@@ -76,7 +76,7 @@ class MessageControllerApiTest extends WebMvcTestSupport {
     @Test
     @DisplayName("GET /api/chat/messages/getMessages/{roomId} — 200 채팅방 메시지 조회 성공")
     void 채팅방_메시지_조회_성공() throws Exception {
-        MessageResponse item = new MessageResponse(MESSAGE_ID, MEMBER_ID, "TEXT", "안녕하세요", NOW_INSTANT);
+        MessageResponse item = new MessageResponse(MESSAGE_ID, MEMBER_ID, "TEXT", "ACTIVE", "안녕하세요", NOW_INSTANT);
         MessageListResponse response = new MessageListResponse(List.of(item), List.of(), MESSAGE_ID, true, 1);
 
         given(messageService.getMessages(any(MessagePageNationRequest.class), eq(ROOM_ID), eq(MEMBER_ID)))

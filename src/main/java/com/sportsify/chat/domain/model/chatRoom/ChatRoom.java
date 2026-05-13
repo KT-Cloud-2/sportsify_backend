@@ -31,7 +31,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
     private ChatRoomName name;
     private String imageUrl;    // nullable
     private LocalDateTime updatedAt;
-    private ChatRoomStatus status;  // ACTIVE, ARCHIVED, DELETED
+    private ChatRoomStatus status;  // ACTIVE, ARCHIVED, DELETED, EMPTY
 
     private ChatRoom(ChatRoomId id,
                      ChatRoomName name,

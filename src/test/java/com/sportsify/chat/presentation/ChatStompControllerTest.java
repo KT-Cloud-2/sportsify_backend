@@ -3,7 +3,6 @@ package com.sportsify.chat.presentation;
 import com.sportsify.chat.application.message.service.MessageService;
 import com.sportsify.chat.domain.model.event.ErrorEventType;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
-import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor.StompPrincipal;
 import com.sportsify.chat.presentation.message.controller.ChatStompController;
 import com.sportsify.chat.presentation.message.dto.ChatReadPayload;
 import com.sportsify.chat.presentation.message.dto.ChatSendPayload;
@@ -43,7 +42,7 @@ class ChatStompControllerTest {
     ChatEventPublisher chatEventPublisher;
 
     ChatStompController controller;
-    Principal principal = new StompPrincipal(MEMBER_ID);
+    Principal principal = () -> String.valueOf(MEMBER_ID);
 
     @BeforeEach
     void setUp() {
@@ -68,17 +67,30 @@ class ChatStompControllerTest {
     void send_BusinessException_에러발행() {
         ChatSendPayload payload = new ChatSendPayload(CLIENT_MESSAGE_ID, ROOM_ID, "TEXT", "안녕하세요");
         BusinessException ex = new BusinessException(ErrorCode.FORBIDDEN, "전송 불가");
-        willThrow(ex).given(messageService).send(any(), eq(MEMBER_ID));
+
+        willThrow(ex)
+                .given(messageService)
+                .send(any(), eq(MEMBER_ID));
 
         controller.send(payload, principal);
 
-        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(chatEventPublisher).publishToUser(eq(MEMBER_ID), payloadCaptor.capture(), eq(CLIENT_MESSAGE_ID));
+        ArgumentCaptor<ErrorResponse> payloadCaptor = ArgumentCaptor.forClass(ErrorResponse.class);
 
-        ErrorResponse error = (ErrorResponse) payloadCaptor.getValue();
+        verify(chatEventPublisher).publishToUser(
+                eq(MEMBER_ID),
+                payloadCaptor.capture(),
+                eq("/queue/errors")
+        );
+
+        ErrorResponse error = payloadCaptor.getValue();
+
         assertThat(error.event()).isEqualTo(ErrorEventType.MESSAGE_FAILED.name());
+
         assertThat(error.clientMessageId()).isEqualTo(CLIENT_MESSAGE_ID);
+
         assertThat(error.errorCode()).isEqualTo(ErrorCode.FORBIDDEN.toString());
+
+        assertThat(error.message()).isEqualTo("전송 불가");
     }
 
     // ── markRead ──────────────────────────────────────────────

@@ -53,7 +53,7 @@ class ChatRoomControllerApiTest extends WebMvcTestSupport {
     @Test
     @DisplayName("GET /api/chat/rooms — 200 내 채팅방 목록 조회 성공")
     void 내채팅방_목록_조회_성공() throws Exception {
-        ChatRoomSummaryResponse item = new ChatRoomSummaryResponse(ROOM_ID, "GAME", GAME_ID, "한화 VS LG", null, 3L, null, true, NOW, NOW);
+        ChatRoomSummaryResponse item = new ChatRoomSummaryResponse(ROOM_ID, "GAME", GAME_ID, "한화 VS LG", null, 3L, null, 0L, true, NOW, NOW);
         ChatRoomListResponse response = new ChatRoomListResponse(List.of(item), null, false, 1);
         given(chatRoomService.getMyRooms(any(ChatRoomGetRequest.class), eq(MEMBER_ID))).willReturn(response);
 
