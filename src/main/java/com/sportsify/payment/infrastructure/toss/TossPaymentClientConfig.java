@@ -2,8 +2,8 @@ package com.sportsify.payment.infrastructure.toss;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 
@@ -11,10 +11,13 @@ import java.time.Duration;
 public class TossPaymentClientConfig {
 
     @Bean
-    public ClientHttpRequestFactory tossClientHttpRequestFactory() {
+    public RestClient tossRestClient() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(3));
         requestFactory.setReadTimeout(Duration.ofSeconds(5));
-        return requestFactory;
+
+        return RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
     }
 }

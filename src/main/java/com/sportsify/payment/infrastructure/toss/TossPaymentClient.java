@@ -3,10 +3,10 @@ package com.sportsify.payment.infrastructure.toss;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmRequest;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -18,7 +18,7 @@ import java.util.Map;
 @Component
 public class TossPaymentClient {
 
-    private final ClientHttpRequestFactory clientHttpRequestFactory;
+    private final RestClient restClient;
 
     @Value("${toss.payments.secret-key}")
     private String secretKey;
@@ -26,16 +26,14 @@ public class TossPaymentClient {
     @Value("${toss.payments.confirm-url}")
     private String confirmUrl;
 
-    public TossPaymentClient(ClientHttpRequestFactory tossClientHttpRequestFactory) {
-        this.clientHttpRequestFactory = tossClientHttpRequestFactory;
+    public TossPaymentClient(@Qualifier("tossRestClient") RestClient restClient) {
+        this.restClient = restClient;
     }
 
     public TossConfirmResponse confirm(TossConfirmRequest request) {
         String encodedSecretKey = createEncodedSecretKey();
 
-        return RestClient.builder()
-                .requestFactory(clientHttpRequestFactory)
-                .build()
+        return restClient
                 .post()
                 .uri(confirmUrl)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -45,6 +43,7 @@ public class TossPaymentClient {
                 .onStatus(
                         status -> status.is4xxClientError() || status.is5xxServerError(),
                         (req, res) -> {
+                            log.error("Toss confirm API 호출 실패. status={}", res.getStatusCode());
                             throw new IllegalStateException(
                                     "Toss confirm API 호출 실패: " + res.getStatusCode()
                             );
@@ -56,9 +55,7 @@ public class TossPaymentClient {
     public void cancel(String paymentKey, String cancelReason) {
         String encodedSecretKey = createEncodedSecretKey();
 
-        RestClient.builder()
-                .requestFactory(clientHttpRequestFactory)
-                .build()
+        restClient
                 .post()
                 .uri("https://api.tosspayments.com/v1/payments/{paymentKey}/cancel", paymentKey)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -68,6 +65,7 @@ public class TossPaymentClient {
                 .onStatus(
                         status -> status.is4xxClientError() || status.is5xxServerError(),
                         (req, res) -> {
+                            log.error("Toss cancel API 호출 실패. status={}", res.getStatusCode());
                             throw new IllegalStateException(
                                     "Toss cancel API 호출 실패: " + res.getStatusCode()
                             );
