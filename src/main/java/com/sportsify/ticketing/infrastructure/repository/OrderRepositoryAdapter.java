@@ -2,7 +2,6 @@ package com.sportsify.ticketing.infrastructure.repository;
 
 
 import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -22,7 +21,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
-    public List<Order> findByStatusAndExpiresAtBefore(OrderStatus status, LocalDateTime expiresAt) {
-        return jpaRepository.findByStatusAndExpiresAtBefore(status, expiresAt);
+    public List<Order> findExpiredPendingOrdersWithSeats(LocalDateTime now) {
+        return jpaRepository.findExpiredPendingOrdersWithSeats(now);
     }
 }

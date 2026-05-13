@@ -23,7 +23,7 @@ public class SeatExpirationScheduler {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void expireReservedSeats() {
-        List<Order> expiredOrders = orderRepository.findByStatusAndExpiresAtBefore(OrderStatus.PENDING, LocalDateTime.now());
+        List<Order> expiredOrders = orderRepository.findExpiredPendingOrdersWithSeats(LocalDateTime.now());
 
         expiredOrders.forEach(order -> {
             order.updateStatus(OrderStatus.EXPIRED);
