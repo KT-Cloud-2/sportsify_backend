@@ -29,6 +29,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentService {
 
+    private static final String TOSS_PAYMENT_DONE_STATUS = "DONE";
+
     private final PaymentRepository paymentRepository;
     private final TossPaymentClient tossPaymentClient;
 
@@ -78,6 +80,8 @@ public class PaymentService {
                         .amount(request.getAmount())
                         .build()
         );
+
+        validateTossConfirmResponse(tossResponse, payment, request);
 
         payment.markCompleted(
                 tossResponse.getPaymentKey(),
@@ -136,6 +140,34 @@ public class PaymentService {
         payment.markCanceled(request.getCancelReason(), LocalDateTime.now());
 
         return toResponse(payment);
+    }
+
+    private void validateTossConfirmResponse(
+            TossConfirmResponse tossResponse,
+            Payment payment,
+            ConfirmPaymentRequest request
+    ) {
+        if (tossResponse == null) {
+            throw new InvalidPaymentStatusException("Toss 결제 승인 응답이 비어 있습니다.");
+        }
+
+        if (!Objects.equals(tossResponse.getPaymentKey(), request.getPaymentKey())) {
+            throw new InvalidPaymentStatusException("Toss 결제 키가 요청 정보와 일치하지 않습니다.");
+        }
+
+        if (!Objects.equals(tossResponse.getOrderId(), request.getOrderId())
+                || !Objects.equals(tossResponse.getOrderId(), payment.getOrderId())) {
+            throw new InvalidPaymentStatusException("Toss 주문 ID가 요청 정보와 일치하지 않습니다.");
+        }
+
+        if (!Objects.equals(tossResponse.getTotalAmount(), request.getAmount())
+                || !Objects.equals(tossResponse.getTotalAmount(), payment.getAmount())) {
+            throw new InvalidPaymentAmountException("Toss 결제 금액이 요청 정보와 일치하지 않습니다.");
+        }
+
+        if (!TOSS_PAYMENT_DONE_STATUS.equals(tossResponse.getStatus())) {
+            throw new InvalidPaymentStatusException("Toss 결제가 완료 상태가 아닙니다.");
+        }
     }
 
     private void validateSamePaymentRequest(
