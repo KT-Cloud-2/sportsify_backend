@@ -93,6 +93,11 @@ mqtt:
   username: ""
   password: ""
 
+toss:
+  payments:
+    secret-key: ${TOSS_SECRET_KEY:test_sk_local_dummy}
+    confirm-url: https://api.tosspayments.com/v1/payments/confirm
+
 logging:
   level:
     com.sportsify: DEBUG
