@@ -30,6 +30,7 @@ public class PaymentEventListener {
     private final OrderRepository orderRepository;
 
     @EventListener
+    @Transactional
     public void onPaymentStarted(PaymentStartedEvent event) {
         Order order = orderRepository.findById(event.orderId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
