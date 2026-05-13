@@ -2600,7 +2600,7 @@ Validation / Business Rules
 
 ---
 
-## 부록 A. 비기능적 정책
+## 부록. 비기능적 정책
 
 | 항목                    | 정책                                                      |
 |-----------------------|---------------------------------------------------------|
@@ -2611,23 +2611,6 @@ Validation / Business Rules
 | Redis Key 네이밍         | `chat:room:{roomId}:user:{userId}:lastRead` 등 prefix 통일 |
 | 메시지 순서 보장             | DB `messageId` (BIGSERIAL) 단조 증가 + `(room_id, id)` 인덱스  |
 | Multi-instance 브로드캐스트 | Redis Pub/Sub 또는 STOMP relay 채택 (배포 환경에 따라 결정)          |
-
-## 부록 B. 도메인 ↔ API 매핑 요약
-
-| 도메인 행위                                | REST/STOMP                                                 |
-|---------------------------------------|------------------------------------------------------------|
-| `ChatRoom.create()`                   | `POST /api/chat/create`                                    |
-| `ChatRoom.join()`                     | `POST /api/chat/rooms/{roomId}/join`                       |
-| `ChatRoom.leave()`                    | `POST /api/chat/rooms/{roomId}/leave`                      |
-| `ChatRoom.invite()`                   | `POST /api/chat/rooms/{roomId}/invite`                     |
-| `ChatRoom.rename()` / `changeImage()` | `PATCH /api/chat/rooms/{roomId}`                           |
-| `ChatRoom.changeNotification()`       | `PATCH /api/chat/rooms/{roomId}/notification`              |
-| `ChatRoom.markRead()`                 | `SEND /app/chat.read`                                      |
-| `Message.send()`                      | `SEND /app/chat.send`                                      |
-| `Message.softDelete()`                | `DELETE /api/chat/messages/{messageId}`                    |
-| 첨부 파일 업로드                             | `POST /api/chat/messages/upload`                           |
-| 이력 조회                                 | `GET /api/chat/history/{roomId}`                           |
-| 목록 조회                                 | `GET /api/chat/rooms`, `GET /api/chat/rooms/game/{gameId}` |
 
 ---
 
