@@ -50,7 +50,12 @@ public class NotificationFanoutService {
 
         do {
             chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, CHUNK_SIZE));
-            if (chunkService.processChunk(event, chunk.getContent(), payload)) {
+            try {
+                if (chunkService.processChunk(event, chunk.getContent(), payload)) {
+                    anyFailed = true;
+                }
+            } catch (Exception e) {
+                log.error("청크 처리 실패 eventType={} page={}", eventType, page, e);
                 anyFailed = true;
             }
             page++;
