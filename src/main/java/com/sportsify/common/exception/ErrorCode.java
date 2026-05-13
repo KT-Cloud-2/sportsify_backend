@@ -41,7 +41,10 @@ public enum ErrorCode {
     SEAT_DUPLICATED(HttpStatus.BAD_REQUEST, "SEAT_DUPLICATED", "중복된 좌석이 있습니다."),
     TICKET_LIMIT_EXCEEDED(HttpStatus.valueOf(422), "TICKET_LIMIT_EXCEEDED", "경기당 1인 최대 4매를 초과했습니다."),
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "존재하지 않는 주문입니다."),
-    ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다.");
+    ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다."),
+
+    // 게임
+    PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
