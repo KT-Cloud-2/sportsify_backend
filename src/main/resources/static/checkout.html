@@ -20,15 +20,23 @@
     const params = new URLSearchParams(window.location.search);
 
     const orderId = params.get("orderId");
-    const amount = Number(params.get("amount"));
+    const rawAmount = params.get("amount");
+    const amount = Number(rawAmount);
     const origin = window.location.origin;
 
     document.getElementById("orderId").innerText = orderId;
-    document.getElementById("amount").innerText = amount;
+    document.getElementById("amount").innerText = rawAmount;
+
+    function isInvalidAmount(rawAmount, amount) {
+        return rawAmount === null
+                || rawAmount.trim() === ""
+                || Number.isNaN(amount)
+                || amount <= 0;
+    }
 
     function requestPayment() {
-        if (!orderId || !amount) {
-            alert("orderId 또는 amount가 없습니다.");
+        if (!orderId || isInvalidAmount(rawAmount, amount)) {
+            alert("orderId 또는 amount가 없거나 올바르지 않습니다.");
             return;
         }
 

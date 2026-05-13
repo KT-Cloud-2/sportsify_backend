@@ -25,7 +25,8 @@
 
     const paymentKey = params.get("paymentKey");
     const orderId = params.get("orderId");
-    const amount = Number(params.get("amount"));
+    const rawAmount = params.get("amount");
+    const amount = Number(rawAmount);
 
     const requestBody = {
         paymentKey: paymentKey,
@@ -35,11 +36,18 @@
 
     document.getElementById("request").innerText = JSON.stringify(requestBody, null, 2);
 
+    function isInvalidAmount(rawAmount, amount) {
+        return rawAmount === null
+                || rawAmount.trim() === ""
+                || Number.isNaN(amount)
+                || amount <= 0;
+    }
+
     async function confirmPayment() {
-        if (!paymentKey || !orderId || !amount) {
+        if (!paymentKey || !orderId || isInvalidAmount(rawAmount, amount)) {
             document.getElementById("result").innerText = JSON.stringify({
-                message: "paymentKey, orderId, amount 중 누락된 값이 있습니다.",
-                guide: "success.html 주소에 ?paymentKey=...&orderId=...&amount=... 가 붙어 있는지 확인하세요."
+                message: "paymentKey, orderId, amount 중 누락되었거나 잘못된 값이 있습니다.",
+                guide: "success.html 주소에 ?paymentKey=...&orderId=...&amount=양수 값이 붙어 있는지 확인하세요."
             }, null, 2);
             return;
         }
