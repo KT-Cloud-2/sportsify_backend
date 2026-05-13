@@ -22,4 +22,7 @@ public class CreatePaymentRequest {
 
     @NotBlank(message = "paymentMethod는 필수입니다.")
     private String paymentMethod;
+
+    @NotBlank(message = "idempotencyKey는 필수입니다.")
+    private String idempotencyKey;
 }

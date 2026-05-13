@@ -23,7 +23,6 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -31,24 +30,25 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
-        String orderId = generateOrderId();
-        String idempotencyKey = UUID.randomUUID().toString();
+        return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
+                .map(this::toResponse)
+                .orElseGet(() -> {
+                    Payment payment = Payment.builder()
+                            .userId(userId)
+                            .matchId(request.getMatchId())
+                            .seatId(request.getSeatId())
+                            .orderId(generateOrderId())
+                            .idempotencyKey(request.getIdempotencyKey())
+                            .amount(request.getAmount())
+                            .paymentMethod(request.getPaymentMethod())
+                            .status(PaymentStatus.PENDING)
+                            .requestedAt(LocalDateTime.now())
+                            .build();
 
-        Payment payment = Payment.builder()
-                .userId(userId)
-                .matchId(request.getMatchId())
-                .seatId(request.getSeatId())
-                .orderId(orderId)
-                .idempotencyKey(idempotencyKey)
-                .amount(request.getAmount())
-                .paymentMethod(request.getPaymentMethod())
-                .status(PaymentStatus.PENDING)
-                .requestedAt(LocalDateTime.now())
-                .build();
+                    Payment savedPayment = paymentRepository.save(payment);
 
-        Payment savedPayment = paymentRepository.save(payment);
-
-        return toResponse(savedPayment);
+                    return toResponse(savedPayment);
+                });
     }
 
     @Transactional
