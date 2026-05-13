@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReservationControllerApiTest extends WebMvcTestSupport {
 
     private static final Long TEST_MEMBER_ID = 1L;
-    private static final ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L), TEST_MEMBER_ID);
+    private static final ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
 
     @MockitoBean
     private ReservationService reservationService;
@@ -53,7 +53,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 LocalDateTime.now()
         );
 
-        when(reservationService.reserveSeat(any())).thenReturn(resDto);
+        when(reservationService.reserveSeat(any(), any())).thenReturn(resDto);
 
         mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
@@ -72,7 +72,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
     @DisplayName("POST /api/seats/reservations — 404 존재하지 않는 경기")
     void gameNotFound() throws Exception {
 
-        when(reservationService.reserveSeat(any())).thenThrow(new BusinessException(ErrorCode.GAME_NOT_FOUND));
+        when(reservationService.reserveSeat(any(), any())).thenThrow(new BusinessException(ErrorCode.GAME_NOT_FOUND));
 
         mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
@@ -87,7 +87,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
     @DisplayName("POST /api/seats/reservations — 404 존재하지 않는 좌석")
     void seatNotFound() throws Exception {
 
-        when(reservationService.reserveSeat(any())).thenThrow(new BusinessException(ErrorCode.SEAT_NOT_FOUND));
+        when(reservationService.reserveSeat(any(), any())).thenThrow(new BusinessException(ErrorCode.SEAT_NOT_FOUND));
 
         mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
@@ -101,7 +101,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
     @DisplayName("POST /api/seats/reservations — 409 이미 선점된 좌석")
     void seatAlreadyReserved() throws Exception {
 
-        when(reservationService.reserveSeat(any())).thenThrow(new BusinessException(ErrorCode.SEAT_ALREADY_RESERVED));
+        when(reservationService.reserveSeat(any(), any())).thenThrow(new BusinessException(ErrorCode.SEAT_ALREADY_RESERVED));
 
         mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
@@ -116,7 +116,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
     @DisplayName("POST /api/seats/reservations — 422 판매 중 아닌 경기")
     void gameNotOnSale() throws Exception {
 
-        when(reservationService.reserveSeat(any())).thenThrow(new BusinessException(ErrorCode.GAME_NOT_ON_SALE));
+        when(reservationService.reserveSeat(any(), any())).thenThrow(new BusinessException(ErrorCode.GAME_NOT_ON_SALE));
 
         mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
@@ -131,7 +131,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
     @DisplayName("POST /api/seats/reservations — 422 최대 좌석 선점 개수 초과")
     void exceedTicketLimit() throws Exception {
 
-        when(reservationService.reserveSeat(any())).thenThrow(new BusinessException(ErrorCode.TICKET_LIMIT_EXCEEDED));
+        when(reservationService.reserveSeat(any(), any())).thenThrow(new BusinessException(ErrorCode.TICKET_LIMIT_EXCEEDED));
 
         mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))

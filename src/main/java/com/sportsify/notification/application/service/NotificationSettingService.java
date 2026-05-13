@@ -66,9 +66,7 @@ public class NotificationSettingService {
     public void deleteChannel(Long memberId, Long channelId) {
         NotificationChannel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_NOT_FOUND));
-        if (!channel.getMemberId().equals(memberId)) {
-            throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_NOT_FOUND);
-        }
+        channel.validateOwner(memberId);
         channelRepository.delete(channel);
     }
 
@@ -76,9 +74,7 @@ public class NotificationSettingService {
     public NotificationChannelResult toggleChannel(Long memberId, Long channelId) {
         NotificationChannel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_NOT_FOUND));
-        if (!channel.getMemberId().equals(memberId)) {
-            throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_NOT_FOUND);
-        }
+        channel.validateOwner(memberId);
         channel.toggle();
         return NotificationChannelResult.from(channel);
     }

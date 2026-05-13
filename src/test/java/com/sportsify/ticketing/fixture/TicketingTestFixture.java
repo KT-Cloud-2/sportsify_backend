@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -40,7 +41,23 @@ public class TicketingTestFixture {
     @Autowired
     private OrderSeatJpaRepository orderSeatRepository;
 
-    public Game createGame(Stadium stadium, Team homeTeam, Team awayTeam) {
+    public Game createGame() {
+        Stadium stadium = stadiumRepository.save(
+                Stadium.builder()
+                        .name("경기장")
+                        .address("서울")
+                        .totalSeats(25000)
+                        .build()
+        );
+
+        // Team
+        Team homeTeam = teamRepository.save(
+                Team.createForTest("Team1", "T1", SportType.BASEBALL)
+        );
+        Team awayTeam = teamRepository.save(
+                Team.createForTest("Team2", "T1", SportType.BASEBALL)
+        );
+
         Game game = Game.builder()
                 .stadium(stadium)
                 .homeTeam(homeTeam)
@@ -49,18 +66,15 @@ public class TicketingTestFixture {
                 .startAt(LocalDateTime.now().plusDays(7))
                 .status(GameStatus.SCHEDULED)
                 .build();
+
         game.updateStatus(GameStatus.ON_SALE);
+
         return gameRepository.save(game);
     }
 
-    public List<Long> createGameWithSeats() {
-        Stadium stadium = stadiumRepository.save(
-                Stadium.builder()
-                        .name("경기장")
-                        .address("서울")
-                        .totalSeats(25000)
-                        .build()
-        );
+    public List<Long> createGameSeatsWithCount(Game game, int count) {
+
+        Stadium stadium = game.getStadium();
 
         ZoneGrade zoneGrade = zoneGradeRepository.save(
                 ZoneGrade.builder()
@@ -78,33 +92,26 @@ public class TicketingTestFixture {
                         .build()
         );
 
-        // Seat
-        Seat seat1 = seatRepository.save(
-                Seat.builder().section(section).rowNumber("1").seatNumber("1").build()
-        );
-        Seat seat2 = seatRepository.save(
-                Seat.builder().section(section).rowNumber("1").seatNumber("2").build()
-        );
+        ArrayList<Long> ids = new ArrayList<>();
 
-        // Team
-        Team homeTeam = teamRepository.save(
-                Team.createForTest("Team1", "T1", SportType.BASEBALL)
-        );
-        Team awayTeam = teamRepository.save(
-                Team.createForTest("Team2", "T1", SportType.BASEBALL)
-        );
+        for (int i = 0; i < count; i++) {
+            Seat seat = seatRepository.save(
+                    Seat.builder().section(section).rowNumber(i / 10 + 1 + "").seatNumber(i % 10 + 1 + "").build()
+            );
 
-        Game game = createGame(stadium, homeTeam, awayTeam);
+            ids.add(gameSeatRepository.save(GameSeat.builder().game(game).seat(seat).price(15000).build()).getId());
+        }
 
-        GameSeat gs1 = gameSeatRepository.save(GameSeat.builder().game(game).seat(seat1).price(15000).build());
-        GameSeat gs2 = gameSeatRepository.save(GameSeat.builder().game(game).seat(seat2).price(15000).build());
-
-        return List.of(gs1.getId(), gs2.getId());
+        return ids;
     }
 
     // ─────────────── Member ───────────────
     public Member createMember(String email, String nickname) {
         return memberRepository.save(Member.create(email, nickname, OAuthProvider.GOOGLE, "g-" + email));
+    }
+
+    public Member createMemberWithNum(int number) {
+        return memberRepository.save(Member.create(number + "@test.com", "n-" + number, OAuthProvider.GOOGLE, "g-" + number));
     }
 
     public void deleteAll() {

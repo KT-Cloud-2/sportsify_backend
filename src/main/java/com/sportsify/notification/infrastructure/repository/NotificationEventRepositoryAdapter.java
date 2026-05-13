@@ -24,6 +24,6 @@ public class NotificationEventRepositoryAdapter implements NotificationEventRepo
 
     @Override
     public List<NotificationEvent> findAllById(List<Long> ids) {
-        return jpaRepository.findAllById(ids);
+        return jpaRepository.findAllByIdIn(ids);
     }
 }

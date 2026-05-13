@@ -52,11 +52,11 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("존재하지 않는 회원 ID를 요청으로 받으면 예외를 반환한다.")
     public void notFoundMember() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
 
         when(memberRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reservationService.reserveSeat(reqDto))
+        assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
@@ -65,13 +65,13 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("존재하지 않는 게임 ID를 요청으로 받으면 예외를 반환한다.")
     public void notFoundGame() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
         Member mockMember = mock(Member.class);
 
         when(memberRepository.findById(1L)).thenReturn(Optional.of(mockMember));
         when(gameRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reservationService.reserveSeat(reqDto))
+        assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.GAME_NOT_FOUND);
@@ -80,7 +80,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("요청된 게임이 판매 중 상태가 아니라면 예외를 반환한다.")
     public void notOnSaleGame() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -89,7 +89,7 @@ public class ReservationServiceTest {
         when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
         when(mockGame.isOnSale()).thenReturn(false);
 
-        assertThatThrownBy(() -> reservationService.reserveSeat(reqDto))
+        assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.GAME_NOT_ON_SALE);
@@ -98,7 +98,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("최대 요청 가능 매수를 초과하면 예외를 반환한다.")
     public void exceedTicketCapacity() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -108,7 +108,7 @@ public class ReservationServiceTest {
         when(mockGame.isOnSale()).thenReturn(true);
         when(mockGame.getMaxTicketPerUser()).thenReturn(1);
 
-        assertThatThrownBy(() -> reservationService.reserveSeat(reqDto))
+        assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> {
                     BusinessException ex = (BusinessException) e;
@@ -120,7 +120,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("선점 가능한 좌석 수와 요청한 좌석 수가 일치하지 않으면 예외를 반환한다.")
     public void checkAvailableSeats() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -131,7 +131,7 @@ public class ReservationServiceTest {
         when(mockGame.getMaxTicketPerUser()).thenReturn(2);
         when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds())).thenReturn(Collections.emptyList());
 
-        assertThatThrownBy(() -> reservationService.reserveSeat(reqDto))
+        assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.SEAT_ALREADY_RESERVED);
@@ -140,7 +140,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("사용 가능한 좌석 수가 같을 때, 각 좌석이 선점된다.")
     public void updateSeatStatus() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L, 3L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L, 3L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -155,7 +155,7 @@ public class ReservationServiceTest {
         when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds()))
                 .thenReturn(List.of(seat1, seat2, seat3));
 
-        reservationService.reserveSeat(reqDto);
+        reservationService.reserveSeat(1L, reqDto);
 
         verify(seat1).updateSeatStatus(SeatStatus.RESERVED);
         verify(seat2).updateSeatStatus(SeatStatus.RESERVED);
@@ -165,7 +165,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("좌석이 선점되면서 최종 주문이 생성된다.")
     public void createOrder() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -177,7 +177,7 @@ public class ReservationServiceTest {
         when(mockGame.getMaxTicketPerUser()).thenReturn(2);
         when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds())).thenReturn(List.of(mockGameSeat));
 
-        reservationService.reserveSeat(reqDto);
+        reservationService.reserveSeat(1L, reqDto);
 
         ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository, times(1)).save(captor.capture());
@@ -191,7 +191,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("좌석이 선점되고 주문이 생성된 다음, 응답 Dto를 반환한다.")
     public void returnResponseDto() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L, 3L), 1L);
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L, 3L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -206,7 +206,7 @@ public class ReservationServiceTest {
         when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds()))
                 .thenReturn(List.of(seat1, seat2, seat3));
 
-        ReservationSeatsResponseDto reservationSeatsResponseDto = reservationService.reserveSeat(reqDto);
+        ReservationSeatsResponseDto reservationSeatsResponseDto = reservationService.reserveSeat(1L, reqDto);
 
         assertThat(reservationSeatsResponseDto.gameId()).isEqualTo(1L);
         assertThat(reservationSeatsResponseDto.seats().size()).isEqualTo(3);

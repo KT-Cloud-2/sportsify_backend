@@ -20,15 +20,15 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_seat_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_seat_id", nullable = false, unique = true)
     private OrderSeat orderSeat;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(name = "ticket_number", nullable = false, length = 36)
+    @Column(name = "ticket_number", nullable = false, unique = true, length = 36)
     private String ticketNumber;
 
     @Column(nullable = false)
