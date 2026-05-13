@@ -17,6 +17,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Getter
@@ -60,7 +61,7 @@ public class Payment {
     private LocalDateTime requestedAt;
 
     @Column(name = "approved_at")
-    private LocalDateTime approvedAt;
+    private OffsetDateTime approvedAt;
 
     @Column(name = "canceled_at")
     private LocalDateTime canceledAt;
@@ -88,7 +89,7 @@ public class Payment {
             String paymentMethod,
             PaymentStatus status,
             LocalDateTime requestedAt,
-            LocalDateTime approvedAt,
+            OffsetDateTime approvedAt,
             LocalDateTime canceledAt,
             String cancelReason
     ) {
@@ -107,7 +108,7 @@ public class Payment {
         this.cancelReason = cancelReason;
     }
 
-    public void markCompleted(String paymentKey, String paymentMethod, LocalDateTime approvedAt) {
+    public void markCompleted(String paymentKey, String paymentMethod, OffsetDateTime approvedAt) {
         if (this.status != PaymentStatus.PENDING) {
             throw new IllegalStateException("PENDING 상태의 결제만 완료 처리할 수 있습니다.");
         }

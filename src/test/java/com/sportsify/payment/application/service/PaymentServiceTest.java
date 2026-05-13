@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -161,7 +162,7 @@ class PaymentServiceTest {
                 .paymentMethod("CARD")
                 .status(PaymentStatus.COMPLETED)
                 .requestedAt(LocalDateTime.now())
-                .approvedAt(LocalDateTime.now())
+                .approvedAt(OffsetDateTime.now())
                 .build();
     }
 
@@ -177,7 +178,7 @@ class PaymentServiceTest {
                 .paymentMethod("CARD")
                 .status(PaymentStatus.CANCELED)
                 .requestedAt(LocalDateTime.now())
-                .approvedAt(LocalDateTime.now())
+                .approvedAt(OffsetDateTime.now())
                 .canceledAt(LocalDateTime.now())
                 .cancelReason("cancel request")
                 .build();

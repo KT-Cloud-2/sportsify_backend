@@ -106,7 +106,7 @@ public class PaymentService {
         payment.markCompleted(
                 mockPaymentKey,
                 "CARD",
-                LocalDateTime.now()
+                OffsetDateTime.now()
         );
 
         return toResponse(payment);
@@ -175,16 +175,16 @@ public class PaymentService {
                 .substring(0, 20);
     }
 
-    private LocalDateTime parseApprovedAt(String approvedAt) {
+    private OffsetDateTime parseApprovedAt(String approvedAt) {
         if (approvedAt == null || approvedAt.isBlank()) {
-            return LocalDateTime.now();
+            return OffsetDateTime.now();
         }
 
         try {
-            return OffsetDateTime.parse(approvedAt).toLocalDateTime();
+            return OffsetDateTime.parse(approvedAt);
         } catch (DateTimeParseException e) {
             log.warn("Toss approvedAt 파싱 실패. approvedAt={}, fallback=now", approvedAt, e);
-            return LocalDateTime.now();
+            return OffsetDateTime.now();
         }
     }
 }

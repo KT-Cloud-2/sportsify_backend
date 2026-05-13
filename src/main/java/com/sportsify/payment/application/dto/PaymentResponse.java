@@ -4,10 +4,12 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 @Builder
 public class PaymentResponse {
+
     private Long paymentId;
     private String orderId;
     private String paymentKey;
@@ -15,5 +17,5 @@ public class PaymentResponse {
     private String paymentMethod;
     private String status;
     private LocalDateTime requestedAt;
-    private LocalDateTime approvedAt;
+    private OffsetDateTime approvedAt;
 }
