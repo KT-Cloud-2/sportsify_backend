@@ -108,6 +108,10 @@ public class Payment {
     }
 
     public void markCompleted(String paymentKey, String paymentMethod, LocalDateTime approvedAt) {
+        if (this.status != PaymentStatus.PENDING) {
+            throw new IllegalStateException("PENDING 상태의 결제만 완료 처리할 수 있습니다.");
+        }
+
         this.paymentKey = paymentKey;
         this.paymentMethod = paymentMethod;
         this.status = PaymentStatus.COMPLETED;
