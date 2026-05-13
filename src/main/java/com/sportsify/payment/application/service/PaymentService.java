@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -31,7 +32,10 @@ public class PaymentService {
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
         return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
-                .map(this::toResponse)
+                .map(existingPayment -> {
+                    validateSamePaymentRequest(existingPayment, userId, request);
+                    return toResponse(existingPayment);
+                })
                 .orElseGet(() -> {
                     Payment payment = Payment.builder()
                             .userId(userId)
@@ -129,6 +133,23 @@ public class PaymentService {
         payment.markCanceled(request.getCancelReason(), LocalDateTime.now());
 
         return toResponse(payment);
+    }
+
+    private void validateSamePaymentRequest(
+            Payment payment,
+            Long userId,
+            CreatePaymentRequest request
+    ) {
+        boolean sameRequest =
+                Objects.equals(payment.getUserId(), userId)
+                        && Objects.equals(payment.getMatchId(), request.getMatchId())
+                        && Objects.equals(payment.getSeatId(), request.getSeatId())
+                        && Objects.equals(payment.getAmount(), request.getAmount())
+                        && Objects.equals(payment.getPaymentMethod(), request.getPaymentMethod());
+
+        if (!sameRequest) {
+            throw new InvalidPaymentStatusException("동일한 idempotencyKey로 다른 결제 요청을 생성할 수 없습니다.");
+        }
     }
 
     private PaymentResponse toResponse(Payment payment) {
