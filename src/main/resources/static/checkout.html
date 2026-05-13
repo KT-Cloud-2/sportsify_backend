@@ -21,6 +21,7 @@
 
     const orderId = params.get("orderId");
     const amount = Number(params.get("amount"));
+    const origin = window.location.origin;
 
     document.getElementById("orderId").innerText = orderId;
     document.getElementById("amount").innerText = amount;
@@ -36,8 +37,8 @@
             orderId: orderId,
             orderName: "스포츠 경기 예매",
             customerName: "테스트유저",
-            successUrl: "http://localhost:8081/success.html",
-            failUrl: "http://localhost:8081/fail.html"
+            successUrl: `${origin}/success.html`,
+            failUrl: `${origin}/fail.html`
         });
     }
 </script>
