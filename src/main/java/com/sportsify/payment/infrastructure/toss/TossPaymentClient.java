@@ -26,6 +26,9 @@ public class TossPaymentClient {
     @Value("${toss.payments.confirm-url}")
     private String confirmUrl;
 
+    @Value("${toss.payments.cancel-url}")
+    private String cancelUrl;
+
     public TossPaymentClient(@Qualifier("tossRestClient") RestClient restClient) {
         this.restClient = restClient;
     }
@@ -57,7 +60,7 @@ public class TossPaymentClient {
 
         restClient
                 .post()
-                .uri("https://api.tosspayments.com/v1/payments/{paymentKey}/cancel", paymentKey)
+                .uri(cancelUrl, paymentKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Basic " + encodedSecretKey)
                 .body(Map.of("cancelReason", cancelReason))
