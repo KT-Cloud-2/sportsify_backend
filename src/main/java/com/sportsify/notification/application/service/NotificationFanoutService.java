@@ -20,22 +20,18 @@ public class NotificationFanoutService {
 
     private final NotificationSettingRepository settingRepository;
     private final NotificationChunkService chunkService;
+    private final NotificationPayloadParser payloadParser;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
-        if (isSingleTarget(eventType)) {
+        if (eventType.isSingleTarget()) {
             return fanoutSingleTarget(event, eventType, payload);
         }
         return fanoutBroadcast(event, eventType, payload);
     }
 
-    private boolean isSingleTarget(NotificationEventType eventType) {
-        return eventType == NotificationEventType.CHAT_MENTION
-                || eventType == NotificationEventType.PAYMENT_COMPLETED;
-    }
-
     private boolean fanoutSingleTarget(NotificationEvent event, NotificationEventType eventType, String payload) {
         try {
-            Long memberId = NotificationPayloadParser.extractMemberId(payload, eventType.name());
+            Long memberId = payloadParser.extractMemberId(payload, eventType.name());
             return chunkService.processChunk(event, List.of(memberId), payload);
         } catch (Exception e) {
             log.error("{} payload에서 memberId 추출 실패", eventType.name(), e);

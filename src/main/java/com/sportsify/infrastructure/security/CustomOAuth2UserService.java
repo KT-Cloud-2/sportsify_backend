@@ -1,7 +1,8 @@
 package com.sportsify.infrastructure.security;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.member.domain.model.Member;
-import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import com.sportsify.notification.domain.model.NotificationSetting;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,16 +34,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         OAuth2UserInfo info = OAuth2UserInfo.of(registrationId, oAuth2User.getAttributes());
 
-        boolean[] isNew = {false};
-        Member member = memberRepository.findByProviderAndProviderId(info.provider(), info.providerId())
-                .orElseGet(() -> {
-                    isNew[0] = true;
-                    return memberRepository.save(
-                            Member.create(info.email(), info.nickname(), info.provider(), info.providerId())
-                    );
-                });
-        if (isNew[0]) {
+        Optional<Member> existing = memberRepository.findByProviderAndProviderId(info.provider(), info.providerId());
+
+        Member member;
+        if (existing.isEmpty()) {
+            member = memberRepository.save(
+                    Member.create(info.email(), info.nickname(), info.provider(), info.providerId())
+            );
             notificationSettingRepository.save(NotificationSetting.createDefault(member.getId()));
+        } else {
+            member = existing.get();
+        }
+
+        if (member.isWithdrawn()) {
+            throw new BusinessException(ErrorCode.MEMBER_WITHDRAWN);
         }
 
         member.updateLastLoginAt();

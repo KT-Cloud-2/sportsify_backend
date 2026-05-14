@@ -5,10 +5,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationEventJpaRepository extends JpaRepository<NotificationEvent, Long> {
 
-    @Query("SELECT e FROM NotificationEvent e WHERE e.id IN :ids")
-    List<NotificationEvent> findAllByIdIn(@Param("ids") List<Long> ids);
+    Optional<NotificationEvent> findByStreamMessageId(String streamMessageId);
+
+    @Query(value = "SELECT * FROM notification_events WHERE status = 'PENDING' AND scheduled_at <= :now FOR UPDATE SKIP LOCKED",
+            nativeQuery = true)
+    List<NotificationEvent> findDueScheduledEventsForUpdate(@Param("now") LocalDateTime now);
+
+    @Query(value = "SELECT * FROM notification_events WHERE status = 'PROCESSING' AND updated_at <= :updatedBefore FOR UPDATE SKIP LOCKED",
+            nativeQuery = true)
+    List<NotificationEvent> findStuckProcessingEventsForUpdate(@Param("updatedBefore") LocalDateTime updatedBefore);
+
 }
