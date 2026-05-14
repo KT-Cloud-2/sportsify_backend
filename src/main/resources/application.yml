@@ -2,9 +2,6 @@ spring:
   application:
     name: sportsify
 
-  config:
-    import: optional:file:env.local[.properties]
-
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
@@ -26,7 +23,7 @@ app:
 
 toss:
   payments:
-    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:tet-payments-key}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:toss_test_sk_9b1c8e5a-9c3d-4f0b-9c7d-1a2b3c4d5e6f}
 
 springdoc:
   api-docs:
