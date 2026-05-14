@@ -30,6 +30,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
 
+    private static final Long MEMBER_ID = 1L;
+    private static final Long OTHER_MEMBER_ID = 999L;
+
     @Mock
     private PaymentRepository paymentRepository;
 
@@ -48,7 +51,7 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
 
-        PaymentResponse response = paymentService.cancelPayment(paymentId, request);
+        PaymentResponse response = paymentService.cancelPayment(paymentId, MEMBER_ID, request);
 
         assertThat(response.getStatus()).isEqualTo("CANCELED");
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELED);
@@ -67,7 +70,7 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
 
-        PaymentResponse response = paymentService.cancelPayment(paymentId, request);
+        PaymentResponse response = paymentService.cancelPayment(paymentId, MEMBER_ID, request);
 
         assertThat(response.getStatus()).isEqualTo("CANCELED");
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELED);
@@ -85,8 +88,23 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, MEMBER_ID, request))
                 .isInstanceOf(PaymentNotFoundException.class);
+
+        verify(tossPaymentClient, never()).cancel(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("fail when canceling another member's payment")
+    void cancelPayment_otherMemberPayment_fail() {
+        Long paymentId = 1L;
+        Payment payment = completedPayment("PAYMENT_KEY_123");
+        CancelPaymentRequest request = cancelRequest("cancel request");
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, OTHER_MEMBER_ID, request))
+                .isInstanceOf(InvalidPaymentStatusException.class);
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
     }
@@ -100,7 +118,7 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
 
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, MEMBER_ID, request))
                 .isInstanceOf(InvalidPaymentStatusException.class);
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
@@ -115,7 +133,7 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
 
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, MEMBER_ID, request))
                 .isInstanceOf(InvalidPaymentStatusException.class);
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
@@ -130,7 +148,7 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
 
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, MEMBER_ID, request))
                 .isInstanceOf(InvalidPaymentStatusException.class);
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
@@ -138,7 +156,7 @@ class PaymentServiceTest {
 
     private Payment pendingPayment() {
         return Payment.builder()
-                .userId(1L)
+                .memberId(MEMBER_ID)
                 .matchId(1L)
                 .seatId(1L)
                 .orderId("ORDER_123")
@@ -152,7 +170,7 @@ class PaymentServiceTest {
 
     private Payment completedPayment(String paymentKey) {
         return Payment.builder()
-                .userId(1L)
+                .memberId(MEMBER_ID)
                 .matchId(1L)
                 .seatId(1L)
                 .orderId("ORDER_123")
@@ -168,7 +186,7 @@ class PaymentServiceTest {
 
     private Payment canceledPayment() {
         return Payment.builder()
-                .userId(1L)
+                .memberId(MEMBER_ID)
                 .matchId(1L)
                 .seatId(1L)
                 .orderId("ORDER_123")

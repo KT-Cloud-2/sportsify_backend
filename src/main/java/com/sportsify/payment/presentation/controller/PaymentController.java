@@ -36,8 +36,9 @@ public class PaymentController {
     @PostMapping("/{paymentId}/cancel")
     public ResponseEntity<PaymentResponse> cancelPayment(
             @PathVariable Long paymentId,
+            @AuthenticationPrincipal Long memberId,
             @RequestBody @Valid CancelPaymentRequest request
     ) {
-        return ResponseEntity.ok(paymentService.cancelPayment(paymentId, request));
+        return ResponseEntity.ok(paymentService.cancelPayment(paymentId, memberId, request));
     }
 }

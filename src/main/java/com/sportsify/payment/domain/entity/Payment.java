@@ -29,8 +29,8 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "member_id", nullable = false)
+    private Long memberId;
 
     @Column(name = "match_id", nullable = false)
     private Long matchId;
@@ -79,7 +79,7 @@ public class Payment {
 
     @Builder
     public Payment(
-            Long userId,
+            Long memberId,
             Long matchId,
             Long seatId,
             String orderId,
@@ -93,7 +93,7 @@ public class Payment {
             LocalDateTime canceledAt,
             String cancelReason
     ) {
-        this.userId = userId;
+        this.memberId = memberId;
         this.matchId = matchId;
         this.seatId = seatId;
         this.orderId = orderId;
@@ -127,5 +127,13 @@ public class Payment {
         this.status = PaymentStatus.CANCELED;
         this.cancelReason = cancelReason;
         this.canceledAt = canceledAt;
+    }
+
+    public boolean isCompleted() {
+        return this.status == PaymentStatus.COMPLETED;
+    }
+
+    public boolean hasPaymentKey() {
+        return this.paymentKey != null && !this.paymentKey.isBlank();
     }
 }

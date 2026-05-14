@@ -14,7 +14,7 @@ import com.sportsify.payment.infrastructure.toss.TossPaymentClient;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmRequest;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +24,6 @@ import java.time.format.DateTimeParseException;
 import java.util.Objects;
 import java.util.UUID;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -35,29 +34,35 @@ public class PaymentService {
     private final TossPaymentClient tossPaymentClient;
 
     @Transactional
-    public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
+    public PaymentResponse createPayment(Long memberId, CreatePaymentRequest request) {
         return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
                 .map(existingPayment -> {
-                    validateSamePaymentRequest(existingPayment, userId, request);
+                    validateSamePaymentRequest(existingPayment, memberId, request);
                     return toResponse(existingPayment);
                 })
-                .orElseGet(() -> {
-                    Payment payment = Payment.builder()
-                            .userId(userId)
-                            .matchId(request.getMatchId())
-                            .seatId(request.getSeatId())
-                            .orderId(generateOrderId())
-                            .idempotencyKey(request.getIdempotencyKey())
-                            .amount(request.getAmount())
-                            .paymentMethod(request.getPaymentMethod())
-                            .status(PaymentStatus.PENDING)
-                            .requestedAt(LocalDateTime.now())
-                            .build();
+                .orElseGet(() -> createNewPayment(memberId, request));
+    }
 
-                    Payment savedPayment = paymentRepository.save(payment);
+    private PaymentResponse createNewPayment(Long memberId, CreatePaymentRequest request) {
+        try {
+            Payment payment = Payment.builder()
+                    .memberId(memberId)
+                    .matchId(request.getMatchId())
+                    .seatId(request.getSeatId())
+                    .orderId(generateOrderId())
+                    .idempotencyKey(request.getIdempotencyKey())
+                    .amount(request.getAmount())
+                    .paymentMethod(request.getPaymentMethod())
+                    .status(PaymentStatus.PENDING)
+                    .requestedAt(LocalDateTime.now())
+                    .build();
 
-                    return toResponse(savedPayment);
-                });
+            Payment savedPayment = paymentRepository.saveAndFlush(payment);
+
+            return toResponse(savedPayment);
+        } catch (DataIntegrityViolationException e) {
+            throw new InvalidPaymentStatusException("동일한 idempotencyKey로 이미 결제 요청이 처리 중입니다.");
+        }
     }
 
     @Transactional
@@ -117,9 +122,13 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResponse cancelPayment(Long paymentId, CancelPaymentRequest request) {
+    public PaymentResponse cancelPayment(Long paymentId, Long memberId, CancelPaymentRequest request) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException("존재하지 않는 결제입니다."));
+
+        if (!Objects.equals(payment.getMemberId(), memberId)) {
+            throw new InvalidPaymentStatusException("본인의 결제만 취소할 수 있습니다.");
+        }
 
         if (payment.getStatus() == PaymentStatus.CANCELED) {
             throw new InvalidPaymentStatusException("이미 취소된 결제입니다.");
@@ -172,11 +181,11 @@ public class PaymentService {
 
     private void validateSamePaymentRequest(
             Payment payment,
-            Long userId,
+            Long memberId,
             CreatePaymentRequest request
     ) {
         boolean sameRequest =
-                Objects.equals(payment.getUserId(), userId)
+                Objects.equals(payment.getMemberId(), memberId)
                         && Objects.equals(payment.getMatchId(), request.getMatchId())
                         && Objects.equals(payment.getSeatId(), request.getSeatId())
                         && Objects.equals(payment.getAmount(), request.getAmount())
@@ -209,14 +218,13 @@ public class PaymentService {
 
     private OffsetDateTime parseApprovedAt(String approvedAt) {
         if (approvedAt == null || approvedAt.isBlank()) {
-            return OffsetDateTime.now();
+            throw new InvalidPaymentStatusException("Toss 승인 시간이 비어 있습니다.");
         }
 
         try {
             return OffsetDateTime.parse(approvedAt);
         } catch (DateTimeParseException e) {
-            log.warn("Toss approvedAt 파싱 실패. approvedAt={}, fallback=now", approvedAt, e);
-            return OffsetDateTime.now();
+            throw new InvalidPaymentStatusException("Toss 승인 시간 형식이 올바르지 않습니다.");
         }
     }
 }
