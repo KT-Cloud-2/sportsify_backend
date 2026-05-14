@@ -1,6 +1,7 @@
 package com.sportsify.ticketing.application;
 
 
+import com.sportsify.common.event.OrderCreatedEvent;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
@@ -53,11 +54,15 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     @Autowired
     private TicketingTestFixture fixture;
 
+    @Autowired
+    private TestOrderEventListener testEventListener;
+
 
     @BeforeEach
     void beforeEach() {
         member = fixture.createMember("t1@test.com", "n1");
         game = fixture.createGame();
+        testEventListener.clear();
     }
 
     @AfterEach
@@ -290,4 +295,37 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
     }
 
+    @Test
+    @DisplayName("주문 생성 시, 총 금액이 올바르게 계산된다.")
+    void createOrder_amountCalculation() {
+        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
+
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
+
+        Order createdOrder = orderRepository.findById(resDto.orderId()).orElseThrow();
+
+        long amount = createdOrder.getOrderSeats().stream().mapToLong(OrderSeat::getPrice).sum();
+
+        assertThat(amount).isEqualTo(20000L);
+    }
+
+
+    @Test
+    @DisplayName("주문 생성 시, 주문 생성 이벤트가 발행된다.")
+    void reserveSeat_publishesEventWithCorrectAmount() {
+        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
+
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+
+        reservationService.reserveSeat(member.getId(), reqDto);
+
+        OrderCreatedEvent event = testEventListener.getLastEvent();
+
+        assertThat(event).isNotNull();
+        assertThat(event.memberId()).isEqualTo(member.getId());
+        assertThat(event.amount()).isEqualTo(20000L);
+
+    }
 }
