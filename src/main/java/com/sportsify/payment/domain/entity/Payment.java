@@ -1,5 +1,6 @@
 package com.sportsify.payment.domain.entity;
 
+import com.sportsify.payment.domain.exception.InvalidPaymentStatusException;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
