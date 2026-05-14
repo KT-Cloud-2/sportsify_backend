@@ -33,17 +33,14 @@ class NotificationSettingServiceTest {
     private NotificationChannelRepository channelRepository;
 
     @Test
-    @DisplayName("알림 설정이 없으면 기본값으로 자동 생성하여 반환한다")
-    void getSetting_없으면_기본값생성() {
-        NotificationSetting defaultSetting = NotificationSetting.createDefault(1L);
+    @DisplayName("알림 설정이 없으면 NOTIFICATION_SETTING_NOT_FOUND 예외가 발생한다")
+    void getSetting_없으면_예외() {
         given(settingRepository.findByMemberId(1L)).willReturn(Optional.empty());
-        given(settingRepository.save(any())).willReturn(defaultSetting);
 
-        var result = settingService.getSetting(1L);
-
-        assertThat(result.ticketOpenAlert()).isTrue();
-        assertThat(result.gameStartAlert()).isTrue();
-        verify(settingRepository).save(any());
+        assertThatThrownBy(() -> settingService.getSetting(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND);
     }
 
     @Test

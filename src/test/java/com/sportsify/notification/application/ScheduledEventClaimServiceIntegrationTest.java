@@ -6,20 +6,27 @@ import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.model.NotificationEventStatus;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.support.RepositoryTestSupport;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,6 +35,20 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
     @Autowired private ScheduledEventClaimService claimService;
     @Autowired private NotificationEventRepository eventRepository;
     @Autowired private TransactionTemplate transactionTemplate;
+    @Autowired private AtomicReference<Clock> clockReference;
+    @Autowired private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void setUp() {
+        clockReference.set(Clock.systemDefaultZone());
+        jdbcTemplate.execute("DELETE FROM notification_events");
+    }
+
+    @AfterEach
+    void tearDown() {
+        clockReference.set(Clock.systemDefaultZone());
+        jdbcTemplate.execute("DELETE FROM notification_events");
+    }
 
     @Test
     @DisplayName("동시에 두 스레드가 claim해도 각 이벤트는 한 번만 claim된다")
@@ -52,7 +73,7 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
         for (int i = 0; i < 2; i++) {
             executor.submit(() -> {
                 try {
-                    barrier.await(); // 두 스레드가 동시에 진입하도록 대기
+                    barrier.await();
                     List<NotificationEvent> claimed = claimService.claimDueEvents();
                     totalClaimed.addAndGet(claimed.size());
                 } catch (Exception e) {
@@ -69,14 +90,11 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
         // THEN: 두 스레드 합산 claimed 수 = 3 (중복 없음)
         assertThat(totalClaimed.get()).isEqualTo(3);
 
-        // 모든 이벤트가 PROCESSING 상태
+        // findDueScheduledEventsForUpdate는 PENDING만 조회 — PROCESSING 상태면 0건
         transactionTemplate.execute(status -> {
-            List<NotificationEvent> all = eventRepository.findAllById(
-                    eventRepository.findDueScheduledEventsForUpdate(LocalDateTime.now().plusHours(1))
-                            .stream().map(NotificationEvent::getId).toList()
-            );
-            // findDueScheduledEventsForUpdate는 PENDING만 조회 — PROCESSING 상태면 0건
-            assertThat(all).isEmpty();
+            List<NotificationEvent> pending = eventRepository.findDueScheduledEventsForUpdate(
+                    LocalDateTime.now().plusHours(1));
+            assertThat(pending).isEmpty();
             return null;
         });
     }
@@ -85,10 +103,13 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
     @DisplayName("PROCESSING stuck 이벤트가 PENDING으로 복구된다")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void claimStuckEvents_PROCESSING_PENDING으로복구() {
-        // GIVEN: 15분 전에 PROCESSING 상태가 된 stuck 이벤트
+        // GIVEN: Clock을 15분 전으로 고정하여 PROCESSING 상태 저장 → updated_at이 15분 전으로 기록됨
+        Clock pastClock = Clock.fixed(Instant.now().minusSeconds(15 * 60), ZoneId.systemDefault());
+        clockReference.set(pastClock);
+
         NotificationEvent event = transactionTemplate.execute(status ->
                 eventRepository.save(NotificationEvent.createScheduled(
-                        NotificationEventType.TICKET_OPEN, "{}", LocalDateTime.now().minusMinutes(20)))
+                        NotificationEventType.TICKET_OPEN, "{}", LocalDateTime.now(pastClock).minusMinutes(5)))
         );
 
         transactionTemplate.execute(status -> {
@@ -96,6 +117,9 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
             found.markProcessing();
             return eventRepository.save(found);
         });
+
+        // Clock을 현재 시각으로 복원
+        clockReference.set(Clock.systemDefaultZone());
 
         // WHEN: 10분 타임아웃 기준으로 stuck 이벤트 복구
         LocalDateTime stuckBefore = LocalDateTime.now().minusMinutes(10);
