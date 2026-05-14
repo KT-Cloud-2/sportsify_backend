@@ -5,11 +5,14 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notification_settings")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationSetting {
@@ -33,6 +36,7 @@ public class NotificationSetting {
     @Column(name = "chat_mention_alert", nullable = false)
     private boolean chatMentionAlert;
 
+    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -51,7 +55,6 @@ public class NotificationSetting {
         this.gameStartAlert = gameStartAlert;
         this.paymentAlert = paymentAlert;
         this.chatMentionAlert = chatMentionAlert;
-        this.updatedAt = LocalDateTime.now();
     }
 
     public boolean isEnabledFor(NotificationEventType eventType) {
