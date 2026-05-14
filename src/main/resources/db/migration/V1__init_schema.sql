@@ -211,13 +211,15 @@ CREATE TABLE tickets
 CREATE INDEX idx_tickets_status ON tickets (member_id, status);
 
 -- 결제
+-- 결제
 CREATE TABLE payments
 (
     id              BIGSERIAL PRIMARY KEY,
+    order_id        BIGINT       NOT NULL,
     member_id       BIGINT       NOT NULL,
     match_id        BIGINT       NOT NULL,
     seat_id         BIGINT       NOT NULL,
-    order_id        VARCHAR(50)  NOT NULL,
+    toss_order_id   VARCHAR(50)  NOT NULL,
     payment_key     VARCHAR(100),
     idempotency_key VARCHAR(100) NOT NULL,
     amount          BIGINT       NOT NULL,
@@ -230,16 +232,18 @@ CREATE TABLE payments
     created_at      TIMESTAMP    NOT NULL,
     updated_at      TIMESTAMP    NOT NULL,
 
+    CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_payment_member FOREIGN KEY (member_id) REFERENCES members (id),
     CONSTRAINT fk_payment_game FOREIGN KEY (match_id) REFERENCES games (id),
     CONSTRAINT fk_payment_seat FOREIGN KEY (seat_id) REFERENCES seats (id),
-    CONSTRAINT uq_payment_order_id UNIQUE (order_id),
+    CONSTRAINT uq_payment_toss_order_id UNIQUE (toss_order_id),
     CONSTRAINT uq_payment_key UNIQUE (payment_key),
     CONSTRAINT uq_idempotency UNIQUE (idempotency_key)
 );
 
 CREATE INDEX idx_payments_member ON payments (member_id);
 CREATE INDEX idx_payments_status ON payments (status);
+CREATE INDEX idx_payments_order ON payments (order_id);
 
 -- 환불
 CREATE TABLE refunds

@@ -32,6 +32,8 @@ class PaymentServiceTest {
 
     private static final Long MEMBER_ID = 1L;
     private static final Long OTHER_MEMBER_ID = 999L;
+    private static final Long ORDER_ID = 1L;
+    private static final String TOSS_ORDER_ID = "ORDER_123";
 
     @Mock
     private PaymentRepository paymentRepository;
@@ -156,10 +158,11 @@ class PaymentServiceTest {
 
     private Payment pendingPayment() {
         return Payment.builder()
+                .orderId(ORDER_ID)
                 .memberId(MEMBER_ID)
                 .matchId(1L)
                 .seatId(1L)
-                .orderId("ORDER_123")
+                .tossOrderId(TOSS_ORDER_ID)
                 .idempotencyKey("IDEMPOTENCY_KEY_123")
                 .amount(50000L)
                 .paymentMethod("CARD")
@@ -170,10 +173,11 @@ class PaymentServiceTest {
 
     private Payment completedPayment(String paymentKey) {
         return Payment.builder()
+                .orderId(ORDER_ID)
                 .memberId(MEMBER_ID)
                 .matchId(1L)
                 .seatId(1L)
-                .orderId("ORDER_123")
+                .tossOrderId(TOSS_ORDER_ID)
                 .paymentKey(paymentKey)
                 .idempotencyKey("IDEMPOTENCY_KEY_123")
                 .amount(50000L)
@@ -186,10 +190,11 @@ class PaymentServiceTest {
 
     private Payment canceledPayment() {
         return Payment.builder()
+                .orderId(ORDER_ID)
                 .memberId(MEMBER_ID)
                 .matchId(1L)
                 .seatId(1L)
-                .orderId("ORDER_123")
+                .tossOrderId(TOSS_ORDER_ID)
                 .paymentKey("PAYMENT_KEY_123")
                 .idempotencyKey("IDEMPOTENCY_KEY_123")
                 .amount(50000L)

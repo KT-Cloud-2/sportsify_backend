@@ -29,6 +29,9 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "order_id", nullable = false)
+    private Long orderId;
+
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
@@ -38,8 +41,8 @@ public class Payment {
     @Column(name = "seat_id", nullable = false)
     private Long seatId;
 
-    @Column(name = "order_id", nullable = false, unique = true, length = 50)
-    private String orderId;
+    @Column(name = "toss_order_id", nullable = false, unique = true, length = 50)
+    private String tossOrderId;
 
     @Column(name = "payment_key", unique = true, length = 100)
     private String paymentKey;
@@ -79,10 +82,11 @@ public class Payment {
 
     @Builder
     public Payment(
+            Long orderId,
             Long memberId,
             Long matchId,
             Long seatId,
-            String orderId,
+            String tossOrderId,
             String paymentKey,
             String idempotencyKey,
             Long amount,
@@ -93,10 +97,11 @@ public class Payment {
             LocalDateTime canceledAt,
             String cancelReason
     ) {
+        this.orderId = orderId;
         this.memberId = memberId;
         this.matchId = matchId;
         this.seatId = seatId;
-        this.orderId = orderId;
+        this.tossOrderId = tossOrderId;
         this.paymentKey = paymentKey;
         this.idempotencyKey = idempotencyKey;
         this.amount = amount;

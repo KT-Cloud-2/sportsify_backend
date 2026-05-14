@@ -46,10 +46,11 @@ public class PaymentService {
     private PaymentResponse createNewPayment(Long memberId, CreatePaymentRequest request) {
         try {
             Payment payment = Payment.builder()
+                    .orderId(request.getOrderId())          // orders.id FK
                     .memberId(memberId)
                     .matchId(request.getMatchId())
                     .seatId(request.getSeatId())
-                    .orderId(generateOrderId())
+                    .tossOrderId(generateTossOrderId())     // Toss 결제용 주문번호
                     .idempotencyKey(request.getIdempotencyKey())
                     .amount(request.getAmount())
                     .paymentMethod(request.getPaymentMethod())
@@ -67,7 +68,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse confirmPayment(ConfirmPaymentRequest request) {
-        Payment payment = paymentRepository.findByOrderId(request.getOrderId())
+        Payment payment = paymentRepository.findByTossOrderId(request.getOrderId())
                 .orElseThrow(() -> new PaymentNotFoundException("존재하지 않는 주문입니다."));
 
         if (!payment.getAmount().equals(request.getAmount())) {
@@ -99,7 +100,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse confirmPaymentMock(ConfirmPaymentRequest request) {
-        Payment payment = paymentRepository.findByOrderId(request.getOrderId())
+        Payment payment = paymentRepository.findByTossOrderId(request.getOrderId())
                 .orElseThrow(() -> new PaymentNotFoundException("존재하지 않는 주문입니다."));
 
         if (!payment.getAmount().equals(request.getAmount())) {
@@ -165,7 +166,7 @@ public class PaymentService {
         }
 
         if (!Objects.equals(tossResponse.getOrderId(), request.getOrderId())
-                || !Objects.equals(tossResponse.getOrderId(), payment.getOrderId())) {
+                || !Objects.equals(tossResponse.getOrderId(), payment.getTossOrderId())) {
             throw new InvalidPaymentStatusException("Toss 주문 ID가 요청 정보와 일치하지 않습니다.");
         }
 
@@ -185,7 +186,8 @@ public class PaymentService {
             CreatePaymentRequest request
     ) {
         boolean sameRequest =
-                Objects.equals(payment.getMemberId(), memberId)
+                Objects.equals(payment.getOrderId(), request.getOrderId())
+                        && Objects.equals(payment.getMemberId(), memberId)
                         && Objects.equals(payment.getMatchId(), request.getMatchId())
                         && Objects.equals(payment.getSeatId(), request.getSeatId())
                         && Objects.equals(payment.getAmount(), request.getAmount())
@@ -199,7 +201,7 @@ public class PaymentService {
     private PaymentResponse toResponse(Payment payment) {
         return PaymentResponse.builder()
                 .paymentId(payment.getId())
-                .orderId(payment.getOrderId())
+                .orderId(payment.getTossOrderId())
                 .paymentKey(payment.getPaymentKey())
                 .amount(payment.getAmount())
                 .paymentMethod(payment.getPaymentMethod())
@@ -209,7 +211,7 @@ public class PaymentService {
                 .build();
     }
 
-    private String generateOrderId() {
+    private String generateTossOrderId() {
         return "ORDER_" + UUID.randomUUID()
                 .toString()
                 .replace("-", "")
