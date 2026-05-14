@@ -23,8 +23,13 @@ app:
 
 toss:
   payments:
-    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:toss_test_sk_9b1c8e5a-9c3d-4f0b-9c7d-1a2b3c4d5e6f}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:test-payment-secret}
+    confirm-url: https://api.tosspayments.com/v1/payments/confirm
+    cancel-url: https://api.tosspayments.com/v1/payments/{paymentKey}/cancel
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
 springdoc:
   api-docs:
     path: /v3/api-docs
