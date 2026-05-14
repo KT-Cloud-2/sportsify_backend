@@ -16,6 +16,14 @@ public class NotificationEventProcessor {
 
     public void process(NotificationEventType eventType, String payload) {
         NotificationEvent event = statusService.saveEvent(eventType, payload);
+        if (event.isScheduled()) {
+            log.info("예약 알림 보류 eventId={} scheduledAt={}", event.getId(), event.getScheduledAt());
+            return;
+        }
+        fanout(event, eventType, payload);
+    }
+
+    public void fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
         boolean anyFailed = true;
         try {
             anyFailed = fanoutService.fanout(event, eventType, payload);

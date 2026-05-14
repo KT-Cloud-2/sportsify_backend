@@ -12,9 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -22,8 +20,7 @@ import java.util.stream.Collectors;
 public class NotificationStreamConsumer {
 
     private static final Map<String, NotificationEventType> STREAM_TO_EVENT =
-            Arrays.stream(NotificationEventType.values())
-                    .collect(Collectors.toMap(NotificationEventType::getStreamKey, e -> e));
+            NotificationEventType.streamKeyMap();
 
     private final StreamMessageListenerContainer<String, ObjectRecord<String, String>> container;
     private final StringRedisTemplate redisTemplate;
@@ -49,6 +46,7 @@ public class NotificationStreamConsumer {
     private void handleMessage(String streamKey, NotificationEventType eventType, ObjectRecord<String, String> message) {
         try {
             processor.process(eventType, message.getValue());
+            // 예약 이벤트도 ACK — DB에 PENDING 상태로 저장됐으므로 Stream 재처리 불필요
             redisTemplate.opsForStream().acknowledge(streamKey, RedisStreamsConfig.NOTIFICATION_GROUP, message.getId());
             log.info("Stream ACK streamKey={} id={}", streamKey, message.getId());
         } catch (Exception e) {

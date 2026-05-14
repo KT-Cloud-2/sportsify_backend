@@ -22,6 +22,7 @@ public class RedisStreamsConfig {
 
     public static final String NOTIFICATION_GROUP = "notification-group";
     public static final int STREAM_MAX_LEN = 10_000;
+    private static final Duration POLL_TIMEOUT = Duration.ofSeconds(2);
 
     public static final List<String> STREAM_KEYS = Arrays.stream(NotificationEventType.values())
             .map(NotificationEventType::getStreamKey)
@@ -36,7 +37,7 @@ public class RedisStreamsConfig {
 
         var options = StreamMessageListenerContainer.StreamMessageListenerContainerOptions
                 .builder()
-                .pollTimeout(Duration.ofMillis(2000))
+                .pollTimeout(POLL_TIMEOUT)
                 .targetType(String.class)
                 .build();
 
