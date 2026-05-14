@@ -1,5 +1,6 @@
 package com.sportsify.payment.domain.entity;
 
+import com.sportsify.payment.domain.exception.InvalidPaymentStatusException;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -110,7 +111,7 @@ public class Payment {
 
     public void markCompleted(String paymentKey, String paymentMethod, OffsetDateTime approvedAt) {
         if (this.status != PaymentStatus.PENDING) {
-            throw new IllegalStateException("PENDING 상태의 결제만 완료 처리할 수 있습니다.");
+            throw new InvalidPaymentStatusException("PENDING 상태의 결제만 완료 처리할 수 있습니다.");
         }
 
         this.paymentKey = paymentKey;
@@ -121,7 +122,7 @@ public class Payment {
 
     public void markCanceled(String cancelReason, LocalDateTime canceledAt) {
         if (this.status != PaymentStatus.COMPLETED) {
-            throw new IllegalStateException("COMPLETED 상태의 결제만 취소할 수 있습니다.");
+            throw new InvalidPaymentStatusException("COMPLETED 상태의 결제만 취소할 수 있습니다.");
         }
 
         this.status = PaymentStatus.CANCELED;
