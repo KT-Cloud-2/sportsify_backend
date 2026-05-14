@@ -26,8 +26,7 @@ app:
 
 toss:
   payments:
-    secret-key: ${TOSS_PAYMENTS_SECRET_KEY}
-    confirm-url: https://api.tosspayments.com/v1/payments/confirm
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:tet-payments-key}
 
 springdoc:
   api-docs:
