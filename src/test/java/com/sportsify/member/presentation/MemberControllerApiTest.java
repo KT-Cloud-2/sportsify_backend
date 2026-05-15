@@ -34,17 +34,17 @@ class MemberControllerApiTest extends WebMvcTestSupport {
 
     private static final Long TEST_MEMBER_ID = 1L;
 
-    // ──────────────────────── GET /api/members/me ────────────────────────
+    // ──────────────────────── GET /api/members ────────────────────────
 
     @Test
-    @DisplayName("GET /api/members/me — 200 내 정보 조회 성공")
+    @DisplayName("GET /api/members — 200 내 정보 조회 성공")
     void 내정보_조회_성공() throws Exception {
         MemberResult memberResult = new MemberResult(
                 TEST_MEMBER_ID, "test@example.com", "응원왕", LocalDateTime.of(2026, 1, 1, 0, 0)
         );
         given(memberService.getMe(TEST_MEMBER_ID)).willReturn(memberResult);
 
-        mockMvc.perform(get("/api/members/me")
+        mockMvc.perform(get("/api/members")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(1))
@@ -52,33 +52,33 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("GET /api/members/me — 401 인증 없음")
+    @DisplayName("GET /api/members — 401 인증 없음")
     void 내정보_조회_인증없음() throws Exception {
-        mockMvc.perform(get("/api/members/me"))
+        mockMvc.perform(get("/api/members"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("GET /api/members/me — 404 탈퇴 회원")
+    @DisplayName("GET /api/members — 404 탈퇴 회원")
     void 내정보_조회_탈퇴회원() throws Exception {
         given(memberService.getMe(TEST_MEMBER_ID))
                 .willThrow(new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        mockMvc.perform(get("/api/members/me")
+        mockMvc.perform(get("/api/members")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
-    // ──────────────────────── PATCH /api/members/me/nickname ────────────────────────
+    // ──────────────────────── PATCH /api/members/nickname ────────────────────────
 
     @Test
-    @DisplayName("PATCH /api/members/me/nickname — 200 닉네임 수정 성공")
+    @DisplayName("PATCH /api/members/nickname — 200 닉네임 수정 성공")
     void 닉네임_수정_성공() throws Exception {
         MemberResult updated = new MemberResult(TEST_MEMBER_ID, "test@example.com", "새닉네임", LocalDateTime.of(2026, 1, 1, 0, 0));
         given(memberService.updateNickname(TEST_MEMBER_ID, "새닉네임")).willReturn(updated);
 
-        mockMvc.perform(patch("/api/members/me/nickname")
+        mockMvc.perform(patch("/api/members/nickname")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("새닉네임")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -87,9 +87,9 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("PATCH /api/members/me/nickname — 400 닉네임 유효성 실패")
+    @DisplayName("PATCH /api/members/nickname — 400 닉네임 유효성 실패")
     void 닉네임_수정_유효성실패() throws Exception {
-        mockMvc.perform(patch("/api/members/me/nickname")
+        mockMvc.perform(patch("/api/members/nickname")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("A")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -98,12 +98,12 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("PATCH /api/members/me/nickname — 409 닉네임 중복")
+    @DisplayName("PATCH /api/members/nickname — 409 닉네임 중복")
     void 닉네임_수정_중복() throws Exception {
         given(memberService.updateNickname(TEST_MEMBER_ID, "중복닉네임"))
                 .willThrow(new BusinessException(ErrorCode.NICKNAME_DUPLICATE));
 
-        mockMvc.perform(patch("/api/members/me/nickname")
+        mockMvc.perform(patch("/api/members/nickname")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdateNicknameRequest("중복닉네임")))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -111,39 +111,39 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("NICKNAME_DUPLICATE"));
     }
 
-    // ──────────────────────── DELETE /api/members/me ────────────────────────
+    // ──────────────────────── DELETE /api/members ────────────────────────
 
     @Test
-    @DisplayName("DELETE /api/members/me — 204 회원 탈퇴 성공")
+    @DisplayName("DELETE /api/members — 204 회원 탈퇴 성공")
     void 회원_탈퇴_성공() throws Exception {
         doNothing().when(memberService).withdraw(TEST_MEMBER_ID);
 
-        mockMvc.perform(delete("/api/members/me")
+        mockMvc.perform(delete("/api/members")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @DisplayName("DELETE /api/members/me — 404 존재하지 않는 회원")
+    @DisplayName("DELETE /api/members — 404 존재하지 않는 회원")
     void 회원_탈퇴_회원없음() throws Exception {
         willThrow(new BusinessException(ErrorCode.MEMBER_NOT_FOUND))
                 .given(memberService).withdraw(TEST_MEMBER_ID);
 
-        mockMvc.perform(delete("/api/members/me")
+        mockMvc.perform(delete("/api/members")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
-    // ──────────────────────── POST /api/members/me/favorite-teams ────────────────────────
+    // ──────────────────────── POST /api/members/favorite-teams ────────────────────────
 
     @Test
-    @DisplayName("POST /api/members/me/favorite-teams — 200 선호 팀 추가 성공")
+    @DisplayName("POST /api/members/favorite-teams — 200 선호 팀 추가 성공")
     void 선호팀_추가_성공() throws Exception {
         FavoriteTeamResult result = new FavoriteTeamResult(10L, 3L, "KIA 타이거즈", "KIA", "BASEBALL", 1);
         given(memberService.addFavoriteTeam(TEST_MEMBER_ID, 3L, 1)).willReturn(result);
 
-        mockMvc.perform(post("/api/members/me/favorite-teams")
+        mockMvc.perform(post("/api/members/favorite-teams")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(3L, 1)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -152,12 +152,12 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("POST /api/members/me/favorite-teams — 409 이미 등록된 팀")
+    @DisplayName("POST /api/members/favorite-teams — 409 이미 등록된 팀")
     void 선호팀_추가_중복() throws Exception {
         given(memberService.addFavoriteTeam(TEST_MEMBER_ID, 3L, null))
                 .willThrow(new BusinessException(ErrorCode.FAVORITE_TEAM_ALREADY_EXISTS));
 
-        mockMvc.perform(post("/api/members/me/favorite-teams")
+        mockMvc.perform(post("/api/members/favorite-teams")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(3L, null)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -166,12 +166,12 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("POST /api/members/me/favorite-teams — 404 존재하지 않는 팀")
+    @DisplayName("POST /api/members/favorite-teams — 404 존재하지 않는 팀")
     void 선호팀_추가_팀없음() throws Exception {
         given(memberService.addFavoriteTeam(TEST_MEMBER_ID, 99L, null))
                 .willThrow(new BusinessException(ErrorCode.TEAM_NOT_FOUND));
 
-        mockMvc.perform(post("/api/members/me/favorite-teams")
+        mockMvc.perform(post("/api/members/favorite-teams")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AddFavoriteTeamRequest(99L, null)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -179,10 +179,10 @@ class MemberControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("TEAM_NOT_FOUND"));
     }
 
-    // ──────────────────────── GET /api/members/me/favorite-teams ────────────────────────
+    // ──────────────────────── GET /api/members/favorite-teams ────────────────────────
 
     @Test
-    @DisplayName("GET /api/members/me/favorite-teams — 200 선호 팀 목록 조회 성공")
+    @DisplayName("GET /api/members/favorite-teams — 200 선호 팀 목록 조회 성공")
     void 선호팀_목록_조회() throws Exception {
         List<FavoriteTeamResult> results = List.of(
                 new FavoriteTeamResult(10L, 3L, "KIA 타이거즈", "KIA", "BASEBALL", 1),
@@ -190,7 +190,7 @@ class MemberControllerApiTest extends WebMvcTestSupport {
         );
         given(memberService.getFavoriteTeams(TEST_MEMBER_ID)).willReturn(results);
 
-        mockMvc.perform(get("/api/members/me/favorite-teams")
+        mockMvc.perform(get("/api/members/favorite-teams")
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
@@ -199,12 +199,12 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     // ──────────────────────── PATCH .../favorite-teams/{teamId}/priority ────────────────────────
 
     @Test
-    @DisplayName("PATCH /api/members/me/favorite-teams/{teamId}/priority — 200 우선순위 수정 성공")
+    @DisplayName("PATCH /api/members/favorite-teams/{teamId}/priority — 200 우선순위 수정 성공")
     void 선호팀_우선순위_수정() throws Exception {
         FavoriteTeamResult updated = new FavoriteTeamResult(10L, 3L, "KIA 타이거즈", "KIA", "BASEBALL", 2);
         given(memberService.updateFavoriteTeamPriority(TEST_MEMBER_ID, 3L, 2)).willReturn(updated);
 
-        mockMvc.perform(patch("/api/members/me/favorite-teams/{teamId}/priority", 3L)
+        mockMvc.perform(patch("/api/members/favorite-teams/{teamId}/priority", 3L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(2)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -213,12 +213,12 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("PATCH /api/members/me/favorite-teams/{teamId}/priority — 400 우선순위 범위 초과")
+    @DisplayName("PATCH /api/members/favorite-teams/{teamId}/priority — 400 우선순위 범위 초과")
     void 선호팀_우선순위_수정_범위초과() throws Exception {
         given(memberService.updateFavoriteTeamPriority(TEST_MEMBER_ID, 3L, 99))
                 .willThrow(new BusinessException(ErrorCode.INVALID_PRIORITY));
 
-        mockMvc.perform(patch("/api/members/me/favorite-teams/{teamId}/priority", 3L)
+        mockMvc.perform(patch("/api/members/favorite-teams/{teamId}/priority", 3L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(99)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -227,12 +227,12 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("PATCH /api/members/me/favorite-teams/{teamId}/priority — 404 등록되지 않은 팀")
+    @DisplayName("PATCH /api/members/favorite-teams/{teamId}/priority — 404 등록되지 않은 팀")
     void 선호팀_우선순위_수정_미등록팀() throws Exception {
         given(memberService.updateFavoriteTeamPriority(TEST_MEMBER_ID, 99L, 1))
                 .willThrow(new BusinessException(ErrorCode.FAVORITE_TEAM_NOT_FOUND));
 
-        mockMvc.perform(patch("/api/members/me/favorite-teams/{teamId}/priority", 99L)
+        mockMvc.perform(patch("/api/members/favorite-teams/{teamId}/priority", 99L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdatePriorityRequest(1)))
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
@@ -243,22 +243,22 @@ class MemberControllerApiTest extends WebMvcTestSupport {
     // ──────────────────────── DELETE .../favorite-teams/{teamId} ────────────────────────
 
     @Test
-    @DisplayName("DELETE /api/members/me/favorite-teams/{teamId} — 204 선호 팀 삭제 성공")
+    @DisplayName("DELETE /api/members/favorite-teams/{teamId} — 204 선호 팀 삭제 성공")
     void 선호팀_삭제_성공() throws Exception {
         doNothing().when(memberService).removeFavoriteTeam(TEST_MEMBER_ID, 3L);
 
-        mockMvc.perform(delete("/api/members/me/favorite-teams/{teamId}", 3L)
+        mockMvc.perform(delete("/api/members/favorite-teams/{teamId}", 3L)
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @DisplayName("DELETE /api/members/me/favorite-teams/{teamId} — 404 등록되지 않은 팀")
+    @DisplayName("DELETE /api/members/favorite-teams/{teamId} — 404 등록되지 않은 팀")
     void 선호팀_삭제_미등록팀() throws Exception {
         willThrow(new BusinessException(ErrorCode.FAVORITE_TEAM_NOT_FOUND))
                 .given(memberService).removeFavoriteTeam(TEST_MEMBER_ID, 99L);
 
-        mockMvc.perform(delete("/api/members/me/favorite-teams/{teamId}", 99L)
+        mockMvc.perform(delete("/api/members/favorite-teams/{teamId}", 99L)
                         .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("FAVORITE_TEAM_NOT_FOUND"));
