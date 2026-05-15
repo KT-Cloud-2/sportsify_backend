@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "member_favorite_teams")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EntityListeners(AuditingEntityListener.class)
 public class MemberFavoriteTeam {
 
     @Id
@@ -29,7 +32,8 @@ public class MemberFavoriteTeam {
     @Column(nullable = false)
     private int priority;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public static MemberFavoriteTeam create(Member member, Team team, int priority) {
@@ -37,7 +41,6 @@ public class MemberFavoriteTeam {
         favoriteTeam.member = member;
         favoriteTeam.team = team;
         favoriteTeam.priority = priority;
-        favoriteTeam.createdAt = LocalDateTime.now();
         return favoriteTeam;
     }
 
