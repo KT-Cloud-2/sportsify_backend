@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -16,8 +17,13 @@ public class OrderRepositoryAdapter implements OrderRepository {
     private final OrderJpaRepository jpaRepository;
 
     @Override
-    public void save(Order order) {
-        jpaRepository.save(order);
+    public Order save(Order order) {
+        return jpaRepository.save(order);
+    }
+
+    @Override
+    public Optional<Order> findById(Long id) {
+        return jpaRepository.findById(id);
     }
 
     @Override

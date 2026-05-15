@@ -184,6 +184,7 @@ CREATE TABLE order_seats
     order_id     BIGINT      NOT NULL,
     game_seat_id BIGINT      NOT NULL,
     status       VARCHAR(30) NOT NULL, -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
+    price        INT         NOT NULL,
     created_at   TIMESTAMP,
     CONSTRAINT fk_os_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_os_game_seat FOREIGN KEY (game_seat_id) REFERENCES game_seats (id)
@@ -210,7 +211,6 @@ CREATE TABLE tickets
 
 CREATE INDEX idx_tickets_status ON tickets (member_id, status);
 
--- 결제
 -- 결제
 CREATE TABLE payments
 (

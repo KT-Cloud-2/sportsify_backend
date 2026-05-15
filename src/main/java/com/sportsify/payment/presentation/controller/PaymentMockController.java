@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@Profile({"local", "dev", "test"})
+@Profile({"local", "test"})
 @RestController
 @RequestMapping("/payments")
 @RequiredArgsConstructor

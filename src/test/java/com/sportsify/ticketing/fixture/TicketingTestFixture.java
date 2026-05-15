@@ -37,6 +37,8 @@ public class TicketingTestFixture {
     @Autowired
     private GameSeatRepository gameSeatRepository;
     @Autowired
+    private PricePolicyRepository pricePolicyRepository;
+    @Autowired
     private OrderJpaRepository orderRepository;
     @Autowired
     private OrderSeatJpaRepository orderSeatRepository;
@@ -65,6 +67,8 @@ public class TicketingTestFixture {
                 .sportType(SportType.BASEBALL)
                 .startAt(LocalDateTime.now().plusDays(7))
                 .status(GameStatus.SCHEDULED)
+                .dayType(DayType.WEEKDAY)
+                .gameGrade(GameGrade.NORMAL)
                 .build();
 
         game.updateStatus(GameStatus.ON_SALE);
@@ -82,6 +86,8 @@ public class TicketingTestFixture {
                         .name("VIP")
                         .build()
         );
+
+        createPricePoliciesWithGame(game, zoneGrade);
 
         Section section = sectionRepository.save(
                 Section.builder()
@@ -105,6 +111,19 @@ public class TicketingTestFixture {
         return ids;
     }
 
+    public void createPricePoliciesWithGame(Game game, ZoneGrade zoneGrade) {
+
+        pricePolicyRepository.save(PricePolicy
+                .builder()
+                .stadium(game.getStadium())
+                .dayType(game.getDayType())
+                .gameGrade(game.getGameGrade())
+                .zoneGrade(zoneGrade)
+                .price(10000)
+                .build()
+        );
+    }
+
     // ─────────────── Member ───────────────
     public Member createMember(String email, String nickname) {
         return memberRepository.save(Member.create(email, nickname, OAuthProvider.GOOGLE, "g-" + email));
@@ -118,6 +137,7 @@ public class TicketingTestFixture {
         orderSeatRepository.deleteAll();
         orderRepository.deleteAll();
         gameSeatRepository.deleteAll();
+        pricePolicyRepository.deleteAll();
         gameRepository.deleteAll();
         seatRepository.deleteAll();
         sectionRepository.deleteAll();
