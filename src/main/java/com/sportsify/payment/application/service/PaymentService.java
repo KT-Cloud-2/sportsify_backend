@@ -1,5 +1,8 @@
 package com.sportsify.payment.application.service;
 
+import com.sportsify.common.event.PaymentCancelledEvent;
+import com.sportsify.common.event.PaymentCompletedEvent;
+import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
@@ -15,6 +18,7 @@ import com.sportsify.payment.infrastructure.toss.dto.TossConfirmRequest;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +37,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final TossPaymentClient tossPaymentClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
@@ -46,7 +51,8 @@ public class PaymentService {
                             .userId(userId)
                             .matchId(request.getMatchId())
                             .seatId(request.getSeatId())
-                            .orderId(generateOrderId())
+                            .orderId(request.getOrderId())
+                            .tossOrderId(generateTossOrderId(request.getOrderId()))
                             .idempotencyKey(request.getIdempotencyKey())
                             .amount(request.getAmount())
                             .paymentMethod(request.getPaymentMethod())
@@ -55,6 +61,7 @@ public class PaymentService {
                             .build();
 
                     Payment savedPayment = paymentRepository.save(payment);
+                    publishPaymentStartedEvent(savedPayment);
 
                     return toResponse(savedPayment);
                 });
@@ -62,21 +69,15 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse confirmPayment(ConfirmPaymentRequest request) {
-        Payment payment = paymentRepository.findByOrderId(request.getOrderId())
+        Payment payment = paymentRepository.findByTossOrderId(request.getTossOrderId())
                 .orElseThrow(() -> new PaymentNotFoundException("존재하지 않는 주문입니다."));
 
-        if (!payment.getAmount().equals(request.getAmount())) {
-            throw new InvalidPaymentAmountException("결제 금액이 일치하지 않습니다.");
-        }
-
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            throw new InvalidPaymentStatusException("PENDING 상태의 결제만 승인할 수 있습니다.");
-        }
+        validateConfirmablePayment(payment, request);
 
         TossConfirmResponse tossResponse = tossPaymentClient.confirm(
                 TossConfirmRequest.builder()
                         .paymentKey(request.getPaymentKey())
-                        .orderId(request.getOrderId())
+                        .orderId(request.getTossOrderId())
                         .amount(request.getAmount())
                         .build()
         );
@@ -89,29 +90,27 @@ public class PaymentService {
                 parseApprovedAt(tossResponse.getApprovedAt())
         );
 
+        publishPaymentCompletedEvent(payment);
+
         return toResponse(payment);
     }
 
     @Transactional
     public PaymentResponse confirmPaymentMock(ConfirmPaymentRequest request) {
-        Payment payment = paymentRepository.findByOrderId(request.getOrderId())
+        Payment payment = paymentRepository.findByTossOrderId(request.getTossOrderId())
                 .orElseThrow(() -> new PaymentNotFoundException("존재하지 않는 주문입니다."));
 
-        if (!payment.getAmount().equals(request.getAmount())) {
-            throw new InvalidPaymentAmountException("결제 금액이 일치하지 않습니다.");
-        }
+        validateConfirmablePayment(payment, request);
 
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            throw new InvalidPaymentStatusException("PENDING 상태의 결제만 승인할 수 있습니다.");
-        }
-
-        String mockPaymentKey = "MOCK_" + request.getOrderId();
+        String mockPaymentKey = "MOCK_" + request.getTossOrderId();
 
         payment.markCompleted(
                 mockPaymentKey,
                 "CARD",
                 OffsetDateTime.now()
         );
+
+        publishPaymentCompletedEvent(payment);
 
         return toResponse(payment);
     }
@@ -138,8 +137,19 @@ public class PaymentService {
         }
 
         payment.markCanceled(request.getCancelReason(), LocalDateTime.now());
+        publishPaymentCancelledEvent(payment, request.getCancelReason());
 
         return toResponse(payment);
+    }
+
+    private void validateConfirmablePayment(Payment payment, ConfirmPaymentRequest request) {
+        if (!payment.getAmount().equals(request.getAmount())) {
+            throw new InvalidPaymentAmountException("결제 금액이 일치하지 않습니다.");
+        }
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStatusException("PENDING 상태의 결제만 승인할 수 있습니다.");
+        }
     }
 
     private void validateTossConfirmResponse(
@@ -155,42 +165,91 @@ public class PaymentService {
             throw new InvalidPaymentStatusException("Toss 결제 키가 요청 정보와 일치하지 않습니다.");
         }
 
-        if (!Objects.equals(tossResponse.getOrderId(), request.getOrderId())
-                || !Objects.equals(tossResponse.getOrderId(), payment.getOrderId())) {
+        if (!Objects.equals(tossResponse.getOrderId(), request.getTossOrderId())) {
             throw new InvalidPaymentStatusException("Toss 주문 ID가 요청 정보와 일치하지 않습니다.");
         }
 
-        if (!Objects.equals(tossResponse.getTotalAmount(), request.getAmount())
-                || !Objects.equals(tossResponse.getTotalAmount(), payment.getAmount())) {
+        if (!Objects.equals(tossResponse.getTotalAmount(), payment.getAmount())) {
             throw new InvalidPaymentAmountException("Toss 결제 금액이 요청 정보와 일치하지 않습니다.");
         }
 
-        if (!TOSS_PAYMENT_DONE_STATUS.equals(tossResponse.getStatus())) {
+        if (!Objects.equals(tossResponse.getStatus(), TOSS_PAYMENT_DONE_STATUS)) {
             throw new InvalidPaymentStatusException("Toss 결제가 완료 상태가 아닙니다.");
         }
     }
 
     private void validateSamePaymentRequest(
-            Payment payment,
+            Payment existingPayment,
             Long userId,
             CreatePaymentRequest request
     ) {
-        boolean sameRequest =
-                Objects.equals(payment.getUserId(), userId)
-                        && Objects.equals(payment.getMatchId(), request.getMatchId())
-                        && Objects.equals(payment.getSeatId(), request.getSeatId())
-                        && Objects.equals(payment.getAmount(), request.getAmount())
-                        && Objects.equals(payment.getPaymentMethod(), request.getPaymentMethod());
-
-        if (!sameRequest) {
+        if (!Objects.equals(existingPayment.getUserId(), userId)
+                || !Objects.equals(existingPayment.getOrderId(), request.getOrderId())
+                || !Objects.equals(existingPayment.getMatchId(), request.getMatchId())
+                || !Objects.equals(existingPayment.getSeatId(), request.getSeatId())
+                || !Objects.equals(existingPayment.getAmount(), request.getAmount())
+                || !Objects.equals(existingPayment.getPaymentMethod(), request.getPaymentMethod())) {
             throw new InvalidPaymentStatusException("동일한 idempotencyKey로 다른 결제 요청을 생성할 수 없습니다.");
         }
+    }
+
+    private OffsetDateTime parseApprovedAt(String approvedAt) {
+        try {
+            return OffsetDateTime.parse(approvedAt);
+        } catch (DateTimeParseException e) {
+            throw new InvalidPaymentStatusException("Toss 결제 승인 시간이 올바르지 않습니다.");
+        }
+    }
+
+    private String generateTossOrderId(Long orderId) {
+        return "ORDER_" + orderId + "_" + UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 20);
+    }
+
+    private void publishPaymentStartedEvent(Payment payment) {
+        eventPublisher.publishEvent(new PaymentStartedEvent(
+                payment.getOrderId(),
+                payment.getUserId(),
+                payment.getId(),
+                payment.getAmount(),
+                payment.getPaymentKey(),
+                payment.getStatus(),
+                LocalDateTime.now()
+        ));
+    }
+
+    private void publishPaymentCompletedEvent(Payment payment) {
+        eventPublisher.publishEvent(new PaymentCompletedEvent(
+                payment.getOrderId(),
+                payment.getUserId(),
+                payment.getId(),
+                payment.getAmount(),
+                payment.getPaymentKey(),
+                payment.getStatus(),
+                LocalDateTime.now()
+        ));
+    }
+
+    private void publishPaymentCancelledEvent(Payment payment, String cancelReason) {
+        eventPublisher.publishEvent(new PaymentCancelledEvent(
+                payment.getOrderId(),
+                payment.getUserId(),
+                payment.getId(),
+                payment.getAmount(),
+                payment.getPaymentKey(),
+                payment.getStatus(),
+                cancelReason,
+                LocalDateTime.now()
+        ));
     }
 
     private PaymentResponse toResponse(Payment payment) {
         return PaymentResponse.builder()
                 .paymentId(payment.getId())
                 .orderId(payment.getOrderId())
+                .tossOrderId(payment.getTossOrderId())
                 .paymentKey(payment.getPaymentKey())
                 .amount(payment.getAmount())
                 .paymentMethod(payment.getPaymentMethod())
@@ -198,25 +257,5 @@ public class PaymentService {
                 .requestedAt(payment.getRequestedAt())
                 .approvedAt(payment.getApprovedAt())
                 .build();
-    }
-
-    private String generateOrderId() {
-        return "ORDER_" + UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 20);
-    }
-
-    private OffsetDateTime parseApprovedAt(String approvedAt) {
-        if (approvedAt == null || approvedAt.isBlank()) {
-            return OffsetDateTime.now();
-        }
-
-        try {
-            return OffsetDateTime.parse(approvedAt);
-        } catch (DateTimeParseException e) {
-            log.warn("Toss approvedAt 파싱 실패. approvedAt={}, fallback=now", approvedAt, e);
-            return OffsetDateTime.now();
-        }
     }
 }
