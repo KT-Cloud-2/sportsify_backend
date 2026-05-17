@@ -194,6 +194,10 @@ public class PaymentService {
     }
 
     private OffsetDateTime parseApprovedAt(String approvedAt) {
+        if (approvedAt == null || approvedAt.isBlank()) {
+            throw new InvalidPaymentStatusException("Toss 결제 승인 시간이 올바르지 않습니다.");
+        }
+
         try {
             return OffsetDateTime.parse(approvedAt);
         } catch (DateTimeParseException e) {
