@@ -72,4 +72,15 @@ public class OrderSeat {
     public Integer getSeatPrice() {
         return gameSeat.getPrice();
     }
+
+
+    public void expire() {
+        status = OrderSeatStatus.EXPIRED;
+        gameSeat.release();
+    }
+
+    public void cancel() {
+        status = OrderSeatStatus.CANCELLED;
+        gameSeat.release();
+    }
 }

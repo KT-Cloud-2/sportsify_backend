@@ -20,4 +20,19 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             """
     )
     List<Order> findExpiredPendingOrdersWithoutPayment(@Param("now") LocalDateTime now);
+
+    @Query("""
+             SELECT DISTINCT o FROM Order o
+             JOIN FETCH o.orderSeats os
+             JOIN FETCH os.gameSeat
+             WHERE o.status = 'PAYING'
+             AND o.expiresAt < :now
+             AND EXISTS (
+                     SELECT p FROM Payment p
+                     WHERE p.orderId = o.id
+                     AND p.status IN ('FAILED', 'CANCELLED', 'REFUNDED')
+             )
+            """
+    )
+    List<Order> findPayingOrdersWithFailedPayment();
 }

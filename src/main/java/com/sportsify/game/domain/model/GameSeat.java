@@ -55,4 +55,9 @@ public class GameSeat {
         return seat.getId();
     }
 
+
+    public void release() {
+        seatStatus = SeatStatus.AVAILABLE;
+    }
+
 }

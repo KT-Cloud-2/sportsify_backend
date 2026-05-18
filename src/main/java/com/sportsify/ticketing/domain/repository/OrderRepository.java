@@ -13,4 +13,5 @@ public interface OrderRepository {
 
     List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now);
 
+    List<Order> findPayingOrdersWithFailedPayment();
 }

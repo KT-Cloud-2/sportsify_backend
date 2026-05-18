@@ -74,4 +74,15 @@ public class Order {
         return member.getId();
     }
 
+
+    public void expire() {
+        status = OrderStatus.EXPIRED;
+        orderSeats.forEach(OrderSeat::expire);
+    }
+
+    public void cancel() {
+        status = OrderStatus.CANCELLED;
+        orderSeats.forEach(OrderSeat::cancel);
+    }
+
 }

@@ -1,9 +1,6 @@
 package com.sportsify.ticketing.application.scheduler;
 
-import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeatStatus;
-import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,14 +22,9 @@ public class SeatExpirationScheduler {
         List<Order> expiredOrders = orderRepository
                 .findExpiredPendingOrdersWithoutPayment(LocalDateTime.now());
 
-        expiredOrders.forEach(order -> {
-            order.updateStatus(OrderStatus.EXPIRED);
-            order.getOrderSeats().forEach(seat -> {
-                seat.updateStatus(OrderSeatStatus.EXPIRED);
-                seat.getGameSeat().updateSeatStatus(SeatStatus.AVAILABLE);
-          
-            });
+        List<Order> failedOrders = orderRepository.findPayingOrdersWithFailedPayment();
 
-        });
+        expiredOrders.forEach(Order::expire);
+        failedOrders.forEach(Order::cancel);
     }
 }
