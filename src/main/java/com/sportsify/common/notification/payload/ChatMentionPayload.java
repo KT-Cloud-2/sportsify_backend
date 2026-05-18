@@ -12,9 +12,7 @@ public record ChatMentionPayload(
     private static final int PREVIEW_MAX_LENGTH = 15;
 
     public static ChatMentionPayload ofText(Long memberId, Long roomId, String roomName, Long senderId, String senderName, String message) {
-        return new ChatMentionPayload(memberId, roomId, roomName, senderId, senderName, message.length() > PREVIEW_MAX_LENGTH
-                ? message.substring(0, PREVIEW_MAX_LENGTH) + "..."
-                : message);
+        return new ChatMentionPayload(memberId, roomId, roomName, senderId, senderName, toPreview(message));
     }
 
     public static ChatMentionPayload ofImage(Long memberId, Long roomId, String roomName, Long senderId, String senderName) {
@@ -23,5 +21,10 @@ public record ChatMentionPayload(
 
     public static ChatMentionPayload ofFile(Long memberId, Long roomId, String roomName, Long senderId, String senderName) {
         return new ChatMentionPayload(memberId, roomId, roomName, senderId, senderName, "(파일 포함)");
+    }
+
+    private static String toPreview(String message) {
+        if (message == null || message.isBlank()) return "";
+        return message.length() > PREVIEW_MAX_LENGTH ? message.substring(0, PREVIEW_MAX_LENGTH) + "..." : message;
     }
 }
