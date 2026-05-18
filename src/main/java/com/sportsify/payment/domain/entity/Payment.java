@@ -39,8 +39,11 @@ public class Payment {
     @Column(name = "seat_id", nullable = false)
     private Long seatId;
 
-    @Column(name = "order_id", nullable = false, unique = true, length = 50)
-    private String orderId;
+    @Column(name = "order_id", nullable = false, unique = true)
+    private Long orderId;
+
+    @Column(name = "toss_order_id", nullable = false, unique = true, length = 50)
+    private String tossOrderId;
 
     @Column(name = "payment_key", unique = true, length = 100)
     private String paymentKey;
@@ -83,7 +86,8 @@ public class Payment {
             Long userId,
             Long matchId,
             Long seatId,
-            String orderId,
+            Long orderId,
+            String tossOrderId,
             String paymentKey,
             String idempotencyKey,
             Long amount,
@@ -98,6 +102,7 @@ public class Payment {
         this.matchId = matchId;
         this.seatId = seatId;
         this.orderId = orderId;
+        this.tossOrderId = tossOrderId;
         this.paymentKey = paymentKey;
         this.idempotencyKey = idempotencyKey;
         this.amount = amount;

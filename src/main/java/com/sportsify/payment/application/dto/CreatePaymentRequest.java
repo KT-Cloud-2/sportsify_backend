@@ -10,10 +10,16 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CreatePaymentRequest {
 
+    @NotNull(message = "orderId는 필수입니다.")
+    @Positive(message = "orderId는 0보다 커야 합니다.")
+    private Long orderId;
+
     @NotNull(message = "matchId는 필수입니다.")
+    @Positive(message = "matchId는 0보다 커야 합니다.")
     private Long matchId;
 
     @NotNull(message = "seatId는 필수입니다.")
+    @Positive(message = "seatId는 0보다 커야 합니다.")
     private Long seatId;
 
     @NotNull(message = "amount는 필수입니다.")
