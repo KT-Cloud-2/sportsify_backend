@@ -1,9 +1,7 @@
 package com.sportsify.chat.infrastructure;
 
+import com.sportsify.chat.application.webSocket.ChatRoomAccessChecker;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
-import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
-import com.sportsify.chat.domain.model.chatRoom.ChatRoomStatus;
-import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
@@ -16,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -23,8 +22,6 @@ import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.time.Clock;
@@ -32,10 +29,9 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -54,14 +50,24 @@ class StompAuthChannelInterceptorTest {
     private static final long MEMBER_ID = 42L;
     private static final String BLACKLIST_KEY = "auth:blacklist:" + TOKEN;
 
-    @Mock JwtProvider jwtProvider;
-    @Mock WebSocketSessionRegistry registry;
-    @Mock StringRedisTemplate redisTemplate;
-    @Mock StompAuthChannelInterceptor.ChatRoomAccessChecker accessChecker;
-    @Mock ChatRoomRepository chatRoomRepository;
-    @Mock MessageChannel channel;
-    @Mock WebSocketSession wsSession;
-    @Mock Claims claims;
+    @Mock
+    JwtProvider jwtProvider;
+    @Mock
+    WebSocketSessionRegistry registry;
+    @Mock
+    StringRedisTemplate redisTemplate;
+    @Mock
+    ChatRoomAccessChecker accessChecker;
+    @Mock
+    ChatRoomRepository chatRoomRepository;
+    @Mock
+    MessageChannel channel;
+    @Mock
+    WebSocketSession wsSession;
+    @Mock
+    Claims claims;
+    @Mock
+    ApplicationEventPublisher eventPublisher;
 
     StompAuthChannelInterceptor interceptor;
 
@@ -69,7 +75,7 @@ class StompAuthChannelInterceptorTest {
     void setUp() {
         interceptor = new StompAuthChannelInterceptor(
                 jwtProvider, registry, redisTemplate,
-                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository);
+                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher);
     }
 
     // ── 헬퍼 ─────────────────────────────────────────────────
@@ -102,19 +108,13 @@ class StompAuthChannelInterceptorTest {
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
-    /** 세션 레지스트리에 인증된 세션을 stub한다 */
+    /**
+     * 세션 레지스트리에 인증된 세션을 stub한다
+     */
     private void stubAuthenticatedSession(long memberId) {
-        Authentication auth = new UsernamePasswordAuthenticationToken(memberId, null, List.of());
         WebSocketSessionRegistry.SessionInfo info = new WebSocketSessionRegistry.SessionInfo(
-                SID, wsSession, auth, NOW, TOKEN_EXPIRY, new HashSet<>());
+                SID, memberId, "USER", NOW, TOKEN_EXPIRY, null, new ConcurrentHashMap<>());
         given(registry.get(SID)).willReturn(Optional.of(info));
-    }
-
-    private ChatRoom mockActiveRoom(ChatRoomType type) {
-        ChatRoom room = mock(ChatRoom.class);
-        given(room.getStatus()).willReturn(ChatRoomStatus.ACTIVE);
-        given(room.getType()).willReturn(type);
-        return room;
     }
 
     // ── CONNECT 성공 ──────────────────────────────────────────
@@ -131,7 +131,7 @@ class StompAuthChannelInterceptorTest {
         Message<?> result = interceptor.preSend(connectMessage(true, true), channel);
 
         assertThat(result).isNotNull();
-        verify(registry).register(eq(SID), eq(wsSession), any(), eq(TOKEN_EXPIRY), eq(NOW));
+        verify(registry).register(eq(SID), eq(wsSession), eq(MEMBER_ID), eq("USER"), eq(TOKEN_EXPIRY), eq(NOW));
     }
 
     @Test
@@ -141,7 +141,7 @@ class StompAuthChannelInterceptorTest {
 
         assertThat(result).isNotNull();
         verifyNoInteractions(jwtProvider);
-        verify(registry, never()).register(any(), any(), any(), any(), any());
+        verify(registry, never()).register(any(), any(), any(), any(), any(), any());
     }
 
     // ── CONNECT 실패 ──────────────────────────────────────────
@@ -185,25 +185,26 @@ class StompAuthChannelInterceptorTest {
     @Test
     @DisplayName("GAME 방은 인증 없이 구독할 수 있다")
     void subscribe_GAME방_인증없이구독가능() {
-        ChatRoom room = mockActiveRoom(ChatRoomType.GAME);
+        ChatRoom room = mock(ChatRoom.class);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
+        given(accessChecker.canSubscribe(eq(room), any())).willReturn(true);
 
         interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel);
 
-        verify(registry).subscribeRoom(SID, 1L);
+        verify(registry).subscribeRoom(eq(SID), any(), eq(1L));
     }
 
     @Test
     @DisplayName("DIRECT 방을 인증된 멤버가 구독하면 subscribeRoom이 호출된다")
     void subscribe_DIRECT방_인증멤버_구독성공() {
         stubAuthenticatedSession(MEMBER_ID);
-        ChatRoom room = mockActiveRoom(ChatRoomType.DIRECT);
+        ChatRoom room = mock(ChatRoom.class);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
         given(accessChecker.canSubscribe(eq(room), any())).willReturn(true);
 
         interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel);
 
-        verify(registry).subscribeRoom(SID, 1L);
+        verify(registry).subscribeRoom(eq(SID), any(), eq(1L));
     }
 
     @Test
@@ -227,32 +228,9 @@ class StompAuthChannelInterceptorTest {
     }
 
     @Test
-    @DisplayName("ACTIVE가 아닌 방을 구독하면 예외가 발생한다")
-    void subscribe_비활성방_예외() {
+    @DisplayName("접근 거부된 방을 구독하면 예외가 발생한다")
+    void subscribe_접근거부_예외() {
         ChatRoom room = mock(ChatRoom.class);
-        given(room.getStatus()).willReturn(ChatRoomStatus.ARCHIVED);
-        given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
-
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
-                .isInstanceOf(MessageDeliveryException.class);
-    }
-
-    @Test
-    @DisplayName("DIRECT 방 구독 시 미인증이면 예외가 발생한다")
-    void subscribe_DIRECT방_미인증_예외() {
-        ChatRoom room = mockActiveRoom(ChatRoomType.DIRECT);
-        given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
-        // registry.get(SID) 기본값 Optional.empty() → resolveAuthenticatedMemberId 에서 예외
-
-        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
-                .isInstanceOf(MessageDeliveryException.class);
-    }
-
-    @Test
-    @DisplayName("DIRECT 방 구독 시 접근 권한이 없으면 예외가 발생한다")
-    void subscribe_DIRECT방_권한없음_예외() {
-        stubAuthenticatedSession(MEMBER_ID);
-        ChatRoom room = mockActiveRoom(ChatRoomType.DIRECT);
         given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
         given(accessChecker.canSubscribe(eq(room), any())).willReturn(false);
 

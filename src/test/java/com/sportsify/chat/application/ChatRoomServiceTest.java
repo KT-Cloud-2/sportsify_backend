@@ -194,7 +194,7 @@ class ChatRoomServiceTest {
 
         given(chatRoomMemberRepo.findActiveByMember(memberId)).willReturn(List.of(membership));
         given(chatRoomRepo.findActiveByRoomIds(any(), eq(ChatRoomType.GAME), isNull(), anyInt())).willReturn(List.of(chatRoom));
-        given(messageRepo.findLastestByRooms(any())).willReturn(List.of());
+        given(messageRepo.findLatestByRooms(any())).willReturn(List.of());
         given(messageRepo.countUnreadByRooms(any())).willReturn(Map.of());
         given(chatRoomMemberRepo.countActiveByRooms(any())).willReturn(Map.of(roomId, 3L));
 
