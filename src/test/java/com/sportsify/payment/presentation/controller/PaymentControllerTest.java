@@ -51,7 +51,7 @@ class PaymentControllerTest {
 
         PaymentResponse response = PaymentResponse.builder()
                 .paymentId(paymentId)
-                .orderId("ORDER_123")
+                .orderId(123L)
                 .paymentKey("PAYMENT_KEY_123")
                 .amount(50000L)
                 .paymentMethod("CARD")
@@ -71,7 +71,7 @@ class PaymentControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paymentId").value(paymentId))
-                .andExpect(jsonPath("$.orderId").value("ORDER_123"))
+                .andExpect(jsonPath("$.orderId").value(123L))
                 .andExpect(jsonPath("$.paymentKey").value("PAYMENT_KEY_123"))
                 .andExpect(jsonPath("$.amount").value(50000))
                 .andExpect(jsonPath("$.paymentMethod").value("CARD"))
