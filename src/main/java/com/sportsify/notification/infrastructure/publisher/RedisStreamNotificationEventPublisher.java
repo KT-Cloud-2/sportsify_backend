@@ -16,7 +16,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RedisStreamNotificationEventPublisher implements NotificationEventPublisher {
 
-    private static final String PAYLOAD_KEY = "payload";
+    public static final String PAYLOAD_KEY = "payload";
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;

@@ -1,5 +1,6 @@
 package com.sportsify.payment.domain.entity;
 
+import com.sportsify.payment.domain.exception.InvalidPaymentStatusException;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,8 +39,11 @@ public class Payment {
     @Column(name = "seat_id", nullable = false)
     private Long seatId;
 
-    @Column(name = "order_id", nullable = false, unique = true, length = 50)
-    private String orderId;
+    @Column(name = "order_id", nullable = false, unique = true)
+    private Long orderId;
+
+    @Column(name = "toss_order_id", nullable = false, unique = true, length = 50)
+    private String tossOrderId;
 
     @Column(name = "payment_key", unique = true, length = 100)
     private String paymentKey;
@@ -82,7 +86,8 @@ public class Payment {
             Long userId,
             Long matchId,
             Long seatId,
-            String orderId,
+            Long orderId,
+            String tossOrderId,
             String paymentKey,
             String idempotencyKey,
             Long amount,
@@ -97,6 +102,7 @@ public class Payment {
         this.matchId = matchId;
         this.seatId = seatId;
         this.orderId = orderId;
+        this.tossOrderId = tossOrderId;
         this.paymentKey = paymentKey;
         this.idempotencyKey = idempotencyKey;
         this.amount = amount;
@@ -110,7 +116,7 @@ public class Payment {
 
     public void markCompleted(String paymentKey, String paymentMethod, OffsetDateTime approvedAt) {
         if (this.status != PaymentStatus.PENDING) {
-            throw new IllegalStateException("PENDING 상태의 결제만 완료 처리할 수 있습니다.");
+            throw new InvalidPaymentStatusException("PENDING 상태의 결제만 완료 처리할 수 있습니다.");
         }
 
         this.paymentKey = paymentKey;
@@ -121,7 +127,7 @@ public class Payment {
 
     public void markCanceled(String cancelReason, LocalDateTime canceledAt) {
         if (this.status != PaymentStatus.COMPLETED) {
-            throw new IllegalStateException("COMPLETED 상태의 결제만 취소할 수 있습니다.");
+            throw new InvalidPaymentStatusException("COMPLETED 상태의 결제만 취소할 수 있습니다.");
         }
 
         this.status = PaymentStatus.CANCELED;

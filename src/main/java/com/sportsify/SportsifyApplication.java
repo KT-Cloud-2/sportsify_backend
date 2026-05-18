@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableAsync
 @EnableScheduling
+@EnableAsync
 @SpringBootApplication
 public class SportsifyApplication {
     public static void main(String[] args) {

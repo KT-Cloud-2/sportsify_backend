@@ -1567,7 +1567,7 @@
        회원
     ══════════════════════════════════════ */
     async function getMe() {
-        const res = await api('GET', '/api/members/me', undefined, 'memberLog');
+        const res = await api('GET', '/api/members', undefined, 'memberLog');
         if (!res?.ok) return;
         const m = res.data;
         document.getElementById('meResult').innerHTML = `
@@ -1582,11 +1582,11 @@
             alog('memberLog', '닉네임을 입력하세요.', 'warn');
             return;
         }
-        await api('PATCH', '/api/members/me/nickname', {nickname}, 'memberLog');
+        await api('PATCH', '/api/members/nickname', {nickname}, 'memberLog');
     }
 
     async function getFavoriteTeams() {
-        const res = await api('GET', '/api/members/me/favorite-teams', undefined, 'memberLog');
+        const res = await api('GET', '/api/members/favorite-teams', undefined, 'memberLog');
         if (!res?.ok) return;
         const items = Array.isArray(res.data) ? res.data : [];
         document.getElementById('favoriteTeamsResult').innerHTML = !items.length
@@ -1605,7 +1605,7 @@
             alog('memberLog', '팀 ID를 입력하세요.', 'warn');
             return;
         }
-        await api('POST', '/api/members/me/favorite-teams', {teamId: Number(teamId), priority: Number(priority)}, 'memberLog');
+        await api('POST', '/api/members/favorite-teams', {teamId: Number(teamId), priority: Number(priority)}, 'memberLog');
     }
 
     async function removeFavoriteTeam() {
@@ -1614,7 +1614,7 @@
             alog('memberLog', '팀 ID를 입력하세요.', 'warn');
             return;
         }
-        await api('DELETE', `/api/members/me/favorite-teams/${teamId}`, undefined, 'memberLog');
+        await api('DELETE', `/api/members/favorite-teams/${teamId}`, undefined, 'memberLog');
     }
 
     async function refreshAccessToken() {

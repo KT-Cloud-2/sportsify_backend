@@ -21,11 +21,18 @@ public interface AuthApi {
             description = """
                     Refresh Token으로 새 Access Token / Refresh Token 쌍을 발급합니다. (RFC 6749 §5.1)
 
-                    **클라이언트 처리 방법**
+                    **일반 API 인증**
                     응답 JSON의 `data.accessToken`을 이후 모든 인증 요청 헤더에 포함합니다.
                     ```
                     Authorization: Bearer {accessToken}
                     ```
+
+                    **SSE 연결 인증**
+                    브라우저 `EventSource`는 커스텀 헤더를 지원하지 않으므로 쿼리 파라미터로 전달합니다. (WHATWG HTML Living Standard)
+                    ```
+                    GET /api/notifications/stream?token={accessToken}
+                    ```
+
                     기존 Refresh Token은 즉시 폐기하고 응답의 `data.refreshToken`으로 교체합니다."""
     )
     @CommonApiResponses

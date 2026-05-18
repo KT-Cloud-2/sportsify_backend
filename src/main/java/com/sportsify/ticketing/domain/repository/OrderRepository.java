@@ -4,9 +4,12 @@ import com.sportsify.ticketing.domain.model.Order;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderRepository {
-    void save(Order createdOrder);
+    Order save(Order createdOrder);
+
+    Optional<Order> findById(Long id);
 
     List<Order> findExpiredPendingOrdersWithSeats(LocalDateTime now);
 

@@ -2,16 +2,14 @@ package com.sportsify.notification.application.service;
 
 import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.sender.NotificationSender;
-import com.sportsify.notification.domain.model.Notification;
-import com.sportsify.notification.domain.model.NotificationChannel;
-import com.sportsify.notification.domain.model.NotificationChannelType;
-import com.sportsify.notification.domain.model.NotificationEvent;
-import com.sportsify.notification.domain.model.NotificationHistory;
+import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationHistoryRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Map;
@@ -51,7 +49,9 @@ public class NotificationDispatcher {
             return false;
         }
         Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
-        sseNotificationPort.send(memberId, event.getEventType().name());
+
+        String eventTypeName = event.getEventType().name();
+        scheduleSse(memberId, eventTypeName);
 
         List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
         boolean anyFailed = false;
@@ -61,6 +61,19 @@ public class NotificationDispatcher {
             }
         }
         return anyFailed;
+    }
+
+    private void scheduleSse(Long memberId, String eventTypeName) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sseNotificationPort.send(memberId, eventTypeName);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sseNotificationPort.send(memberId, eventTypeName);
+            }
+        });
     }
 
     private boolean sendWithRetry(Long notificationId, NotificationChannel channel, String subject, String body) {

@@ -24,17 +24,17 @@ public class NotificationSettingService {
     private final NotificationSettingRepository settingRepository;
     private final NotificationChannelRepository channelRepository;
 
-    @Transactional
+    @Transactional(readOnly = true)
     public NotificationSettingResult getSetting(Long memberId) {
         NotificationSetting setting = settingRepository.findByMemberId(memberId)
-                .orElseGet(() -> settingRepository.save(NotificationSetting.createDefault(memberId)));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND));
         return NotificationSettingResult.from(setting);
     }
 
     @Transactional
     public NotificationSettingResult updateSetting(Long memberId, UpdateNotificationSettingCommand command) {
         NotificationSetting setting = settingRepository.findByMemberId(memberId)
-                .orElseGet(() -> settingRepository.save(NotificationSetting.createDefault(memberId)));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_SETTING_NOT_FOUND));
         setting.update(command.ticketOpenAlert(), command.gameStartAlert(), command.paymentAlert(), command.chatMentionAlert());
         return NotificationSettingResult.from(setting);
     }

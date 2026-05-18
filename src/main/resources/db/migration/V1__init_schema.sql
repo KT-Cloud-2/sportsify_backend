@@ -184,6 +184,7 @@ CREATE TABLE order_seats
     order_id     BIGINT      NOT NULL,
     game_seat_id BIGINT      NOT NULL,
     status       VARCHAR(30) NOT NULL, -- HOLDING | CONFIRMED | CANCELLED | EXPIRED
+    price        INT         NOT NULL,
     created_at   TIMESTAMP,
     CONSTRAINT fk_os_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_os_game_seat FOREIGN KEY (game_seat_id) REFERENCES game_seats (id)
@@ -214,25 +215,28 @@ CREATE INDEX idx_tickets_status ON tickets (member_id, status);
 CREATE TABLE payments
 (
     id              BIGSERIAL PRIMARY KEY,
-    user_id         BIGINT        NOT NULL,
-    match_id        BIGINT        NOT NULL,
-    seat_id         BIGINT        NOT NULL,
-    order_id        VARCHAR(50)   NOT NULL UNIQUE,
-    payment_key     VARCHAR(100)  UNIQUE,
-    idempotency_key VARCHAR(100)  NOT NULL UNIQUE,
+    order_id        BIGINT    NOT NULL,
+    member_id       BIGINT,
+    payment_key     VARCHAR(200), -- PG사 거래 ID
+    idempotency_key VARCHAR(100), -- 중복 결제 방지 키
 
-    amount          BIGINT        NOT NULL,
-    payment_method  VARCHAR(20)   NOT NULL,
-    status          VARCHAR(20)   NOT NULL,
-    requested_at    TIMESTAMP     NOT NULL,
-    approved_at     TIMESTAMPTZ,
-    canceled_at     TIMESTAMP,
-    cancel_reason   VARCHAR(255),
-    created_at      TIMESTAMP     NOT NULL,
-    updated_at      TIMESTAMP     NOT NULL
+    payment_method  VARCHAR(30),  -- CARD | KAKAO_PAY | TOSS_PAY
+    amount          INT       NOT NULL,
+
+    status          VARCHAR(30),  -- PENDING | COMPLETED | REFUNDED | FAILED | CANCELLED
+    requested_at    TIMESTAMP,
+    approved_at     TIMESTAMP,
+    failed_at       TIMESTAMP,
+    created_at      TIMESTAMP NOT NULL,
+    updated_at      TIMESTAMP,
+
+    CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES orders (id),
+    CONSTRAINT fk_payment_member FOREIGN KEY (member_id) REFERENCES members (id),
+    CONSTRAINT uq_payment_key UNIQUE (payment_key),
+    CONSTRAINT uq_idempotency UNIQUE (idempotency_key)
 );
 
-CREATE INDEX idx_payments_user ON payments (user_id);
+CREATE INDEX idx_payments_member ON payments (member_id);
 CREATE INDEX idx_payments_status ON payments (status);
 
 -- 환불

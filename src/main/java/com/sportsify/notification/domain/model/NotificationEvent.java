@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
@@ -42,11 +43,27 @@ public class NotificationEvent {
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
+    @Column(name = "scheduled_at")
+    private LocalDateTime scheduledAt;
+
+    @Column(name = "stream_message_id", unique = true)
+    private String streamMessageId;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     public static NotificationEvent create(NotificationEventType eventType, String payload) {
         NotificationEvent event = new NotificationEvent();
         event.eventType = eventType;
         event.payload = payload;
         event.status = NotificationEventStatus.PENDING;
+        return event;
+    }
+
+    public static NotificationEvent createScheduled(NotificationEventType eventType, String payload, LocalDateTime scheduledAt) {
+        NotificationEvent event = create(eventType, payload);
+        event.scheduledAt = scheduledAt;
         return event;
     }
 
@@ -56,6 +73,26 @@ public class NotificationEvent {
         return event;
     }
 
+    public void assignStreamMessageId(String streamMessageId) {
+        this.streamMessageId = streamMessageId;
+    }
+
+    public boolean isScheduled() {
+        return scheduledAt != null;
+    }
+
+    public boolean hasStreamMessageId() {
+        return streamMessageId != null;
+    }
+
+    public void markPending() {
+        this.status = NotificationEventStatus.PENDING;
+    }
+
+    public void markProcessing() {
+        this.status = NotificationEventStatus.PROCESSING;
+    }
+
     public void markPublished() {
         this.status = NotificationEventStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
@@ -63,5 +100,9 @@ public class NotificationEvent {
 
     public void markFailed() {
         this.status = NotificationEventStatus.FAILED;
+    }
+
+    public void markCancelled() {
+        this.status = NotificationEventStatus.CANCELLED;
     }
 }

@@ -3,6 +3,7 @@ package com.sportsify.notification.application;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.application.service.NotificationChunkService;
 import com.sportsify.notification.application.service.NotificationFanoutService;
+import com.sportsify.notification.application.service.NotificationPayloadParser;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -28,12 +30,13 @@ class NotificationFanoutServiceTest {
 
     @Mock private NotificationSettingRepository settingRepository;
     @Mock private NotificationChunkService chunkService;
+    @Mock private NotificationPayloadParser payloadParser;
 
     private NotificationFanoutService fanoutService;
 
     @BeforeEach
     void setUp() {
-        fanoutService = new NotificationFanoutService(settingRepository, chunkService);
+        fanoutService = new NotificationFanoutService(settingRepository, chunkService, payloadParser);
     }
 
     @Test
@@ -69,6 +72,7 @@ class NotificationFanoutServiceTest {
     void fanout_결제완료_단건발송() {
         NotificationEvent event = NotificationEvent.withId(3L, NotificationEventType.PAYMENT_COMPLETED, "{}");
         String payload = "{\"paymentId\":99,\"memberId\":5,\"amount\":10000}";
+        given(payloadParser.extractMemberId(eq(payload), anyString())).willReturn(5L);
 
         fanoutService.fanout(event, NotificationEventType.PAYMENT_COMPLETED, payload);
 
@@ -83,6 +87,8 @@ class NotificationFanoutServiceTest {
     void fanout_결제완료_memberId없음_실패() {
         NotificationEvent event = NotificationEvent.withId(4L, NotificationEventType.PAYMENT_COMPLETED, "{}");
         String invalidPayload = "{\"paymentId\":99,\"amount\":10000}";
+        given(payloadParser.extractMemberId(eq(invalidPayload), anyString()))
+                .willThrow(new IllegalArgumentException("invalid memberId"));
 
         boolean result = fanoutService.fanout(event, NotificationEventType.PAYMENT_COMPLETED, invalidPayload);
 
@@ -95,6 +101,7 @@ class NotificationFanoutServiceTest {
     void fanout_채팅알림_단건발송() {
         NotificationEvent event = NotificationEvent.withId(5L, NotificationEventType.CHAT_MENTION, "{}");
         String payload = "{\"roomId\":7,\"memberId\":42}";
+        given(payloadParser.extractMemberId(eq(payload), anyString())).willReturn(42L);
 
         fanoutService.fanout(event, NotificationEventType.CHAT_MENTION, payload);
 
@@ -109,6 +116,8 @@ class NotificationFanoutServiceTest {
     void fanout_채팅알림_memberId없음_실패() {
         NotificationEvent event = NotificationEvent.withId(6L, NotificationEventType.CHAT_MENTION, "{}");
         String invalidPayload = "{\"roomId\":7}";
+        given(payloadParser.extractMemberId(eq(invalidPayload), anyString()))
+                .willThrow(new IllegalArgumentException("invalid memberId"));
 
         boolean result = fanoutService.fanout(event, NotificationEventType.CHAT_MENTION, invalidPayload);
 

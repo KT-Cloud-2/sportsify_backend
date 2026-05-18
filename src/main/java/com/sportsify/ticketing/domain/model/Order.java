@@ -70,4 +70,8 @@ public class Order {
         this.expiresAt = expiresAt;
     }
 
+    public Long getMemberId() {
+        return member.getId();
+    }
+
 }

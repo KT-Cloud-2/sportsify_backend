@@ -17,6 +17,7 @@ public enum ErrorCode {
     // 회원 / 인증
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "존재하지 않는 회원입니다."),
     NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "NICKNAME_DUPLICATE", "이미 사용 중인 닉네임입니다."),
+    MEMBER_WITHDRAWN(HttpStatus.FORBIDDEN, "MEMBER_WITHDRAWN", "탈퇴한 회원입니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "유효하지 않거나 만료된 리프레시 토큰입니다."),
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_NOT_FOUND", "존재하지 않는 팀입니다."),
     FAVORITE_TEAM_ALREADY_EXISTS(HttpStatus.CONFLICT, "FAVORITE_TEAM_ALREADY_EXISTS", "이미 등록된 선호 팀입니다."),
@@ -41,7 +42,10 @@ public enum ErrorCode {
     SEAT_DUPLICATED(HttpStatus.BAD_REQUEST, "SEAT_DUPLICATED", "중복된 좌석이 있습니다."),
     TICKET_LIMIT_EXCEEDED(HttpStatus.valueOf(422), "TICKET_LIMIT_EXCEEDED", "경기당 1인 최대 4매를 초과했습니다."),
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "존재하지 않는 주문입니다."),
-    ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다.");
+    ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다."),
+
+    // 게임
+    PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
@@ -69,14 +73,9 @@ public enum ErrorCode {
         String detailValue = (detail == null || detail.isBlank()) ? "null" : "\"" + detail + "\"";
         return """
                 {
-                  "success": false,
-                  "data": null,
-                  "error": {
                     "code": "%s",
                     "message": "%s",
                     "detail": %s
-                  },
-                  "timestamp": "2026-04-29T12:00:00Z"
                 }""".formatted(code, message, detailValue);
     }
 }
