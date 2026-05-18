@@ -45,7 +45,7 @@ class PaymentControllerTest {
     }
 
     @Test
-    @DisplayName("결제 취소 API 성공")
+    @DisplayName("cancel payment api success")
     void cancelPayment_success() throws Exception {
         Long paymentId = 1L;
 
@@ -62,11 +62,11 @@ class PaymentControllerTest {
         given(paymentService.cancelPayment(eq(paymentId), any(CancelPaymentRequest.class)))
                 .willReturn(response);
 
-        mockMvc.perform(post("/payments/{paymentId}/cancel", paymentId)
+        mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "cancelReason": "사용자 요청 취소"
+                                  "cancelReason": "user requested cancel"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -81,11 +81,11 @@ class PaymentControllerTest {
     }
 
     @Test
-    @DisplayName("결제 취소 사유가 비어 있으면 400 응답")
-    void cancelPayment_blankCancelReason_fail() throws Exception {
+    @DisplayName("cancel payment fails when cancel reason is blank")
+    void cancelPayment_blankCancelReason() throws Exception {
         Long paymentId = 1L;
 
-        mockMvc.perform(post("/payments/{paymentId}/cancel", paymentId)
+        mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -94,24 +94,24 @@ class PaymentControllerTest {
                                 """))
                 .andExpect(status().isBadRequest());
 
-        verify(paymentService, never()).cancelPayment(any(), any());
+        verify(paymentService, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 
     @Test
-    @DisplayName("결제 취소 사유가 255자를 초과하면 400 응답")
-    void cancelPayment_tooLongCancelReason_fail() throws Exception {
+    @DisplayName("cancel payment fails when cancel reason is too long")
+    void cancelPayment_tooLongCancelReason() throws Exception {
         Long paymentId = 1L;
-        String tooLongReason = "a".repeat(256);
+        String longReason = "a".repeat(256);
 
-        mockMvc.perform(post("/payments/{paymentId}/cancel", paymentId)
+        mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "cancelReason": "%s"
                                 }
-                                """.formatted(tooLongReason)))
+                                """.formatted(longReason)))
                 .andExpect(status().isBadRequest());
 
-        verify(paymentService, never()).cancelPayment(any(), any());
+        verify(paymentService, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 }
