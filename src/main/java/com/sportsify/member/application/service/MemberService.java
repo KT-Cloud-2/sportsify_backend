@@ -18,16 +18,25 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class MemberService {
 
     private final MemberRepository memberRepository;
     private final MemberFavoriteTeamRepository favoriteTeamRepository;
     private final TeamRepository teamRepository;
 
+    @Transactional(readOnly = true)
     public MemberResult getMe(Long memberId) {
-        Member member = findActiveMember(memberId);
+        Member member = findMember(memberId);
         return MemberResult.from(member);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FavoriteTeamResult> getFavoriteTeams(Long memberId) {
+        findMember(memberId);
+        return favoriteTeamRepository.findByMemberIdOrderByPriorityAsc(memberId)
+                .stream()
+                .map(FavoriteTeamResult::from)
+                .toList();
     }
 
     @Transactional
@@ -35,23 +44,18 @@ public class MemberService {
         if (memberRepository.existsByNickname(nickname)) {
             throw new BusinessException(ErrorCode.NICKNAME_DUPLICATE);
         }
-        Member member = findActiveMember(memberId);
+        Member member = findMember(memberId);
         member.updateNickname(nickname);
         return MemberResult.from(member);
     }
 
-    @Transactional
-    public void withdraw(Long memberId) {
-        Member member = findActiveMember(memberId);
-        member.withdraw();
-    }
 
     @Transactional
     public FavoriteTeamResult addFavoriteTeam(Long memberId, Long teamId, Integer priority) {
         if (favoriteTeamRepository.existsByMemberIdAndTeamId(memberId, teamId)) {
             throw new BusinessException(ErrorCode.FAVORITE_TEAM_ALREADY_EXISTS);
         }
-        Member member = findActiveMember(memberId);
+        Member member = findMember(memberId);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TEAM_NOT_FOUND));
 
@@ -61,14 +65,6 @@ public class MemberService {
         MemberFavoriteTeam favoriteTeam = MemberFavoriteTeam.create(member, team, assignedPriority);
         favoriteTeamRepository.save(favoriteTeam);
         return FavoriteTeamResult.from(favoriteTeam);
-    }
-
-    public List<FavoriteTeamResult> getFavoriteTeams(Long memberId) {
-        findActiveMember(memberId);
-        return favoriteTeamRepository.findByMemberIdOrderByPriorityAsc(memberId)
-                .stream()
-                .map(FavoriteTeamResult::from)
-                .toList();
     }
 
     @Transactional
@@ -90,12 +86,13 @@ public class MemberService {
         favoriteTeamRepository.delete(favoriteTeam);
     }
 
-    private Member findActiveMember(Long memberId) {
-        Member member = memberRepository.findById(memberId)
+    @Transactional
+    public void withdraw(Long memberId) {
+        findMember(memberId).withdraw();
+    }
+
+    private Member findMember(Long memberId) {
+        return memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-        if (member.isWithdrawn()) {
-            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
-        }
-        return member;
     }
 }

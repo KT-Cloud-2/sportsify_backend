@@ -1,15 +1,13 @@
 package com.sportsify.infrastructure.config;
 
-import com.sportsify.infrastructure.security.CustomOAuth2UserService;
-import com.sportsify.infrastructure.security.JwtAuthenticationEntryPoint;
-import com.sportsify.infrastructure.security.JwtAuthenticationFilter;
-import com.sportsify.infrastructure.security.OAuth2AuthenticationSuccessHandler;
+import com.sportsify.infrastructure.security.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -49,17 +47,26 @@ public class SecurityConfig {
     );
 
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
-            "/dev/**", "/notification-test.html", "/dev-test.html"
+            "/dev/**", "/notification-test.html", "/dev-test.html", "/checkout.html", "/success.html", "/fail.html"
+    );
+    private static final List<String> SSE_PATHS = List.of(
+            "/api/notifications/stream"
     );
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final Environment environment;
+    private final JwtProvider jwtProvider;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(jwtProvider, redisTemplate, SSE_PATHS);
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -75,14 +82,13 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicPaths.toArray(String[]::new)).permitAll()
-                        .requestMatchers("/api/payments/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -92,8 +98,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
-        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration() {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(jwtAuthenticationFilter());
         registration.setEnabled(false);
         return registration;
     }

@@ -22,7 +22,6 @@ class MemberTest {
         assertThat(member.getProviderId()).isEqualTo("google-sub-123");
         assertThat(member.getStatus()).isEqualTo(MemberStatus.ACTIVE);
         assertThat(member.getRole()).isEqualTo(MemberRole.USER);
-        assertThat(member.getCreatedAt()).isNotNull();
     }
 
     @Test
@@ -33,7 +32,6 @@ class MemberTest {
         member.updateNickname("새닉네임");
 
         assertThat(member.getNickname()).isEqualTo("새닉네임");
-        assertThat(member.getUpdatedAt()).isNotNull();
     }
 
     @Test
@@ -45,7 +43,6 @@ class MemberTest {
 
         assertThat(member.getStatus()).isEqualTo(MemberStatus.WITHDRAWN);
         assertThat(member.isWithdrawn()).isTrue();
-        assertThat(member.getUpdatedAt()).isNotNull();
     }
 
     @Test

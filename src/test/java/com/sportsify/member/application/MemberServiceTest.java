@@ -57,19 +57,6 @@ class MemberServiceTest {
         assertThat(result.email()).isEqualTo("test@example.com");
     }
 
-    @Test
-    @DisplayName("탈퇴한 회원 조회 시 MEMBER_NOT_FOUND 예외가 발생한다")
-    void getMe_탈퇴회원_예외() {
-        Member member = activeMember(1L);
-        member.withdraw();
-        given(memberRepository.findById(1L)).willReturn(Optional.of(member));
-
-        assertThatThrownBy(() -> memberService.getMe(1L))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
-    }
-
     // ──────────────────────── updateNickname ────────────────────────
 
     @Test
