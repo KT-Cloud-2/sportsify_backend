@@ -6,6 +6,7 @@ import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.game.domain.model.SeatStatus;
+import com.sportsify.ticketing.application.service.TicketService;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeatStatus;
 import com.sportsify.ticketing.domain.model.OrderStatus;
@@ -27,6 +28,7 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 public class PaymentEventListener {
 
     private final OrderRepository orderRepository;
+    private final TicketService ticketService;
 
     @EventListener
     @Transactional
@@ -61,6 +63,8 @@ public class PaymentEventListener {
             orderSeat.updateStatus(OrderSeatStatus.CONFIRMED);
             orderSeat.getGameSeat().updateSeatStatus(SeatStatus.SOLD);
         });
+
+        ticketService.createTickets(event.orderId(), event.memberId());
     }
 
     @Async

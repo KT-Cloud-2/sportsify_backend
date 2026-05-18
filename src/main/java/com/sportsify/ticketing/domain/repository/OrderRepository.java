@@ -13,4 +13,6 @@ public interface OrderRepository {
 
     List<Order> findExpiredPendingOrdersWithSeats(LocalDateTime now);
 
+    Optional<Order> findByIdWithOrderSeats(Long orderId);
+
 }

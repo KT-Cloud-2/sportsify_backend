@@ -7,13 +7,22 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderJpaRepository extends JpaRepository<Order, Long> {
 
-    @Query("SELECT DISTINCT o FROM Order o " +
-            "JOIN FETCH o.orderSeats os " +
-            "JOIN FETCH os.gameSeat " +
-            "WHERE o.status = 'PENDING' AND o.expiresAt < :now"
-    )
+    @Query("""
+            SELECT DISTINCT o FROM Order o
+            JOIN FETCH o.orderSeats os
+            JOIN FETCH os.gameSeat
+            WHERE o.status = 'PENDING' AND o.expiresAt < :now
+            """)
     List<Order> findExpiredPendingOrdersWithSeats(@Param("now") LocalDateTime now);
+
+    @Query("""
+            SELECT o FROM Order o
+            JOIN FETCH o.orderSeats os
+            WHERE o.id = :orderId
+            """)
+    Optional<Order> findByIdWithOrderSeats(@Param("orderId") Long orderId);
 }

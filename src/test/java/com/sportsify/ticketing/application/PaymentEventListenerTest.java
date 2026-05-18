@@ -6,13 +6,11 @@ import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.ticketing.application.service.ReservationService;
-import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeat;
-import com.sportsify.ticketing.domain.model.OrderSeatStatus;
-import com.sportsify.ticketing.domain.model.OrderStatus;
+import com.sportsify.ticketing.domain.model.*;
 import com.sportsify.ticketing.fixture.PaymentEventListenerTestFixture;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
+import com.sportsify.ticketing.infrastructure.repository.TicketJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +43,9 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
 
     @Autowired
     private OrderJpaRepository orderRepository;
+
+    @Autowired
+    private TicketJpaRepository ticketRepository;
 
     @Autowired
     private ReservationService reservationService;
@@ -157,6 +158,40 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
                                 .containsOnly(SeatStatus.SOLD);
                     });
                 });
+    }
+
+
+    @Test
+    @DisplayName("결제 완료 이벤트 수신 시, 좌석별 티켓이 생성된다.")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void onSuccessPaymentEvent_createTickets() {
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
+
+        transactionTemplate.executeWithoutResult(s -> {
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId));
+        });
+
+
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    transactionTemplate.executeWithoutResult(status -> {
+                        List<Ticket> tickets = ticketRepository.findAll();
+                        Order order = orderRepository.findByIdWithOrderSeats(orderId).orElseThrow();
+                        List<Long> orderSeatIds = order.getOrderSeats().stream().map(OrderSeat::getId).toList();
+                        assertThat(tickets).hasSize(gameSeatIds.size());
+                        assertThat(tickets)
+                                .extracting(ticket -> ticket.getOrderSeat().getId())
+                                .containsExactlyInAnyOrderElementsOf(orderSeatIds);
+
+                        assertThat(tickets)
+                                .extracting(ticket -> ticket.getStatus())
+                                .containsOnly(TicketStatus.CONFIRMED);
+
+                    });
+                });
+
     }
 
     @ParameterizedTest
