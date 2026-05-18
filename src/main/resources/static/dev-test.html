@@ -5,7 +5,11 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>Sportsify Dev Console</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -27,8 +31,17 @@
             flex-wrap: wrap;
         }
 
-        .header h1 { font-size: 18px; font-weight: 700; color: #f8fafc; flex-shrink: 0; }
-        .header .subtitle { font-size: 12px; color: #64748b; }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f8fafc;
+            flex-shrink: 0;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            color: #64748b;
+        }
 
         .token-bar {
             display: flex;
@@ -48,7 +61,10 @@
             outline: none;
         }
 
-        .token-bar input { width: 260px; font-family: monospace; }
+        .token-bar input {
+            width: 260px;
+            font-family: monospace;
+        }
 
         #tokenStatus {
             font-size: 12px;
@@ -58,7 +74,10 @@
             color: #f87171;
         }
 
-        #tokenStatus.ok { background: #14532d; color: #4ade80; }
+        #tokenStatus.ok {
+            background: #14532d;
+            color: #4ade80;
+        }
 
         /* ── 탭 ── */
         .tabs {
@@ -82,18 +101,47 @@
             user-select: none;
         }
 
-        .tab:hover { color: #e2e8f0; }
-        .tab.active { color: #818cf8; border-bottom-color: #6366f1; }
+        .tab:hover {
+            color: #e2e8f0;
+        }
+
+        .tab.active {
+            color: #818cf8;
+            border-bottom-color: #6366f1;
+        }
 
         /* ── 콘텐츠 ── */
-        .content { flex: 1; padding: 20px 24px; display: none; }
-        .content.active { display: block; }
+        .content {
+            flex: 1;
+            padding: 20px 24px;
+            display: none;
+        }
 
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-        @media (max-width: 900px) { .grid, .grid-3 { grid-template-columns: 1fr; } }
+        .content.active {
+            display: block;
+        }
 
-        .full { grid-column: 1 / -1; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .grid, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
 
         /* ── 카드 ── */
         .card {
@@ -116,7 +164,12 @@
         }
 
         /* ── 폼 요소 ── */
-        label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
+        label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
 
         input, select, textarea {
             width: 100%;
@@ -131,11 +184,26 @@
             transition: border-color 0.2s;
         }
 
-        input:focus, select:focus, textarea:focus { border-color: #6366f1; }
-        textarea { resize: vertical; font-family: monospace; font-size: 11px; min-height: 60px; }
+        input:focus, select:focus, textarea:focus {
+            border-color: #6366f1;
+        }
 
-        .row { display: flex; gap: 8px; margin-bottom: 10px; }
-        .row input, .row select { margin-bottom: 0; }
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+            font-size: 11px;
+            min-height: 60px;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .row input, .row select {
+            margin-bottom: 0;
+        }
 
         /* ── 버튼 ── */
         button {
@@ -152,19 +220,62 @@
             white-space: nowrap;
         }
 
-        .btn-primary { background: #6366f1; color: white; }
-        .btn-primary:hover { background: #4f46e5; }
-        .btn-success { background: #16a34a; color: white; }
-        .btn-success:hover { background: #15803d; }
-        .btn-danger { background: #dc2626; color: white; }
-        .btn-danger:hover { background: #b91c1c; }
-        .btn-secondary { background: #334155; color: #e2e8f0; }
-        .btn-secondary:hover { background: #475569; }
-        .btn-warn { background: #d97706; color: white; }
-        .btn-warn:hover { background: #b45309; }
-        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-primary {
+            background: #6366f1;
+            color: white;
+        }
 
-        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .btn-primary:hover {
+            background: #4f46e5;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #15803d;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        .btn-warn {
+            background: #d97706;
+            color: white;
+        }
+
+        .btn-warn:hover {
+            background: #b45309;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
 
         /* ── 로그 ── */
         .log {
@@ -181,13 +292,34 @@
             word-break: break-all;
         }
 
-        .log .entry { margin-bottom: 3px; line-height: 1.5; }
-        .log .ts { color: #475569; }
-        .log .ok { color: #22c55e; }
-        .log .err { color: #ef4444; }
-        .log .inf { color: #38bdf8; }
-        .log .warn { color: #eab308; }
-        .log .sse { color: #a78bfa; }
+        .log .entry {
+            margin-bottom: 3px;
+            line-height: 1.5;
+        }
+
+        .log .ts {
+            color: #475569;
+        }
+
+        .log .ok {
+            color: #22c55e;
+        }
+
+        .log .err {
+            color: #ef4444;
+        }
+
+        .log .inf {
+            color: #38bdf8;
+        }
+
+        .log .warn {
+            color: #eab308;
+        }
+
+        .log .sse {
+            color: #a78bfa;
+        }
 
         /* ── 배지 ── */
         .badge {
@@ -199,16 +331,51 @@
             font-weight: 600;
         }
 
-        .badge-on { background: #14532d; color: #4ade80; }
-        .badge-off { background: #450a0a; color: #f87171; }
-        .badge-cnt { background: #312e81; color: #a5b4fc; }
+        .badge-on {
+            background: #14532d;
+            color: #4ade80;
+        }
+
+        .badge-off {
+            background: #450a0a;
+            color: #f87171;
+        }
+
+        .badge-cnt {
+            background: #312e81;
+            color: #a5b4fc;
+        }
 
         /* ── 결과 테이블 ── */
-        .result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-        .result-table th { background: #0f172a; color: #64748b; padding: 6px 10px; text-align: left; border-bottom: 1px solid #334155; }
-        .result-table td { padding: 6px 10px; border-bottom: 1px solid #1e293b; vertical-align: top; word-break: break-all; }
-        .result-table tr:last-child td { border-bottom: none; }
-        .result-table tr:hover td { background: #1e293b; }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .result-table th {
+            background: #0f172a;
+            color: #64748b;
+            padding: 6px 10px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+
+        .result-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #1e293b;
+            vertical-align: top;
+            word-break: break-all;
+        }
+
+        .result-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .result-table tr:hover td {
+            background: #1e293b;
+        }
 
         .tag {
             display: inline-block;
@@ -220,42 +387,176 @@
             color: #a5b4fc;
         }
 
-        .tag.green { background: #14532d; color: #4ade80; }
-        .tag.red { background: #450a0a; color: #f87171; }
-        .tag.yellow { background: #451a03; color: #fbbf24; }
+        .tag.green {
+            background: #14532d;
+            color: #4ade80;
+        }
+
+        .tag.red {
+            background: #450a0a;
+            color: #f87171;
+        }
+
+        .tag.yellow {
+            background: #451a03;
+            color: #fbbf24;
+        }
 
         /* ── 알림 목록 ── */
-        .notif-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
-        .notif-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; }
-        .notif-item.unread { border-left: 3px solid #6366f1; }
-        .notif-item.read { opacity: 0.5; }
-        .notif-meta { font-size: 11px; color: #475569; margin-top: 4px; }
-        .notif-type { font-size: 11px; font-weight: 700; color: #818cf8; }
+        .notif-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .notif-item {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .notif-item.unread {
+            border-left: 3px solid #6366f1;
+        }
+
+        .notif-item.read {
+            opacity: 0.5;
+        }
+
+        .notif-meta {
+            font-size: 11px;
+            color: #475569;
+            margin-top: 4px;
+        }
+
+        .notif-type {
+            font-size: 11px;
+            font-weight: 700;
+            color: #818cf8;
+        }
 
         /* ── 토글 ── */
-        .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1e293b; }
-        .settings-row:last-child { border-bottom: none; }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #1e293b;
+        }
 
-        .toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; inset: 0; background: #334155; border-radius: 22px; cursor: pointer; transition: 0.2s; }
-        .slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
-        input:checked + .slider { background: #6366f1; }
-        input:checked + .slider::before { transform: translateX(18px); }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #334155;
+            border-radius: 22px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .slider::before {
+            content: '';
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        input:checked + .slider {
+            background: #6366f1;
+        }
+
+        input:checked + .slider::before {
+            transform: translateX(18px);
+        }
 
         /* ── 이벤트 그리드 ── */
-        .event-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .event-btn { padding: 12px 8px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; text-align: center; }
-        .event-btn:hover { border-color: #6366f1; background: #1e1b4b; color: #a5b4fc; }
-        .event-btn .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+        .event-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
 
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #475569; flex-shrink: 0; display: inline-block; }
-        .dot.green { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
-        .dot.red { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
+        .event-btn {
+            padding: 12px 8px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.15s;
+            text-align: center;
+        }
 
-        hr { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
+        .event-btn:hover {
+            border-color: #6366f1;
+            background: #1e1b4b;
+            color: #a5b4fc;
+        }
 
-        .hint { font-size: 11px; color: #475569; margin-top: -6px; margin-bottom: 10px; }
+        .event-btn .icon {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #475569;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+
+        .dot.green {
+            background: #22c55e;
+            box-shadow: 0 0 6px #22c55e88;
+        }
+
+        .dot.red {
+            background: #ef4444;
+            box-shadow: 0 0 6px #ef444488;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #1e293b;
+            margin: 12px 0;
+        }
+
+        .hint {
+            font-size: 11px;
+            color: #475569;
+            margin-top: -6px;
+            margin-bottom: 10px;
+        }
 
         /* ── OAuth 버튼 ── */
         .oauth-btn {
@@ -274,11 +575,43 @@
             transition: all 0.15s;
         }
 
-        .oauth-google { background: #4285F4; color: white; }
-        .oauth-google:hover { background: #3367D6; }
-        .oauth-kakao { background: #FEE500; color: #3A1D1D; }
-        .oauth-kakao:hover { background: #E6CF00; }
+        .oauth-google {
+            background: #4285F4;
+            color: white;
+        }
+
+        .oauth-google:hover {
+            background: #3367D6;
+        }
+
+        .oauth-kakao {
+            background: #FEE500;
+            color: #3A1D1D;
+        }
+
+        .oauth-kakao:hover {
+            background: #E6CF00;
+        }
+
+        /* ── WebSocket 메시지 피드 ── */
+        .ws-feed-item {
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: #0f172a;
+        }
+
+        .ws-section-divider {
+            border: 1px dashed #334155;
+            border-radius: 12px;
+            padding: 10px 18px;
+            background: #1e293b30;
+            margin-bottom: 0;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@6/bundles/stomp.umd.min.js"></script>
 </head>
 <body>
 
@@ -333,7 +666,7 @@
             <p class="hint">GET /dev/token?memberId={id} — 로컬 프로파일 전용</p>
             <hr>
             <label>수동 JWT 입력</label>
-            <textarea id="tokenTextarea" placeholder="eyJ..." rows="3" oninput="onManualToken()"></textarea>
+            <textarea id="tokenTextarea" oninput="onManualToken()" placeholder="eyJ..." rows="3"></textarea>
         </div>
 
         <div class="card">
@@ -343,11 +676,19 @@
                 이 페이지의 URL이 콜백 주소와 다를 경우 토큰을 수동으로 붙여넣으세요.
             </p>
             <button class="oauth-btn oauth-google" onclick="oauthLogin('google')">
-                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                <svg height="18" viewBox="0 0 48 48" width="18">
+                    <path d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" fill="#EA4335"/>
+                    <path d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" fill="#4285F4"/>
+                    <path d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" fill="#FBBC05"/>
+                    <path d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" fill="#34A853"/>
+                    <path d="M0 0h48v48H0z" fill="none"/>
+                </svg>
                 Google로 로그인
             </button>
             <button class="oauth-btn oauth-kakao" onclick="oauthLogin('kakao')">
-                <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.485 1.39 4.677 3.5 6.03L4.5 21l4.382-2.922A11.3 11.3 0 0 0 12 18c5.523 0 10-3.477 10-7.5S17.523 3 12 3z" fill="#3A1D1D"/></svg>
+                <svg height="18" viewBox="0 0 24 24" width="18">
+                    <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.485 1.39 4.677 3.5 6.03L4.5 21l4.382-2.922A11.3 11.3 0 0 0 12 18c5.523 0 10-3.477 10-7.5S17.523 3 12 3z" fill="#3A1D1D"/>
+                </svg>
                 카카오로 로그인
             </button>
             <hr>
@@ -444,6 +785,15 @@
 
         <div class="card">
             <h2>내 채팅방 목록</h2>
+            <label>타입</label>
+            <select id="myRoomType">
+                <option value="GAME">GAME</option>
+                <option value="DIRECT">DIRECT</option>
+            </select>
+            <label>Limit</label>
+            <input id="myRoomLimit" max="100" min="1" type="number" value="20">
+            <label>Cursor (없으면 비워두기)</label>
+            <input id="myRoomCursor" placeholder="없음" type="number">
             <div class="btn-row">
                 <button class="btn-primary" onclick="getMyChatRooms()">조회</button>
             </div>
@@ -478,6 +828,72 @@
         <div class="card full">
             <h2>API 응답 로그</h2>
             <div class="log" id="chatLog"><span class="inf">채팅 API 로그...</span></div>
+        </div>
+
+        <!-- ── WebSocket 구분선 ── -->
+        <div class="card full ws-section-divider">
+            <h2>🔌 WebSocket / STOMP 실시간 채팅</h2>
+        </div>
+
+        <!-- ── WebSocket 연결 ── -->
+        <div class="card">
+            <h2><span class="dot" id="wsDot"></span> 연결 상태 <span class="badge badge-off" id="wsBadge">미연결</span></h2>
+            <div class="btn-row">
+                <button class="btn-success" onclick="connectWS()">연결</button>
+                <button class="btn-danger" onclick="disconnectWS()">끊기</button>
+            </div>
+            <p class="hint">현재 토큰으로 /ws/chat SockJS 연결</p>
+            <hr>
+            <label>구독 중인 방</label>
+            <div id="wsSubscribedRooms" style="font-size:12px;color:#94a3b8;padding:4px 0;min-height:20px">없음</div>
+            <hr>
+            <label>Room ID 구독/해제</label>
+            <input id="wsRoomId" placeholder="1" type="number">
+            <div class="btn-row">
+                <button class="btn-primary" onclick="subscribeRoom()">구독</button>
+                <button class="btn-secondary" onclick="unsubscribeRoom()">해제</button>
+            </div>
+        </div>
+
+        <!-- ── 메시지 전송 ── -->
+        <div class="card">
+            <h2>메시지 전송</h2>
+            <label>Room ID</label>
+            <input id="wsSendRoomId" placeholder="1" type="number">
+            <label>내용 (Enter로 전송)</label>
+            <div class="row">
+                <input id="wsMessageContent" onkeydown="if(event.key==='Enter')sendMessage()" placeholder="안녕하세요!" style="margin-bottom:0"
+                       type="text">
+                <button class="btn-primary" onclick="sendMessage()">전송</button>
+            </div>
+            <div class="btn-row" style="margin-top:6px">
+                <button class="btn-secondary btn-sm" onclick="sendTyping()">타이핑 이벤트</button>
+            </div>
+            <hr>
+            <h2 style="margin-top:4px">읽음 처리</h2>
+            <div class="row">
+                <input id="wsReadRoomId" placeholder="Room ID" style="margin-bottom:0" type="number">
+                <input id="wsLastMessageId" placeholder="마지막 메시지 ID" style="margin-bottom:0" type="number">
+            </div>
+            <button class="btn-secondary btn-sm" onclick="markRead()" style="margin-top:8px">읽음 처리 전송</button>
+            <p class="hint" style="margin-top:4px">메시지 수신 시 ID 자동 입력됨</p>
+        </div>
+
+        <!-- ── 실시간 메시지 피드 ── -->
+        <div class="card full">
+            <h2 style="display:flex;justify-content:space-between;align-items:center">
+                실시간 메시지 피드
+                <button class="btn-secondary btn-sm" onclick="document.getElementById('wsMsgFeed').innerHTML=''">초기화</button>
+            </h2>
+            <div id="wsMsgFeed" style="max-height:360px;overflow-y:auto">
+                <p style="color:#475569;font-size:13px">방을 구독하면 메시지가 여기에 표시됩니다.</p>
+            </div>
+        </div>
+
+        <!-- ── WebSocket 로그 ── -->
+        <div class="card full">
+            <h2>WebSocket 로그</h2>
+            <div class="log" id="wsLog"><span class="inf">WebSocket 대기 중...</span></div>
         </div>
     </div>
 </div>
@@ -576,8 +992,8 @@
             <div id="favoriteTeamsResult" style="margin-bottom:12px"></div>
             <label>팀 ID 추가</label>
             <div class="row">
-                <input id="favTeamId" placeholder="팀 ID" type="number" style="margin-bottom:0">
-                <input id="favPriority" placeholder="우선순위 (0=높음)" type="number" value="0" style="margin-bottom:0">
+                <input id="favTeamId" placeholder="팀 ID" style="margin-bottom:0" type="number">
+                <input id="favPriority" placeholder="우선순위 (0=높음)" style="margin-bottom:0" type="number" value="0">
             </div>
             <div class="btn-row" style="margin-top:10px">
                 <button class="btn-success btn-sm" onclick="addFavoriteTeam()">추가</button>
@@ -649,7 +1065,9 @@
     let sseReader = null;
     let settingsCache = {};
 
-    function ts() { return new Date().toLocaleTimeString('ko-KR'); }
+    function ts() {
+        return new Date().toLocaleTimeString('ko-KR');
+    }
 
     function escHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -662,7 +1080,9 @@
         el.scrollTop = el.scrollHeight;
     }
 
-    function alog(logId, m, c) { logTo(logId, m, c); }
+    function alog(logId, m, c) {
+        logTo(logId, m, c);
+    }
 
     function getToken() {
         const manual = document.getElementById('tokenInput').value.trim();
@@ -688,17 +1108,21 @@
             alog(logId, '토큰이 없습니다. 먼저 토큰을 발급하세요.', 'err');
             return null;
         }
-        const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+        const opts = {method, headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'}};
         if (body !== undefined) opts.body = JSON.stringify(body);
         try {
             const res = await fetch(path, opts);
             const text = await res.text();
             let parsed;
-            try { parsed = JSON.parse(text); } catch { parsed = text; }
+            try {
+                parsed = JSON.parse(text);
+            } catch {
+                parsed = text;
+            }
             alog(logId, `${method} ${path} → ${res.status}`, res.ok ? 'ok' : 'err');
             if (parsed && typeof parsed === 'object') alog(logId, JSON.stringify(parsed, null, 2));
             else if (text) alog(logId, text);
-            return { ok: res.ok, status: res.status, data: parsed };
+            return {ok: res.ok, status: res.status, data: parsed};
         } catch (e) {
             alog(logId, `${method} ${path} → ${e.message}`, 'err');
             return null;
@@ -798,7 +1222,10 @@
         const res = await api('GET', `/api/games${qs.length ? '?' + qs.join('&') : ''}`, undefined, 'gameLog');
         if (!res?.ok) return;
         const items = Array.isArray(res.data) ? res.data : (res.data?.content || []);
-        if (!items.length) { document.getElementById('gameListResult').innerHTML = '<p style="color:#475569;font-size:13px;margin-top:8px">결과 없음</p>'; return; }
+        if (!items.length) {
+            document.getElementById('gameListResult').innerHTML = '<p style="color:#475569;font-size:13px;margin-top:8px">결과 없음</p>';
+            return;
+        }
         document.getElementById('gameListResult').innerHTML = `
             <table class="result-table">
                 <thead><tr><th>ID</th><th>종목</th><th>홈</th><th>원정</th><th>상태</th><th>시작</th></tr></thead>
@@ -822,7 +1249,10 @@
 
     async function getGameDetail() {
         const id = document.getElementById('gameDetailId').value;
-        if (!id) { alog('gameLog', 'Game ID를 입력하세요.', 'warn'); return; }
+        if (!id) {
+            alog('gameLog', 'Game ID를 입력하세요.', 'warn');
+            return;
+        }
         const res = await api('GET', `/api/games/${id}`, undefined, 'gameLog');
         if (!res?.ok) return;
         const g = res.data;
@@ -834,7 +1264,10 @@
 
     async function getGameSeats() {
         const id = document.getElementById('gameDetailId').value;
-        if (!id) { alog('gameLog', 'Game ID를 입력하세요.', 'warn'); return; }
+        if (!id) {
+            alog('gameLog', 'Game ID를 입력하세요.', 'warn');
+            return;
+        }
         const grade = document.getElementById('seatGrade').value;
         const status = document.getElementById('seatStatus').value;
         let qs = [];
@@ -844,8 +1277,8 @@
         if (!res?.ok) return;
         const items = Array.isArray(res.data) ? res.data : [];
         document.getElementById('gameDetailResult').innerHTML = !items.length
-            ? '<p style="color:#475569;font-size:13px;margin-top:8px">좌석 없음</p>'
-            : `<table class="result-table">
+                ? '<p style="color:#475569;font-size:13px;margin-top:8px">좌석 없음</p>'
+                : `<table class="result-table">
                 <thead><tr><th>좌석ID</th><th>섹션</th><th>열</th><th>번호</th><th>등급</th><th>상태</th><th>가격</th></tr></thead>
                 <tbody>${items.map(s => `
                     <tr>
@@ -869,23 +1302,31 @@
         const type = document.getElementById('chatRoomType').value;
         const gameId = document.getElementById('chatRoomGameId').value;
         const imageUrl = document.getElementById('chatRoomImage').value.trim();
-        if (!name) { alog('chatLog', '방 이름을 입력하세요.', 'warn'); return; }
-        const body = { name, type };
+        if (!name) {
+            alog('chatLog', '방 이름을 입력하세요.', 'warn');
+            return;
+        }
+        const body = {name, type};
         if (gameId) body.gameId = Number(gameId);
         if (imageUrl) body.imageUrl = imageUrl;
         await api('POST', '/api/chat/rooms', body, 'chatLog');
     }
 
     async function getMyChatRooms() {
-        const res = await api('GET', '/api/chat/rooms', undefined, 'chatLog');
+        const type = document.getElementById('myRoomType').value;
+        const limit = document.getElementById('myRoomLimit').value || 20;
+        const cursor = document.getElementById('myRoomCursor').value;
+        const params = new URLSearchParams({type, limit});
+        if (cursor) params.set('cursor', cursor);
+        const res = await api('GET', `/api/chat/rooms?${params}`, undefined, 'chatLog');
         if (!res?.ok) return;
         const items = res.data?.rooms || res.data?.content || (Array.isArray(res.data) ? res.data : []);
         document.getElementById('chatRoomListResult').innerHTML = !items.length
-            ? '<p style="color:#475569;font-size:13px;margin-top:8px">채팅방 없음</p>'
-            : `<table class="result-table" style="margin-top:8px">
+                ? '<p style="color:#475569;font-size:13px;margin-top:8px">채팅방 없음</p>'
+                : `<table class="result-table" style="margin-top:8px">
                 <thead><tr><th>ID</th><th>이름</th><th>타입</th><th>상태</th></tr></thead>
                 <tbody>${items.map(r => `
-                    <tr style="cursor:pointer" onclick="document.getElementById('chatDetailRoomId').value=${r.id};document.getElementById('chatMemberRoomId').value=${r.id}">
+                    <tr style="cursor:pointer" onclick="document.getElementById('chatDetailRoomId').value=${r.id};document.getElementById('chatMemberRoomId').value=${r.id};document.getElementById('wsRoomId').value=${r.id};document.getElementById('wsSendRoomId').value=${r.id}">
                         <td>${r.id}</td><td>${escHtml(r.name || '-')}</td><td>${r.type || '-'}</td><td>${r.status || '-'}</td>
                     </tr>`).join('')}
                 </tbody>
@@ -894,32 +1335,47 @@
 
     async function joinChatRoom() {
         const roomId = document.getElementById('chatMemberRoomId').value;
-        if (!roomId) { alog('chatLog', 'Room ID를 입력하세요.', 'warn'); return; }
+        if (!roomId) {
+            alog('chatLog', 'Room ID를 입력하세요.', 'warn');
+            return;
+        }
         await api('POST', `/api/chat/rooms/${roomId}/join`, {}, 'chatLog');
     }
 
     async function inviteChatRoom() {
         const roomId = document.getElementById('chatMemberRoomId').value;
         const memberId = document.getElementById('chatInviteMemberId').value;
-        if (!roomId || !memberId) { alog('chatLog', 'Room ID와 Member ID를 입력하세요.', 'warn'); return; }
-        await api('POST', `/api/chat/rooms/${roomId}/invite`, { memberId: Number(memberId) }, 'chatLog');
+        if (!roomId || !memberId) {
+            alog('chatLog', 'Room ID와 Member ID를 입력하세요.', 'warn');
+            return;
+        }
+        await api('POST', `/api/chat/rooms/${roomId}/invite?inviteeId=${Number(memberId)}`, 'chatLog');
     }
 
     async function leaveChatRoom() {
         const roomId = document.getElementById('chatMemberRoomId').value;
-        if (!roomId) { alog('chatLog', 'Room ID를 입력하세요.', 'warn'); return; }
+        if (!roomId) {
+            alog('chatLog', 'Room ID를 입력하세요.', 'warn');
+            return;
+        }
         await api('DELETE', `/api/chat/rooms/${roomId}/invite`, {}, 'chatLog');
     }
 
     async function getChatRoomsByGame() {
         const gameId = document.getElementById('chatGameId').value;
-        if (!gameId) { alog('chatLog', 'Game ID를 입력하세요.', 'warn'); return; }
+        if (!gameId) {
+            alog('chatLog', 'Game ID를 입력하세요.', 'warn');
+            return;
+        }
         await api('GET', `/api/chat/rooms/game/${gameId}`, undefined, 'chatLog');
     }
 
     async function getChatRoomDetail() {
         const roomId = document.getElementById('chatDetailRoomId').value;
-        if (!roomId) { alog('chatLog', 'Room ID를 입력하세요.', 'warn'); return; }
+        if (!roomId) {
+            alog('chatLog', 'Room ID를 입력하세요.', 'warn');
+            return;
+        }
         const res = await api('GET', `/api/chat/rooms/${roomId}`, undefined, 'chatLog');
         if (!res?.ok) return;
         const r = res.data;
@@ -934,12 +1390,24 @@
     ══════════════════════════════════════ */
     async function connectSSE() {
         const token = getToken();
-        if (!token) { logTo('sseLog', '토큰이 없습니다.', 'err'); return; }
-        if (sseReader) { try { await sseReader.cancel(); } catch {} sseReader = null; }
+        if (!token) {
+            logTo('sseLog', '토큰이 없습니다.', 'err');
+            return;
+        }
+        if (sseReader) {
+            try {
+                await sseReader.cancel();
+            } catch {
+            }
+            sseReader = null;
+        }
         logTo('sseLog', 'SSE 연결 중...', 'inf');
         try {
-            const res = await fetch('/api/notifications/stream', { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'text/event-stream' } });
-            if (!res.ok) { logTo('sseLog', `연결 실패: HTTP ${res.status}`, 'err'); return; }
+            const res = await fetch('/api/notifications/stream', {headers: {'Authorization': `Bearer ${token}`, 'Accept': 'text/event-stream'}});
+            if (!res.ok) {
+                logTo('sseLog', `연결 실패: HTTP ${res.status}`, 'err');
+                return;
+            }
             logTo('sseLog', 'SSE 연결 성공!', 'ok');
             setSseBadge(true);
             sseReader = res.body.getReader();
@@ -947,7 +1415,7 @@
             (async () => {
                 try {
                     while (true) {
-                        const { done, value } = await sseReader.read();
+                        const {done, value} = await sseReader.read();
                         if (done) break;
                         dec.decode(value).split('\n').forEach(line => {
                             if (line.startsWith('data:')) {
@@ -957,14 +1425,25 @@
                             }
                         });
                     }
-                } catch (e) { if (e.name !== 'AbortError') logTo('sseLog', `스트림 오류: ${e.message}`, 'err'); }
+                } catch (e) {
+                    if (e.name !== 'AbortError') logTo('sseLog', `스트림 오류: ${e.message}`, 'err');
+                }
                 setSseBadge(false);
             })();
-        } catch (e) { logTo('sseLog', `연결 오류: ${e.message}`, 'err'); setSseBadge(false); }
+        } catch (e) {
+            logTo('sseLog', `연결 오류: ${e.message}`, 'err');
+            setSseBadge(false);
+        }
     }
 
     async function disconnectSSE() {
-        if (sseReader) { try { await sseReader.cancel(); } catch {} sseReader = null; }
+        if (sseReader) {
+            try {
+                await sseReader.cancel();
+            } catch {
+            }
+            sseReader = null;
+        }
         setSseBadge(false);
         logTo('sseLog', '연결 끊김', 'warn');
     }
@@ -982,8 +1461,8 @@
         logTo('pubLog', `발행: ${stream}`, 'inf');
         const res = await fetch('/dev/events/publish', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stream, payload: JSON.stringify(payload) })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({stream, payload: JSON.stringify(payload)})
         });
         logTo('pubLog', res.ok ? `완료: ${stream}` : `실패: HTTP ${res.status}`, res.ok ? 'ok' : 'err');
     }
@@ -991,9 +1470,17 @@
     async function publishCustom() {
         const stream = document.getElementById('customStream').value.trim();
         const payloadStr = document.getElementById('customPayload').value.trim();
-        if (!stream) { logTo('pubLog', '스트림 이름을 입력하세요.', 'warn'); return; }
+        if (!stream) {
+            logTo('pubLog', '스트림 이름을 입력하세요.', 'warn');
+            return;
+        }
         let payload;
-        try { payload = JSON.parse(payloadStr); } catch { logTo('pubLog', '페이로드가 유효한 JSON이 아닙니다.', 'err'); return; }
+        try {
+            payload = JSON.parse(payloadStr);
+        } catch {
+            logTo('pubLog', '페이로드가 유효한 JSON이 아닙니다.', 'err');
+            return;
+        }
         await publish(stream, payload);
     }
 
@@ -1008,8 +1495,8 @@
         document.getElementById('unreadBadge').textContent = `${unread} 읽지 않음`;
         const el = document.getElementById('notifList');
         el.innerHTML = !items.length
-            ? '<p style="color:#475569;font-size:13px">알림 없음</p>'
-            : items.map(n => `
+                ? '<p style="color:#475569;font-size:13px">알림 없음</p>'
+                : items.map(n => `
                 <div class="notif-item ${n.read ? 'read' : 'unread'}">
                     <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
                         <div style="flex:1;min-width:0">
@@ -1037,12 +1524,12 @@
         if (!res?.ok) return;
         settingsCache = res.data;
         const items = [
-            { key: 'ticketOpenAlert', label: '🎟️ 티켓 오픈 알림' },
-            { key: 'gameStartAlert', label: '⚾ 경기 시작 알림' },
-            { key: 'paymentAlert', label: '💳 결제 알림' },
-            { key: 'chatMentionAlert', label: '💬 채팅 멘션 알림' },
+            {key: 'ticketOpenAlert', label: '🎟️ 티켓 오픈 알림'},
+            {key: 'gameStartAlert', label: '⚾ 경기 시작 알림'},
+            {key: 'paymentAlert', label: '💳 결제 알림'},
+            {key: 'chatMentionAlert', label: '💬 채팅 멘션 알림'},
         ];
-        document.getElementById('settingsArea').innerHTML = items.map(({ key, label }) => `
+        document.getElementById('settingsArea').innerHTML = items.map(({key, label}) => `
             <div class="settings-row">
                 <span style="font-size:13px">${label}</span>
                 <label class="toggle"><input type="checkbox" id="s-${key}" ${res.data[key] ? 'checked' : ''}><span class="slider"></span></label>
@@ -1057,7 +1544,10 @@
             chatMentionAlert: document.getElementById('s-chatMentionAlert')?.checked ?? settingsCache.chatMentionAlert,
         };
         const res = await api('PUT', '/api/notifications/settings', body, 'notiLog');
-        if (res?.ok) { settingsCache = res.data; alog('notiLog', '설정 저장 완료', 'ok'); }
+        if (res?.ok) {
+            settingsCache = res.data;
+            alog('notiLog', '설정 저장 완료', 'ok');
+        }
     }
 
     async function loadChannels() {
@@ -1065,8 +1555,8 @@
         if (!res?.ok) return;
         const items = Array.isArray(res.data) ? res.data : [];
         document.getElementById('channelList').innerHTML = !items.length
-            ? '<p style="color:#475569;font-size:12px;margin-top:8px">채널 없음</p>'
-            : `<table class="result-table" style="margin-top:8px">
+                ? '<p style="color:#475569;font-size:12px;margin-top:8px">채널 없음</p>'
+                : `<table class="result-table" style="margin-top:8px">
                 <thead><tr><th>타입</th><th>대상</th><th>활성</th></tr></thead>
                 <tbody>${items.map(c => `<tr><td>${c.channelType}</td><td>${escHtml(c.channelTarget || '-')}</td><td>${c.enabled ? '✓' : '✗'}</td></tr>`).join('')}
                 </tbody>
@@ -1088,8 +1578,11 @@
 
     async function updateNickname() {
         const nickname = document.getElementById('newNickname').value.trim();
-        if (!nickname) { alog('memberLog', '닉네임을 입력하세요.', 'warn'); return; }
-        await api('PATCH', '/api/members/nickname', { nickname }, 'memberLog');
+        if (!nickname) {
+            alog('memberLog', '닉네임을 입력하세요.', 'warn');
+            return;
+        }
+        await api('PATCH', '/api/members/nickname', {nickname}, 'memberLog');
     }
 
     async function getFavoriteTeams() {
@@ -1097,8 +1590,8 @@
         if (!res?.ok) return;
         const items = Array.isArray(res.data) ? res.data : [];
         document.getElementById('favoriteTeamsResult').innerHTML = !items.length
-            ? '<p style="color:#475569;font-size:13px">즐겨찾기 없음</p>'
-            : `<table class="result-table">
+                ? '<p style="color:#475569;font-size:13px">즐겨찾기 없음</p>'
+                : `<table class="result-table">
                 <thead><tr><th>팀ID</th><th>팀명</th><th>우선순위</th></tr></thead>
                 <tbody>${items.map(t => `<tr><td>${t.teamId || t.id}</td><td>${escHtml(t.teamName || t.name || '-')}</td><td>${t.priority ?? '-'}</td></tr>`).join('')}
                 </tbody>
@@ -1108,21 +1601,30 @@
     async function addFavoriteTeam() {
         const teamId = document.getElementById('favTeamId').value;
         const priority = document.getElementById('favPriority').value || 0;
-        if (!teamId) { alog('memberLog', '팀 ID를 입력하세요.', 'warn'); return; }
-        await api('POST', '/api/members/favorite-teams', { teamId: Number(teamId), priority: Number(priority) }, 'memberLog');
+        if (!teamId) {
+            alog('memberLog', '팀 ID를 입력하세요.', 'warn');
+            return;
+        }
+        await api('POST', '/api/members/favorite-teams', {teamId: Number(teamId), priority: Number(priority)}, 'memberLog');
     }
 
     async function removeFavoriteTeam() {
         const teamId = document.getElementById('favTeamId').value;
-        if (!teamId) { alog('memberLog', '팀 ID를 입력하세요.', 'warn'); return; }
+        if (!teamId) {
+            alog('memberLog', '팀 ID를 입력하세요.', 'warn');
+            return;
+        }
         await api('DELETE', `/api/members/favorite-teams/${teamId}`, undefined, 'memberLog');
     }
 
     async function refreshAccessToken() {
         const refreshToken = document.getElementById('refreshToken').value.trim();
-        if (!refreshToken) { alog('memberLog', 'Refresh Token을 입력하세요.', 'warn'); return; }
+        if (!refreshToken) {
+            alog('memberLog', 'Refresh Token을 입력하세요.', 'warn');
+            return;
+        }
         try {
-            const res = await fetch('/api/auth/token/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }) });
+            const res = await fetch('/api/auth/token/refresh', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({refreshToken})});
             const data = await res.json();
             alog('memberLog', `POST /api/auth/token/refresh → ${res.status}`, res.ok ? 'ok' : 'err');
             if (res.ok && data.accessToken) {
@@ -1132,7 +1634,9 @@
                 setTokenStatus('토큰 갱신 완료', true);
             }
             alog('memberLog', JSON.stringify(data, null, 2));
-        } catch (e) { alog('memberLog', e.message, 'err'); }
+        } catch (e) {
+            alog('memberLog', e.message, 'err');
+        }
     }
 
     async function logout() {
@@ -1153,8 +1657,8 @@
         if (!res?.ok) return;
         const items = Array.isArray(res.data) ? res.data : [];
         document.getElementById('teamListResult').innerHTML = !items.length
-            ? '<p style="color:#475569;font-size:13px;margin-top:8px">결과 없음</p>'
-            : `<table class="result-table" style="margin-top:8px">
+                ? '<p style="color:#475569;font-size:13px;margin-top:8px">결과 없음</p>'
+                : `<table class="result-table" style="margin-top:8px">
                 <thead><tr><th>ID</th><th>이름</th><th>약칭</th><th>종목</th><th>활성</th></tr></thead>
                 <tbody>${items.map(t => `
                     <tr style="cursor:pointer" onclick="document.getElementById('teamDetailId').value=${t.id}">
@@ -1167,13 +1671,261 @@
 
     async function getTeamDetail() {
         const id = document.getElementById('teamDetailId').value;
-        if (!id) { alog('teamLog', '팀 ID를 입력하세요.', 'warn'); return; }
+        if (!id) {
+            alog('teamLog', '팀 ID를 입력하세요.', 'warn');
+            return;
+        }
         const res = await api('GET', `/api/teams/${id}`, undefined, 'teamLog');
         if (!res?.ok) return;
         document.getElementById('teamDetailResult').innerHTML = `
             <table class="result-table">
                 ${Object.entries(res.data).map(([k, v]) => `<tr><td style="color:#64748b;width:40%">${k}</td><td>${escHtml(JSON.stringify(v))}</td></tr>`).join('')}
             </table>`;
+    }
+
+    /* ══════════════════════════════════════
+       WebSocket / STOMP
+    ══════════════════════════════════════ */
+    let stompClient = null;
+    const wsSubscriptions = {};
+
+    function wsLog(msg, cls = '') {
+        logTo('wsLog', msg, cls);
+    }
+
+    function connectWS() {
+        const token = getToken();
+        if (stompClient?.connected) {
+            wsLog('이미 연결됨', 'warn');
+            return;
+        }
+
+        stompClient = new StompJs.Client({
+            webSocketFactory: () => new SockJS(`${window.location.origin}/ws/chat`),
+            connectHeaders: token ? {Authorization: `Bearer ${token}`} : null,
+            reconnectDelay: 0,
+            debug: () => {
+            },
+            onConnect: () => {
+                wsLog('연결 성공', 'ok');
+                setWsBadge(true);
+                stompClient.subscribe('/user/queue/errors', msg => {
+                    wsLog('개인 오류: ' + msg.body, 'err');
+                });
+            },
+            onDisconnect: () => {
+                setWsBadge(false);
+                wsLog('연결 종료', 'warn');
+            },
+            onStompError: frame => {
+                wsLog('STOMP 오류: ' + frame.headers?.message, 'err');
+                setWsBadge(false);
+            },
+            onWebSocketError: () => {
+                wsLog('WebSocket 연결 오류', 'err');
+                setWsBadge(false);
+            }
+        });
+        stompClient.activate();
+        wsLog('연결 중...', 'inf');
+    }
+
+    function disconnectWS() {
+        if (!stompClient) {
+            wsLog('연결 없음', 'warn');
+            return;
+        }
+        Object.keys(wsSubscriptions).forEach(roomId => {
+            try {
+                wsSubscriptions[roomId].main.unsubscribe();
+            } catch {
+            }
+            try {
+                wsSubscriptions[roomId].typing.unsubscribe();
+            } catch {
+            }
+            delete wsSubscriptions[roomId];
+        });
+        stompClient.deactivate();
+        stompClient = null;
+        setWsBadge(false);
+        updateSubscribedRooms();
+    }
+
+    function subscribeRoom() {
+        const roomId = document.getElementById('wsRoomId').value;
+        if (!roomId) {
+            wsLog('Room ID를 입력하세요.', 'warn');
+            return;
+        }
+        if (!stompClient?.connected) {
+            wsLog('먼저 WebSocket을 연결하세요.', 'err');
+            return;
+        }
+        if (wsSubscriptions[roomId]) {
+            wsLog(`Room ${roomId} 이미 구독 중`, 'warn');
+            return;
+        }
+
+        const main = stompClient.subscribe(`/topic/rooms/${roomId}`, msg => {
+            try {
+                const data = JSON.parse(msg.body);
+                wsLog(`[Room ${roomId}] ${data.kind || 'MSG'}: ${JSON.stringify(data.payload)}`, 'sse');
+                appendChatMessage(roomId, data);
+            } catch {
+                wsLog('메시지 파싱 오류', 'err');
+            }
+        });
+
+        const typing = stompClient.subscribe(`/topic/rooms/${roomId}/typing`, msg => {
+            try {
+                const data = JSON.parse(msg.body);
+                const p = data.payload || {};
+                wsLog(`[Room ${roomId}] 타이핑: memberId=${p.memberId ?? '?'}`, 'inf');
+            } catch {
+            }
+        });
+
+        wsSubscriptions[roomId] = {main, typing};
+        document.getElementById('wsSendRoomId').value = roomId;
+        document.getElementById('wsReadRoomId').value = roomId;
+        wsLog(`Room ${roomId} 구독 완료`, 'ok');
+        updateSubscribedRooms();
+        loadMessageHistory(roomId);
+    }
+
+    async function loadMessageHistory(roomId) {
+        const res = await api('GET', `/api/chat/messages/getMessages/${roomId}?limit=20`, undefined, 'wsLog');
+        if (!res?.ok) return;
+
+        const feed = document.getElementById('wsMsgFeed');
+        if (feed.querySelector('p')) feed.innerHTML = '';
+
+        const items = res.data?.items || [];
+
+        const divider = document.createElement('div');
+        divider.style.cssText = 'text-align:center;color:#475569;font-size:11px;padding:8px 0;border-bottom:1px dashed #334155;margin-bottom:4px';
+        divider.textContent = items.length ? `─── 이전 메시지 ${items.length}개 ───` : '─── 이전 메시지 없음 ───';
+        feed.appendChild(divider);
+
+        [...items].reverse().forEach(msg => {
+            const el = document.createElement('div');
+            el.className = 'ws-feed-item';
+            el.style.opacity = '0.65';
+            el.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <span style="font-size:11px;font-weight:700;color:#64748b">Room ${roomId} · HISTORY</span>
+                    <span style="font-size:10px;color:#475569">${new Date(msg.createdAt).toLocaleTimeString('ko-KR')}</span>
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;margin-bottom:2px">${escHtml(msg.content || '')}</div>
+                <div style="font-size:10px;color:#475569">sender: ${msg.senderId} · id: ${msg.messageId} · ${msg.type}</div>`;
+            feed.appendChild(el);
+        });
+    }
+
+    function unsubscribeRoom() {
+        const roomId = document.getElementById('wsRoomId').value;
+        if (!wsSubscriptions[roomId]) {
+            wsLog(`Room ${roomId} 구독 없음`, 'warn');
+            return;
+        }
+        try {
+            wsSubscriptions[roomId].main.unsubscribe();
+        } catch {
+        }
+        try {
+            wsSubscriptions[roomId].typing.unsubscribe();
+        } catch {
+        }
+        delete wsSubscriptions[roomId];
+        wsLog(`Room ${roomId} 구독 해제`, 'warn');
+        updateSubscribedRooms();
+    }
+
+    function sendMessage() {
+        const roomId = document.getElementById('wsSendRoomId').value;
+        const content = document.getElementById('wsMessageContent').value.trim();
+        if (!roomId || !content) {
+            wsLog('Room ID와 메시지를 입력하세요.', 'warn');
+            return;
+        }
+        if (!stompClient?.connected) {
+            wsLog('먼저 WebSocket을 연결하세요.', 'err');
+            return;
+        }
+        stompClient.publish({
+            destination: '/app/chat.send',
+            body: JSON.stringify({clientMessageId: crypto.randomUUID(), roomId: Number(roomId), type: 'TEXT', content})
+        });
+        wsLog(`전송: ${content}`, 'ok');
+        document.getElementById('wsMessageContent').value = '';
+    }
+
+    function sendTyping() {
+        const roomId = document.getElementById('wsSendRoomId').value;
+        if (!roomId) {
+            wsLog('Room ID를 입력하세요.', 'warn');
+            return;
+        }
+        if (!stompClient?.connected) {
+            wsLog('먼저 WebSocket을 연결하세요.', 'err');
+            return;
+        }
+        stompClient.publish({
+            destination: '/app/chat.typing',
+            body: JSON.stringify({roomId: Number(roomId), typing: true})
+        });
+        wsLog(`타이핑 이벤트 전송 (Room ${roomId})`, 'inf');
+    }
+
+    function markRead() {
+        const roomId = document.getElementById('wsReadRoomId').value;
+        const messageId = document.getElementById('wsLastMessageId').value;
+        if (!roomId || !messageId) {
+            wsLog('Room ID와 메시지 ID를 입력하세요.', 'warn');
+            return;
+        }
+        if (!stompClient?.connected) {
+            wsLog('먼저 WebSocket을 연결하세요.', 'err');
+            return;
+        }
+        stompClient.publish({
+            destination: '/app/chat.read',
+            body: JSON.stringify({roomId: Number(roomId), lastReadMessageId: Number(messageId)})
+        });
+        wsLog(`읽음 처리: Room ${roomId}, Message ${messageId}`, 'ok');
+    }
+
+    function appendChatMessage(roomId, data) {
+        const feed = document.getElementById('wsMsgFeed');
+        if (feed.querySelector('p')) feed.innerHTML = '';
+        const payload = data.payload || data;
+        const kindColor = {MESSAGE: '#22c55e', TYPING: '#38bdf8', USER: '#a78bfa'}[data.kind] || '#94a3b8';
+        const item = document.createElement('div');
+        item.className = 'ws-feed-item';
+        item.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:11px;font-weight:700;color:${kindColor}">Room ${roomId} · ${data.kind || '?'}</span>
+                <span style="font-size:10px;color:#475569">${new Date(data.occurredAt || Date.now()).toLocaleTimeString('ko-KR')}</span>
+            </div>
+            <pre style="font-size:11px;color:#e2e8f0;white-space:pre-wrap;margin:0;word-break:break-all">${escHtml(JSON.stringify(payload, null, 2))}</pre>`;
+        feed.prepend(item);
+        if (feed.children.length > 50) feed.lastChild.remove();
+        if (payload.messageId) {
+            document.getElementById('wsLastMessageId').value = payload.messageId;
+            document.getElementById('wsReadRoomId').value = roomId;
+        }
+    }
+
+    function setWsBadge(on) {
+        document.getElementById('wsBadge').textContent = on ? '연결됨' : '미연결';
+        document.getElementById('wsBadge').className = on ? 'badge badge-on' : 'badge badge-off';
+        document.getElementById('wsDot').className = on ? 'dot green' : 'dot red';
+    }
+
+    function updateSubscribedRooms() {
+        const rooms = Object.keys(wsSubscriptions);
+        document.getElementById('wsSubscribedRooms').textContent = rooms.length ? rooms.join(', ') : '없음';
     }
 
     /* ══════════════════════════════════════
