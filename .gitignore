@@ -64,3 +64,4 @@ docs/docs-export.html
 /.claude/
 /claude.md
 ./.claude
+.claude/settings.local.json
