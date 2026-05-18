@@ -22,5 +22,4 @@ public class PaymentEventListenerTestFixture {
     public PaymentCancelledEvent createCancelledEventByOrderId(Long orderId) {
         return new PaymentCancelledEvent(orderId, 1L, 1L, 1L, "paykey", PaymentStatus.PENDING, "test", LocalDateTime.now());
     }
-
 }
