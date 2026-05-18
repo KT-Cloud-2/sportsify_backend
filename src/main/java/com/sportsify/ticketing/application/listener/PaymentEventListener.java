@@ -2,7 +2,6 @@ package com.sportsify.ticketing.application.listener;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentFailedEvent;
 import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
@@ -40,7 +39,6 @@ public class PaymentEventListener {
             return;
         }
 
-
         order.updateStatus(OrderStatus.PAYING);
     }
 
@@ -48,7 +46,6 @@ public class PaymentEventListener {
     @TransactionalEventListener(phase = AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onPaymentSuccess(PaymentCompletedEvent event) {
-
         Order order = orderRepository.findById(event.orderId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
@@ -91,21 +88,4 @@ public class PaymentEventListener {
             orderSeat.getGameSeat().updateSeatStatus(SeatStatus.AVAILABLE);
         });
     }
-
-    @TransactionalEventListener(phase = AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void onPaymentFailed(PaymentFailedEvent event) {
-
-        Order order = orderRepository.findById(event.orderId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (order.getStatus() != OrderStatus.PAYING) {
-            log.warn("결제 실패 처리 불가 상태: orderId={}, status={}", event.orderId(), order.getStatus());
-            return;
-        }
-
-        order.updateStatus(OrderStatus.PENDING);
-        order.updateExpiresAt(event.occurredAt().plusMinutes(15));
-    }
-
 }
