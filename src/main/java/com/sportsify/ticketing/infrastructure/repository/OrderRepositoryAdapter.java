@@ -27,7 +27,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
-    public List<Order> findExpiredPendingOrdersWithSeats(LocalDateTime now) {
-        return jpaRepository.findExpiredPendingOrdersWithSeats(now);
+    public List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now) {
+        return jpaRepository.findExpiredPendingOrdersWithoutPayment(now);
     }
 }

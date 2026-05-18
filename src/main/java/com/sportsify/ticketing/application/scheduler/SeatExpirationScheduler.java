@@ -2,7 +2,6 @@ package com.sportsify.ticketing.application.scheduler;
 
 import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.domain.model.OrderSeatStatus;
 import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
@@ -23,15 +22,15 @@ public class SeatExpirationScheduler {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void expireReservedSeats() {
-        List<Order> expiredOrders = orderRepository.findExpiredPendingOrdersWithSeats(LocalDateTime.now());
+        List<Order> expiredOrders = orderRepository
+                .findExpiredPendingOrdersWithoutPayment(LocalDateTime.now());
 
         expiredOrders.forEach(order -> {
             order.updateStatus(OrderStatus.EXPIRED);
-            List<OrderSeat> orderSeats = order.getOrderSeats();
-
-            orderSeats.forEach(seat -> {
+            order.getOrderSeats().forEach(seat -> {
                 seat.updateStatus(OrderSeatStatus.EXPIRED);
                 seat.getGameSeat().updateSeatStatus(SeatStatus.AVAILABLE);
+          
             });
 
         });
