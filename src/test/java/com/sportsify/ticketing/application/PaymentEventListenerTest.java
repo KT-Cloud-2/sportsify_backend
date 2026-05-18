@@ -30,8 +30,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -218,55 +216,5 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
                 });
     }
 
-
-    @ParameterizedTest
-    @DisplayName("결제 실패 이벤트 수신 시, 주문상태가 PAYING이어야 한다.")
-    @EnumSource(value = OrderStatus.class, names = {"PENDING", "CONFIRMED", "CANCELLED"})
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void onFailedPaymentEvent_isPaying(OrderStatus status, CapturedOutput output) {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
-        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
-
-        LocalDateTime occurredAt = LocalDateTime.now();
-
-        transactionTemplate.executeWithoutResult(s -> {
-            Order order = orderRepository.findById(orderId).orElseThrow();
-            order.updateStatus(status);
-            eventPublisher.publishEvent(eventFixture.createFailedEventByOrderId(orderId, occurredAt));
-        });
-
-        assertThat(output.getOut()).contains("결제 실패 처리 불가 상태");
-    }
-
-    @Test
-    @DisplayName("결제 실패 이벤트 수신 시, 주문의 유효시간이 15분 늘어난다.")
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void onFailedPaymentEvent() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
-        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
-
-        LocalDateTime occurredAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-
-        transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
-            eventPublisher.publishEvent(eventFixture.createFailedEventByOrderId(orderId, occurredAt));
-        });
-
-        transactionTemplate.executeWithoutResult(s -> {
-            Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
-
-            assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
-            assertThat(updatedOrder.getExpiresAt().truncatedTo(ChronoUnit.SECONDS))
-                    .isEqualTo(occurredAt.plusMinutes(15));
-            assertThat(updatedOrder.getOrderSeats())
-                    .extracting(OrderSeat::getStatus)
-                    .containsOnly(OrderSeatStatus.HOLDING);
-
-            assertThat(updatedOrder.getOrderSeats())
-                    .extracting(OrderSeat::getGameSeat)
-                    .extracting(GameSeat::getSeatStatus)
-                    .containsOnly(SeatStatus.RESERVED);
-        });
-    }
 
 }

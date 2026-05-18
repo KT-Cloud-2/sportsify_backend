@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 기존 콘솔 출력 유지 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- 실패 이벤트 전용 파일 -->
+    <appender name="FAIL_EVENT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/fail-event.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/fail-event.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 이 클래스의 로그만 파일로 -->
+    <logger name="com.sportsify.ticketing.listener.PaymentRetryEventListener" level="ERROR" additivity="false">
+        <appender-ref ref="FAIL_EVENT_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- 나머지는 콘솔만 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

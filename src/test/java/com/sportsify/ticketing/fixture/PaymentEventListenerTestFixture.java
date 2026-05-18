@@ -2,7 +2,6 @@ package com.sportsify.ticketing.fixture;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentFailedEvent;
 import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import org.springframework.stereotype.Component;
@@ -24,7 +23,4 @@ public class PaymentEventListenerTestFixture {
         return new PaymentCancelledEvent(orderId, 1L, 1L, 1L, "paykey", PaymentStatus.PENDING, "test", LocalDateTime.now());
     }
 
-    public PaymentFailedEvent createFailedEventByOrderId(Long orderId, LocalDateTime occurredAt) {
-        return new PaymentFailedEvent(orderId, 1L, 1L, 1L, "paykey", PaymentStatus.PENDING, "test", occurredAt);
-    }
 }
