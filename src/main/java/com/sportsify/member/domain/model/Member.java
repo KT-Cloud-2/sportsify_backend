@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "members")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EntityListeners(AuditingEntityListener.class)
 public class Member {
 
     @Id
@@ -37,9 +41,11 @@ public class Member {
     @Column(nullable = false)
     private MemberRole role;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -54,7 +60,6 @@ public class Member {
         member.providerId = providerId;
         member.status = MemberStatus.ACTIVE;
         member.role = MemberRole.USER;
-        member.createdAt = LocalDateTime.now();
         return member;
     }
 
@@ -64,12 +69,10 @@ public class Member {
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
-        this.updatedAt = LocalDateTime.now();
     }
 
     public void withdraw() {
         this.status = MemberStatus.WITHDRAWN;
-        this.updatedAt = LocalDateTime.now();
     }
 
     public boolean isWithdrawn() {
