@@ -133,15 +133,14 @@ class ChatRoomTest {
     }
 
     @Test
-    @DisplayName("이미 ARCHIVED 채팅방을 아카이브해도 updatedAt이 갱신되지 않는다")
-    void archive_ARCHIVED_멱등() {
+    @DisplayName("이미 ARCHIVED 채팅방을 다시 아카이브하면 예외가 발생한다")
+    void archive_ARCHIVED_예외() {
         ChatRoom room = ChatRoom.restore(
                 ChatRoomId.of(1L), ChatRoomName.of("한화 VS LG"), ChatRoomType.GAME,
                 null, GAME_ID, NOW, NOW, ChatRoomStatus.ARCHIVED, CREATOR);
 
-        room.archive(LATER);
-
-        assertThat(room.getUpdatedAt()).isEqualTo(NOW);
+        assertThatThrownBy(() -> room.archive(LATER))
+                .isInstanceOf(com.sportsify.common.exception.BusinessException.class);
     }
 
     // ──────────────────────── delete ────────────────────────

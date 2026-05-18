@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -68,6 +69,22 @@ class WebSocketSessionRegistryTest {
         assertThat(info.get().memberId()).isEqualTo(MEMBER_ID);
         assertThat(info.get().role()).isEqualTo(ROLE);
         assertThat(info.get().tokenExpiresAt()).isEqualTo(TOKEN_EXPIRY);
+    }
+
+    /**
+     * wsSessions.put이 실패하면 sessions에서 해당 항목을 제거해 부분 등록 상태를 방지한다.
+     * 롤백이 누락되면 sessions에 항목이 남아 있지만 wsSessions에는 없는 불일치 상태가 된다.
+     * 실패 포인트: sessions.remove(sid, newInfo) 호출이 누락되면 get(SID)가 Present를 반환한다.
+     */
+    @Test
+    @DisplayName("register 도중 wsSessions 저장이 실패하면 sessions에서 해당 세션이 롤백된다")
+    void register_롤백_예외시sessions정리() throws Exception {
+        injectFailingWsSessions();
+
+        assertThatThrownBy(() -> registry.register(SID, wsSession, MEMBER_ID, ROLE, TOKEN_EXPIRY, CONNECTED_AT))
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(registry.get(SID)).isEmpty();
     }
 
     // ── subscribeRoom ─────────────────────────────────────────
@@ -245,6 +262,15 @@ class WebSocketSessionRegistryTest {
     }
 
     // ── helpers ───────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private void injectFailingWsSessions() throws Exception {
+        Field field = WebSocketSessionRegistry.class.getDeclaredField("wsSessions");
+        field.setAccessible(true);
+        Map<String, WebSocketSession> failingMap = mock(Map.class);
+        doThrow(new RuntimeException("simulated storage failure")).when(failingMap).put(any(), any());
+        field.set(registry, failingMap);
+    }
 
     private SessionDisconnectEvent disconnectEvent(String sid) {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);

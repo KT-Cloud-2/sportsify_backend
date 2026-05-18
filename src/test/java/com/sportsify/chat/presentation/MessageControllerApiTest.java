@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -90,5 +93,49 @@ class MessageControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.nextCursor").value(MESSAGE_ID))
                 .andExpect(jsonPath("$.hasNext").value(true))
                 .andExpect(jsonPath("$.totalCount").value(1));
+    }
+
+    // ──────────────────────── API 실패 Test ────────────────────────
+
+    /**
+     * 인증 없이 삭제 요청 시 401이 반환되어야 한다.
+     * 메시지 삭제는 작성자만 가능하므로 인증 필터가 필수 관문이다.
+     */
+    @Test
+    @DisplayName("DELETE /api/chat/messages/{messageId} — 401 인증 없이 메시지 삭제 시 실패")
+    void 메시지_삭제_인증없음_401() throws Exception {
+        mockMvc.perform(delete("/api/chat/messages/{messageId}", MESSAGE_ID))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * 존재하지 않는 메시지 삭제 시 서비스가 NOT_FOUND를 던지고 404로 응답해야 한다.
+     */
+    @Test
+    @DisplayName("DELETE /api/chat/messages/{messageId} — 404 존재하지 않는 메시지 삭제 시 실패")
+    void 메시지_삭제_없는메시지_404() throws Exception {
+        given(messageService.delete(MESSAGE_ID, MEMBER_ID))
+                .willThrow(new BusinessException(ErrorCode.NOT_FOUND, "메시지가 없습니다."));
+
+        mockMvc.perform(delete("/api/chat/messages/{messageId}", MESSAGE_ID)
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    /**
+     * 다른 사람의 메시지를 삭제하면 서비스가 FORBIDDEN을 던지고 403으로 응답해야 한다.
+     * 실패 포인트: 소유권 검증이 누락되면 타인 메시지 삭제가 허용됨.
+     */
+    @Test
+    @DisplayName("DELETE /api/chat/messages/{messageId} — 403 다른 사람 메시지 삭제 시 실패")
+    void 메시지_삭제_권한없음_403() throws Exception {
+        given(messageService.delete(MESSAGE_ID, MEMBER_ID))
+                .willThrow(new BusinessException(ErrorCode.FORBIDDEN, "삭제 권한이 없습니다."));
+
+        mockMvc.perform(delete("/api/chat/messages/{messageId}", MESSAGE_ID)
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 }

@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -81,7 +80,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
             "WHERE m.roomId = :roomId AND m.status IN ('JOINED', 'INVITED')")
     void leaveAllActiveByRoomId(@Param("roomId") Long roomId, @Param("now") LocalDateTime now);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE ChatRoomMemberJpaEntity m " +
             "SET m.lastReadMessageId = :messageId, m.updatedAt = :now " +
             "WHERE m.roomId = :roomId AND m.memberId = :memberId " +
