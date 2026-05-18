@@ -1,110 +1,140 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.TemporalAmount;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class WebSocketSessionRegistry {
 
     public static final String WS_SESSION_ATTR = "__rawWsSession";
-    private final TemporalAmount GRACE_PERIOD = Duration.ofSeconds(30);
+    private static final Duration GRACE_PERIOD = Duration.ofSeconds(30);
+
+    private final ApplicationEventPublisher eventPublisher;
     /**
-     * WebSocketSession.getAttributes() 에 자기 자신을 보관할 때 쓰는 키
+     * sessionId -> SessionInfo
      */
     private final Map<String, SessionInfo> sessions = new ConcurrentHashMap<>();
     /**
-     * username(userId) -> sessionId 집합
+     * sessionId -> raw WebSocketSession
      */
-    private final Map<String, Set<String>> userSessions = new ConcurrentHashMap<>();
+    private final Map<String, WebSocketSession> wsSessions = new ConcurrentHashMap<>();
     /**
-     * roomId -> sessionId 집합
+     * memberId -> Set<sessionId>
+     */
+    private final Map<Long, Set<String>> userSessions = new ConcurrentHashMap<>();
+    /**
+     * roomId -> Set<sessionId>
      */
     private final Map<Long, Set<String>> roomSessions = new ConcurrentHashMap<>();
-    /**
-     * (재연결 유예) username(userId) -> sessionInfo
-     */
-    private final Map<String, SessionInfo> pendingCleanup = new ConcurrentHashMap<>();
+    private final Clock clock;
+    @Lazy
+    @Autowired
+    @Qualifier("clientInboundChannel")
+    private MessageChannel clientInboundChannel;
 
-    /**
-     * 의도적 강제 종료 대상 마킹
-     */
-    private final Set<String> hardTerminated = ConcurrentHashMap.newKeySet();
-
-    public void register(String sid, WebSocketSession ws, Authentication authentication, Instant tokenExpiresAt, Instant connectedAt) {
-        Set<Long> restoredRooms = ConcurrentHashMap.newKeySet();
-        SessionInfo pending = pendingCleanup.remove(authentication.getName());
-        if (pending != null) {
-            restoredRooms.addAll(pending.subscribedRooms());
-            restoredRooms.forEach(roomId ->
-                    roomSessions.computeIfAbsent(roomId, _ -> ConcurrentHashMap.newKeySet()).add(sid));
+    public void register(String sid, WebSocketSession ws, Long memberId, String role, Instant tokenExpiresAt, Instant connectedAt) {
+        SessionInfo newInfo = new SessionInfo(sid, memberId, role, connectedAt, tokenExpiresAt, null, new ConcurrentHashMap<>());
+        SessionInfo old = sessions.put(sid, newInfo);
+        if (old != null) {
+            removeFromIndexes(old);
         }
-        sessions.put(sid, new SessionInfo(sid, ws, authentication, connectedAt, tokenExpiresAt, restoredRooms));
-        userSessions.computeIfAbsent(authentication.getName(), _ -> ConcurrentHashMap.newKeySet()).add(sid);
+        try {
+            wsSessions.put(sid, ws);
+            userSessions.computeIfAbsent(memberId, _ -> ConcurrentHashMap.newKeySet()).add(sid);
+        } catch (Exception e) {
+            sessions.remove(sid, newInfo);
+            wsSessions.remove(sid);
+            throw e;
+        }
     }
 
-    public void subscribeRoom(String sid, Long roomId) {
+    public void subscribeRoom(String sid, String subscriptionId, Long roomId) {
         roomSessions.computeIfAbsent(roomId, _ -> ConcurrentHashMap.newKeySet()).add(sid);
-        sessions.computeIfPresent(sid, (_, info) -> {
-            info.subscribedRooms().add(roomId);
-            return info;
+        SessionInfo info = sessions.get(sid);
+        if (info != null) info.subscribedRooms().put(subscriptionId, roomId);
+    }
+
+    public void unsubscribeRoom(String sid, String subscriptionId) {
+        SessionInfo info = sessions.get(sid);
+        if (info == null) return;
+        Long roomId = info.subscribedRooms().remove(subscriptionId);
+        if (roomId == null) return;
+        roomSessions.computeIfPresent(roomId, (_, set) -> {
+            set.remove(sid);
+            return set.isEmpty() ? null : set;
         });
     }
 
     public void forceDisconnect(String sid, String reason) {
-        SessionInfo info = sessions.get(sid);
-        if (info == null) return;
+        if (sessions.get(sid) == null) return;
+        WebSocketSession ws = wsSessions.get(sid);
+        if (ws == null || !ws.isOpen()) {
+            onSessionEnded(sid);
+            return;
+        }
         try {
-            if (info.wsSession().isOpen()) {
-                info.wsSession().close(CloseStatus.POLICY_VIOLATION.withReason(reason));
-            }
+            ws.close(CloseStatus.POLICY_VIOLATION.withReason(reason));
+            onSessionEnded(sid);
         } catch (Exception e) {
             log.warn("Failed to close session sid={}", sid, e);
+            onSessionEnded(sid);
         }
-        onSessionEnded(sid);
     }
 
-    public void hardDisconnect(String sid, String reason) {
-        hardTerminated.add(sid);
-        forceDisconnect(sid, reason);
+    public void revokeUser(Long memberId, String reason) {
+        List.copyOf(userSessions.getOrDefault(memberId, Set.of()))
+                .forEach(sid -> forceDisconnect(sid, reason));
     }
 
-    public void revokeUser(String username, String reason) {
-        List.copyOf(userSessions.getOrDefault(username, Set.of()))
-                .forEach(sid -> hardDisconnect(sid, reason));
-    }
-
-    public void forceDisconnectByMember(Long memberId, String reason) {
-        revokeUser(String.valueOf(memberId), reason);
-    }
-
-    public void forceDisconnectByMemberInRoom(Long memberId, Long roomId, String reason) {
-        Set<String> memberSids = userSessions.getOrDefault(String.valueOf(memberId), Set.of());
+    public void revokeRoomSubscriptionByMember(Long memberId, Long roomId) {
+        Set<String> memberSids = userSessions.getOrDefault(memberId, Set.of());
         Set<String> roomSids = roomSessions.getOrDefault(roomId, Set.of());
         List.copyOf(memberSids).stream()
                 .filter(roomSids::contains)
-                .forEach(sid -> hardDisconnect(sid, reason));
+                .forEach(sid -> revokeRoomSubscription(sid, roomId));
     }
 
-    public void forceDisconnectAllInRoom(Long roomId, String reason) {
+    public void revokeAllRoomSubscriptions(Long roomId) {
         List.copyOf(roomSessions.getOrDefault(roomId, Set.of()))
-                .forEach(sid -> hardDisconnect(sid, reason));
+                .forEach(sid -> revokeRoomSubscription(sid, roomId));
+    }
+
+    public Optional<SessionInfo> get(String sid) {
+        return Optional.ofNullable(sessions.get(sid));
+    }
+
+    public void enterGracePeriod(String sid) {
+        sessions.computeIfPresent(sid, (_, old) ->
+                old.graceDeadline() != null ? old : old.withGraceDeadline(Instant.now(clock).plus(GRACE_PERIOD)));
+    }
+
+    public void updateExpiry(String sid, Instant newExpiry) {
+        sessions.computeIfPresent(sid, (_, old) -> old.withTokenExpiresAt(newExpiry).withGraceDeadline(null));
     }
 
     /* -------------------- handler  -------------------- */
@@ -116,72 +146,109 @@ public class WebSocketSessionRegistry {
 
     @Scheduled(fixedRate = 60_000)
     public void evictExpiredSessions() {
-        Instant now = Instant.now();
-        sessions.values().stream()
-                .filter(info -> info.tokenExpiresAt().isBefore(now))
-                .toList()
-                .forEach(info -> forceDisconnect(info.sessionId(), "Token expired"));
-        pendingCleanup.entrySet().stream()
-                .filter(e -> e.getValue().tokenExpiresAt().isBefore(now))
-                .toList()
-                .forEach(e -> pendingCleanup.remove(e.getKey()));
-    }
+        Instant now = Instant.now(clock);
+        List<String> toNotify = new ArrayList<>();
+        List<String> toDisconnect = new ArrayList<>();
 
-    public Optional<SessionInfo> get(String sid) {
-        return Optional.ofNullable(sessions.get(sid));
-    }
+        sessions.values().forEach(info -> {
+            if (info.graceDeadline() != null && info.graceDeadline().isBefore(now)
+                    && info.tokenExpiresAt().isBefore(now)) {
+                toDisconnect.add(info.sessionId());
+            } else if (info.tokenExpiresAt().isBefore(now) && info.graceDeadline() == null) {
+                toNotify.add(info.sessionId());
+            }
+        });
 
-    public Set<String> getSessionIds(Long memberId) {
-        return Set.copyOf(userSessions.getOrDefault(String.valueOf(memberId), Set.of()));
-    }
-
-    public void updateExpiry(String sid, Instant newExpiry) {
-        sessions.computeIfPresent(sid, (_, old) -> old.withTokenExpiresAt(newExpiry));
+        toNotify.forEach(sid -> {
+            enterGracePeriod(sid);
+            eventPublisher.publishEvent(new TokenExpiredEvent(sid));
+        });
+        toDisconnect.forEach(sid -> {
+            SessionInfo current = sessions.get(sid);
+            if (current != null && current.graceDeadline() != null
+                    && current.graceDeadline().isBefore(now)
+                    && current.tokenExpiresAt().isBefore(now)) {
+                forceDisconnect(sid, "Token expired");
+            }
+        });
     }
 
     /* -------------------- private functions -------------------- */
 
+    private void revokeRoomSubscription(String sid, Long roomId) {
+        SessionInfo info = sessions.get(sid);
+        if (info == null) return;
+        List<String> subIds = info.subscribedRooms().entrySet().stream()
+                .filter(e -> e.getValue().equals(roomId))
+                .map(Map.Entry::getKey)
+                .toList();
+        subIds.forEach(subId -> {
+            unsubscribeRoom(sid, subId);             // registry 즉시 정리
+            forceUnsubscribeFromBroker(sid, subId);  // broker 구독 해제
+        });
+        eventPublisher.publishEvent(new RoomSubscriptionRevokedEvent(sid, roomId));
+    }
+
+    private void forceUnsubscribeFromBroker(String sid, String subscriptionId) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.UNSUBSCRIBE);
+        accessor.setSessionId(sid);
+        accessor.setSubscriptionId(subscriptionId);
+        accessor.setSessionAttributes(new HashMap<>());
+        try {
+            clientInboundChannel.send(MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders()));
+        } catch (Exception e) {
+            log.warn("Failed to force unsubscribe from broker sid={} sub={}", sid, subscriptionId, e);
+        }
+    }
 
     private void removeFromIndexes(SessionInfo info) {
-        String username = info.authentication().getName();
-        Set<String> userSet = userSessions.get(username);
-        if (userSet != null) {
-            userSet.remove(info.sessionId());
-            if (userSet.isEmpty()) userSessions.remove(username);
-        }
-        info.subscribedRooms().forEach(roomId -> {
-            Set<String> sids = roomSessions.get(roomId);
-            if (sids != null) {
-                sids.remove(info.sessionId());
-                if (sids.isEmpty()) roomSessions.remove(roomId);
-            }
+        userSessions.compute(info.memberId(), (_, set) -> {
+            if (set == null) return null;
+            set.remove(info.sessionId());
+            return set.isEmpty() ? null : set;
         });
+        info.subscribedRooms().values().forEach(roomId ->
+                roomSessions.compute(roomId, (_, set) -> {
+                    if (set == null) return null;
+                    set.remove(info.sessionId());
+                    return set.isEmpty() ? null : set;
+                })
+        );
     }
 
     private void onSessionEnded(String sid) {
         SessionInfo info = sessions.remove(sid);
         if (info == null) return;
-        removeFromIndexes(info);
-        if (!hardTerminated.remove(sid)) {
-            pendingCleanup.put(info.authentication().getName(),
-                    info.withTokenExpiresAt(Instant.now().plus(GRACE_PERIOD)));
+        try {
+            wsSessions.remove(sid);
+            removeFromIndexes(info);
+        } catch (Exception e) {
+            log.warn("Failed to clean up indexes for sid={}", sid, e);
         }
     }
 
-    /* -------------------- private record -------------------- */
+    /* -------------------- record -------------------- */
 
     public record SessionInfo(
             String sessionId,
-            WebSocketSession wsSession,
-            Authentication authentication,
+            Long memberId,
+            String role,
             Instant connectedAt,
             Instant tokenExpiresAt,
-            Set<Long> subscribedRooms  // sessionRooms 맵 대체
+            Instant graceDeadline,
+            ConcurrentHashMap<String, Long> subscribedRooms
     ) {
+        public Authentication toAuthentication() {
+            return new UsernamePasswordAuthenticationToken(
+                    memberId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+        }
+
         public SessionInfo withTokenExpiresAt(Instant expiresAt) {
-            return new SessionInfo(sessionId, wsSession, authentication, connectedAt, expiresAt, subscribedRooms);
+            return new SessionInfo(sessionId, memberId, role, connectedAt, expiresAt, graceDeadline, subscribedRooms);
+        }
+
+        public SessionInfo withGraceDeadline(Instant deadline) {
+            return new SessionInfo(sessionId, memberId, role, connectedAt, tokenExpiresAt, deadline, subscribedRooms);
         }
     }
-
-
 }

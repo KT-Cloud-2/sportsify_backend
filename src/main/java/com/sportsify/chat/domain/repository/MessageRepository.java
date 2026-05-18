@@ -30,9 +30,10 @@ public interface MessageRepository {
 
     List<Message> findMyLatestByRooms(List<ChatRoomId> roomIds, MemberId memberId);
 
-    List<Message> findLastestByRooms(List<ChatRoomId> roomIds);
+    List<Message> findLatestByRooms(List<ChatRoomId> roomIds);
 
     Map<ChatRoomId, Long> countUnreadByRooms(Map<ChatRoomId, Long> lastReadMap);
 
+    List<Message> findByRoomAfter(ChatRoomId roomId, Long afterMessageId, int limit);
 
 }

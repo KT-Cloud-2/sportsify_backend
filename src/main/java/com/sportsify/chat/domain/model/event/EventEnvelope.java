@@ -21,6 +21,7 @@ public record EventEnvelope<T>(
     @Override
     @JsonIgnore
     public ResolvableType getResolvableType() {
+        if (payload == null) return ResolvableType.forClass(EventEnvelope.class);
         return ResolvableType.forClassWithGenerics(EventEnvelope.class, payload.getClass());
     }
 }

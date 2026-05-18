@@ -1,12 +1,16 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
-import com.sportsify.chat.domain.model.chatRoom.*;
+import com.sportsify.chat.application.webSocket.ChatRoomAccessChecker;
+import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
+import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
+import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.infrastructure.security.JwtProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -24,6 +28,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -39,6 +44,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private final Clock clock;
     private final ChatRoomAccessChecker accessChecker;
     private final ChatRoomRepository chatRoomRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -50,6 +56,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             switch (accessor.getCommand()) {
                 case CONNECT -> handleConnect(accessor);
                 case SUBSCRIBE -> handleSubscribe(accessor);
+                case UNSUBSCRIBE -> handleUnsubscribe(accessor);
                 case SEND -> handleSend(accessor);
                 default -> {
                 }
@@ -69,17 +76,16 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         String sessionId = accessor.getSessionId();
         if (sessionId == null) return;
         webSocketSessionRegistry.get(sessionId)
-                .map(WebSocketSessionRegistry.SessionInfo::authentication)
-                .filter(auth -> auth != null)
+                .map(WebSocketSessionRegistry.SessionInfo::toAuthentication)
                 .ifPresent(accessor::setUser);
     }
 
+    // 토큰 없으면 익명 연결 허용
     private void handleConnect(StompHeaderAccessor accessor) {
         String token = extractToken(accessor);
-        // 토큰 없으면 익명 연결 허용
         if (token == null) return;
 
-        if (isBlacklist(token)) {
+        if (isBlacklisted(token)) {
             throw new MessageDeliveryException("Invalid or Missing Token");
         }
         Claims parsed;
@@ -100,67 +106,75 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         accessor.setUser(auth);
         Instant expiry = parsed.getExpiration().toInstant();
-        webSocketSessionRegistry.register(accessor.getSessionId(), ws, auth, expiry, Instant.now(clock));
+        webSocketSessionRegistry.register(accessor.getSessionId(), ws, memberId, role, expiry, Instant.now(clock));
     }
 
+    // game room은 비인증 허용
     private void handleSubscribe(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
         if (destination == null) throw new MessageDeliveryException("Invalid subscribe");
 
-        if (destination.startsWith("/topic/rooms/")) {
+        if (destination.startsWith(ChatEventPublisher.ROOM_TOPIC_PREFIX)) {
             String[] parts = destination.split("/");
             if (parts.length >= 4) {
                 ChatRoomId roomId = ChatRoomId.of(Long.parseLong(parts[3]));
                 ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new MessageDeliveryException("Room not found"));
-                if (chatRoom.getStatus() != ChatRoomStatus.ACTIVE) {
-                    throw new MessageDeliveryException("Room Not Active");
-                }
-                // game room은 비인증 허용
-                if (chatRoom.getType() == ChatRoomType.GAME) {
-                    webSocketSessionRegistry.subscribeRoom(accessor.getSessionId(), roomId.value());
-                    return;
-                }
-                MemberId memberId = resolveAuthenticatedMemberId(accessor.getSessionId());
+                Optional<MemberId> memberId = resolveAuthenticatedMemberId(accessor.getSessionId());
                 if (!accessChecker.canSubscribe(chatRoom, memberId)) {
                     throw new MessageDeliveryException("Access denied to room: " + roomId.value());
                 }
-                webSocketSessionRegistry.subscribeRoom(accessor.getSessionId(), roomId.value());
+                webSocketSessionRegistry.subscribeRoom(accessor.getSessionId(), accessor.getSubscriptionId(), roomId.value());
             }
         }
     }
 
-    private void handleSend(StompHeaderAccessor accessor) {
-        resolveAuthenticatedMemberId(accessor.getSessionId());
+    private void handleUnsubscribe(StompHeaderAccessor accessor) {
+        String subscriptionId = accessor.getSubscriptionId();
+        if (subscriptionId == null) return;
+        webSocketSessionRegistry.unsubscribeRoom(accessor.getSessionId(), subscriptionId);
     }
 
-    private MemberId resolveAuthenticatedMemberId(String sessionId) {
+    private void handleSend(StompHeaderAccessor accessor) {
+        String sid = accessor.getSessionId();
+        WebSocketSessionRegistry.SessionInfo info = webSocketSessionRegistry.get(sid)
+                .orElseThrow(() -> new MessageDeliveryException("SEND on unknown session"));
+
+        if (!info.tokenExpiresAt().isBefore(Instant.now(clock))) return;
+
+        if (tryRefreshExpiry(sid, info, accessor)) return;
+
+        webSocketSessionRegistry.enterGracePeriod(sid);
+        eventPublisher.publishEvent(new TokenExpiredEvent(sid));
+        throw new MessageDeliveryException("Token expired");
+    }
+
+
+    private boolean tryRefreshExpiry(String sid, WebSocketSessionRegistry.SessionInfo info, StompHeaderAccessor accessor) {
+        String token = extractToken(accessor);
+        if (token == null || isBlacklisted(token)) return false;
+        Claims parsed;
+        try {
+            parsed = jwtProvider.parse(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+        if (info.memberId() != Long.parseLong(parsed.getSubject())) return false;
+        webSocketSessionRegistry.updateExpiry(sid, parsed.getExpiration().toInstant());
+        return true;
+    }
+
+    private Optional<MemberId> resolveAuthenticatedMemberId(String sessionId) {
         return webSocketSessionRegistry.get(sessionId)
-                .filter(info -> info.authentication() != null)
-                .map(info -> MemberId.of((Long) info.authentication().getPrincipal()))
-                .orElseThrow(() -> new MessageDeliveryException("Authentication required"));
+                .map(info -> MemberId.of(info.memberId()));
     }
 
     private String extractToken(StompHeaderAccessor accessor) {
         String header = accessor.getFirstNativeHeader(AUTH_HEADER);
-        return (header != null && header.startsWith(BEARER_PREFIX)) ? header.substring(7) : null;
+        return (header != null && header.startsWith(BEARER_PREFIX)) ? header.substring(BEARER_PREFIX.length()) : null;
     }
 
-    private void ensureSessionValid(StompHeaderAccessor accessor, String op) {
-        String sid = accessor.getSessionId();
-        var info = webSocketSessionRegistry.get(sid)
-                .orElseThrow(() -> new MessageDeliveryException(op + "on unknown session"));
-        if (info.tokenExpiresAt().isBefore(Instant.now())) {
-            webSocketSessionRegistry.forceDisconnect(sid, "Token expired");
-            throw new MessageDeliveryException("Token expired");
-        }
-    }
-
-    private boolean isBlacklist(String token) {
+    private boolean isBlacklisted(String token) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + token));
-    }
-
-    public interface ChatRoomAccessChecker {
-        boolean canSubscribe(ChatRoom room, MemberId memberId);
     }
 
 }

@@ -25,23 +25,13 @@ public class ChatEventHandler {
         publisher.publishToRoom(
                 event.roomId(), event
         );
+
+        switch (event.payload()) {
+            case MemberBannedPayload p -> webSocketSessionRegistry.revokeRoomSubscriptionByMember(p.memberId(), event.roomId());
+            case RoomDeletePayload _, RoomArchivedPayload _ -> webSocketSessionRegistry.revokeAllRoomSubscriptions(event.roomId());
+            default -> {
+            }
+        }
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async
-    public void handleMemberBanned(EventEnvelope<MemberBannedPayload> event) {
-        webSocketSessionRegistry.forceDisconnectByMemberInRoom(event.payload().memberId(), event.roomId(), "Banned");
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async
-    public void handleRoomDelete(EventEnvelope<RoomDeletePayload> event) {
-        webSocketSessionRegistry.forceDisconnectAllInRoom(event.roomId(), "Room deleted");
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async
-    public void handleRoomArchived(EventEnvelope<RoomArchivedPayload> event) {
-        webSocketSessionRegistry.forceDisconnectAllInRoom(event.roomId(), "Room archived");
-    }
 }

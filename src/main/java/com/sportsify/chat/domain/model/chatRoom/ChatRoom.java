@@ -106,9 +106,9 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
      * 채팅방 이름 변경
      */
     public void rename(ChatRoomName newName, LocalDateTime now, MemberId createdBy) {
-        ensureActive();
         Objects.requireNonNull(newName, "newName");
         Objects.requireNonNull(createdBy, "createdBy");
+        ensureActive();
         if (!createdBy.equals(this.createdBy)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can change name");
         }
@@ -127,7 +127,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
         ensureActive();
         Objects.requireNonNull(createdBy, "createdBy");
         if (!createdBy.equals(this.createdBy)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot edit message because leaderId does not match");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can rename/delete room");
         }
         if (Objects.equals(this.imageUrl, imageUrl)) {
             return;
@@ -138,15 +138,10 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
     }
 
     /**
-     * 데이터 영속화
+     * 채팅방 아카이브
      */
     public void archive(LocalDateTime now) {
-        if (this.status == ChatRoomStatus.ARCHIVED) {
-            return;
-        }
-        if (this.status == ChatRoomStatus.DELETED) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot archive deleted room");
-        }
+        ensureActive();
         this.status = ChatRoomStatus.ARCHIVED;
         this.updatedAt = now;
         this.registerEvent(EventEnvelope.of(EventType.ROOM_ARCHIVED, this.getId(), now.toInstant(ZoneOffset.UTC), new RoomArchivedPayload()));
@@ -156,7 +151,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
      * 아카이브 복원 (ARCHIVED → ACTIVE)
      */
     public void unarchive(LocalDateTime now) {
-        if (this.status == ChatRoomStatus.ACTIVE) {
+        if (this.status == ChatRoomStatus.ACTIVE || this.status == ChatRoomStatus.EMPTY) {
             return;
         }
         if (this.status == ChatRoomStatus.DELETED) {
@@ -171,7 +166,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
      * 마지막 멤버 퇴장 시 EMPTY 전환 (ACTIVE → EMPTY)
      */
     public void markEmpty(LocalDateTime now) {
-        if (this.status == ChatRoomStatus.EMPTY) return;
+        if (this.status == ChatRoomStatus.EMPTY || this.status == ChatRoomStatus.ARCHIVED) return;
         if (this.status == ChatRoomStatus.DELETED) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot mark deleted room as empty");
         }
@@ -194,7 +189,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
     public void delete(LocalDateTime now, MemberId createdBy) {
         Objects.requireNonNull(createdBy, "createdBy");
         if (!createdBy.equals(this.createdBy)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot edit message because leaderId does not match");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can rename/delete room");
         }
         if (this.status == ChatRoomStatus.DELETED) {
             return;

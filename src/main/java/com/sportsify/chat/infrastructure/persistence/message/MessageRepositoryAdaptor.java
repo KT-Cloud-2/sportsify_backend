@@ -104,8 +104,15 @@ public class MessageRepositoryAdaptor implements MessageRepository {
     }
 
     @Override
-    public List<Message> findLastestByRooms(List<ChatRoomId> roomIds) {
+    public List<Message> findLatestByRooms(List<ChatRoomId> roomIds) {
         return jpaRepository.findLatestByRooms(roomIds.stream().map(ChatRoomId::value).toList())
+                .stream().map(mapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Message> findByRoomAfter(ChatRoomId roomId, Long afterMessageId, int limit) {
+        if (limit <= 0) throw new IllegalArgumentException("limit must be positive");
+        return jpaRepository.findAfter(roomId.value(), afterMessageId, PageRequest.of(0, limit))
                 .stream().map(mapper::toDomain).collect(Collectors.toList());
     }
 

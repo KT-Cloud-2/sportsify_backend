@@ -4,6 +4,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.WebSocketSessionDecorator;
 
 import java.security.Principal;
+import java.util.Objects;
 
 public class PrincipalWebSocketSession extends WebSocketSessionDecorator {
 
@@ -14,12 +15,13 @@ public class PrincipalWebSocketSession extends WebSocketSessionDecorator {
         this.principal = delegate.getPrincipal();
     }
 
-    public void setPrincipal(Principal principal) {
-        this.principal = principal;
-    }
-
     @Override
     public Principal getPrincipal() {
         return this.principal;
+    }
+
+    public void setPrincipal(Principal principal) {
+        Objects.requireNonNull(principal, "principal");
+        this.principal = principal;
     }
 }

@@ -174,7 +174,7 @@ public class ChatRoomService {
         List<ChatRoomId> pagedIds = paged.stream().map(ChatRoom::getId).toList();
         Map<ChatRoomId, ChatRoomMember> membershipMap = memberships.stream()
                 .collect(Collectors.toMap(ChatRoomMember::getRoomId, m -> m));
-        Map<ChatRoomId, Message> lastMessages = messageRepo.findLastestByRooms(pagedIds)
+        Map<ChatRoomId, Message> lastMessages = messageRepo.findLatestByRooms(pagedIds)
                 .stream()
                 .collect(Collectors.toMap(Message::getRoomId, m -> m));
 

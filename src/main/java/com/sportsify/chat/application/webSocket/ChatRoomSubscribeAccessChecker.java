@@ -1,30 +1,28 @@
-package com.sportsify.chat.infrastructure.webSocket;
+package com.sportsify.chat.application.webSocket;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
-import com.sportsify.chat.domain.repository.ChatRoomRepository;
-import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor.ChatRoomAccessChecker;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Component
 @RequiredArgsConstructor
 public class ChatRoomSubscribeAccessChecker implements ChatRoomAccessChecker {
 
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public boolean canSubscribe(ChatRoom chatRoom, MemberId memberId) {
-        if (chatRoom == null) return false;
+    public boolean canSubscribe(ChatRoom chatRoom, Optional<MemberId> memberId) {
         switch (chatRoom.getStatus()) {
-            case ACTIVE -> {
+            case ACTIVE, EMPTY -> {
             }
             case ARCHIVED, DELETED -> {
                 return false;
@@ -34,7 +32,7 @@ public class ChatRoomSubscribeAccessChecker implements ChatRoomAccessChecker {
             }
         }
         if (chatRoom.getType() == ChatRoomType.GAME) return true;
-        return chatRoomMemberRepository.existsJoinedByRoomAndMember(chatRoom.getId(), memberId);
+        return memberId.filter(id -> chatRoomMemberRepository.existsJoinedByRoomAndMember(chatRoom.getId(), id)).isPresent();
     }
 
 

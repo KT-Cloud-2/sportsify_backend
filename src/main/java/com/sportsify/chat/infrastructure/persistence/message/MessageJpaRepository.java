@@ -80,6 +80,15 @@ public interface MessageJpaRepository extends JpaRepository<MessageJpaEntity, Lo
             @Param("memberId") Long memberId);
 
 
+    @Query("SELECT m FROM MessageJpaEntity m " +
+            "WHERE m.roomId = :roomId " +
+            "AND m.id > :afterMessageId " +
+            "AND m.status = 'ACTIVE' " +
+            "ORDER BY m.id ASC")
+    List<MessageJpaEntity> findAfter(@Param("roomId") Long roomId,
+                                     @Param("afterMessageId") Long afterMessageId,
+                                     Pageable pageable);
+
     @Query(value = """
             SELECT m.* FROM chat_messages m
             INNER JOIN (
