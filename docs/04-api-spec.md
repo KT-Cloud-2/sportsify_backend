@@ -1482,7 +1482,8 @@ POST /api/payments/{paymentId}/refund
 | POST   | /api/chat/rooms/{roomId}/ban            | O             | 멤버 BAN (5-13)                   |
 | GET    | /api/chat/messages/history/{roomId}     | O             | 채팅 이력 조회 — 내가 있을 때 메시지 (5-14)   |
 | WS     | /ws/chat                                | O/N           | websocket 연결(5-15-1)            |
-| SUB    | /topic/rooms/{roomId}                   | O/N           | 구독 (5-15-2)                     |
+| SUB    | /topic/rooms/{roomId}                   | O/N           | 구독 (5-15-2-1)                   |
+| UNSUB  | id:subscription-id                      | O/N           | 구독 취소 (5-15-2-2)                |
 | PUB    | SEND  /app/chat.send                    | O             | 메시지 전송 (5-15-3-1)               |
 | PUB    | SEND  /app/chat.read                    | O             | 읽음 상태 갱신 (5-15-3-2)             |
 | PUB    | SEND  /app/chat.typing                  | O             | 타이핑 인디케이터 (5-15-3-3)            |
@@ -2246,7 +2247,9 @@ CONNECT 헤더
 }
 ```
 
-### 5-15-2. 구독 destination (SUBSCRIBE)
+### 5-15-2. 구독 (SUBSCRIBE)
+
+#### 5-15-2-1. 구독 destination
 
 | Destination             | 설명                             |
 |-------------------------|--------------------------------|
@@ -2256,10 +2259,39 @@ CONNECT 헤더
 
 | 헤더              | 필수 | 설명                          |
 |-----------------|----|-----------------------------|
+| `id`            | Y  | `subscription id `          |
 | `lastMessageId` | Y  | `lastMessageId {MessageId}` |
+
+#### SUBSCRIBE Example
+
+```text
+SUBSCRIBE
+id:sub-room-10
+destination:/topic/rooms/10
+lastMessageId:532
+```
 
 - 구독 시점에 서버가 `roomId` 에 대한 멤버 권한을 검증한다. 비멤버가 비공개 방을 구독하면 `ERROR` 프레임 반환.
 - 재연결시 마지막으로 받은 lastMessageId를 header로 같이 subscribe 한다
+
+#### 5-15-3. 구독 해제 (UNSUBSCRIBE)
+
+CONNECT 헤더
+
+| 헤더   | 필수 | 설명                |
+|------|----|-------------------|
+| `id` | Y  | `subscription id` |
+
+#### UNSUBSCRIBE Example
+
+```text
+UNSUBSCRIBE
+id:sub-room-10
+```
+
+- UNSUBSCRIBE 는 destination 기반이 아니라 `subscription id` 기반으로 처리한다.
+- 서버는 `sessionId + subscriptionId` 조합으로 구독 정보를 제거한다.
+- 구독 해제 후 해당 subscription 에 대한 이벤트 전달은 중단된다.
 
 ### 5-15-3. 발신 destination (SEND)
 
