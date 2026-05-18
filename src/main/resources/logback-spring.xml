@@ -18,7 +18,7 @@
     </appender>
 
     <!-- 이 클래스의 로그만 파일로 -->
-    <logger name="com.sportsify.ticketing.listener.PaymentRetryEventListener" level="ERROR" additivity="false">
+    <logger name="com.sportsify.ticketing.application.listener.PaymentRetryEventListener" level="ERROR" additivity="false">
         <appender-ref ref="FAIL_EVENT_FILE"/>
         <appender-ref ref="CONSOLE"/>
     </logger>

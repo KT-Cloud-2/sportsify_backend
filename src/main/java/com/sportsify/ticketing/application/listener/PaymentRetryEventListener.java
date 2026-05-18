@@ -24,8 +24,8 @@ public class PaymentRetryEventListener {
     public void onRetryEvent(MethodRetryEvent event) {
         if (!event.isRetryAborted()) return;
 
-        String className = event.getMethod().getDeclaringClass().getSimpleName();
-        if (!className.equals("PaymentEventListener")) return;
+        Class<?> declaringClass = event.getMethod().getDeclaringClass();
+        if (!PaymentEventListener.class.isAssignableFrom(declaringClass)) return;
 
         String methodName = event.getMethod().getName();
         if (!TARGET_METHODS.contains(methodName)) return;
@@ -37,7 +37,9 @@ public class PaymentRetryEventListener {
     }
 
     private Long extractOrderId(MethodRetryEvent event) {
-        Object[] args = ((MethodInvocation) event.getSource()).getArguments();
+        if (!(event.getSource() instanceof MethodInvocation invocation)) return;
+        Object[] args = invocation.getArguments();
+
         if (args.length == 0) return null;
 
         return switch (args[0]) {
