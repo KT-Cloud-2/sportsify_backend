@@ -63,3 +63,6 @@ redis-data/
 docs/docs-export.html
 /.claude/
 /claude.md
+
+### Logs ###
+logs/

@@ -12,13 +12,13 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class SeatExpirationScheduler {
+public class OrderExpirationScheduler {
 
     private final OrderRepository orderRepository;
 
     @Scheduled(fixedRate = 60000)
     @Transactional
-    public void expireReservedSeats() {
+    public void releaseUnpaidOrders() {
         List<Order> expiredOrders = orderRepository
                 .findExpiredPendingOrdersWithoutPayment(LocalDateTime.now());
 

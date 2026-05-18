@@ -26,11 +26,10 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
              JOIN FETCH o.orderSeats os
              JOIN FETCH os.gameSeat
              WHERE o.status = 'PAYING'
-             AND o.expiresAt < :now
              AND EXISTS (
                      SELECT p FROM Payment p
                      WHERE p.orderId = o.id
-                     AND p.status IN ('FAILED', 'CANCELLED', 'REFUNDED')
+                     AND p.status IN ('FAILED', 'CANCELED', 'REFUNDED')
              )
             """
     )
