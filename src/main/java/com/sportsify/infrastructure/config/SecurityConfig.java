@@ -47,6 +47,7 @@ public class SecurityConfig {
             "/api/chat/messages/getMessages/**",
             "/ws/chat/**"
     );
+
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
             "/dev/**", "/notification-test.html", "/dev-test.html", "/checkout.html", "/success.html", "/fail.html"
     );
@@ -110,6 +111,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
