@@ -94,6 +94,26 @@ public class Game {
         this.saleEndAt = saleEndAt;
     }
 
+    public static Game create(Stadium stadium, Team homeTeam, Team awayTeam, SportType sportType,
+                              LocalDateTime startAt, Integer durationMinutes, GameStatus status,
+                              DayType dayType, GameGrade gameGrade, Integer maxTicketPerUser,
+                              LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
+        return Game.builder()
+                .stadium(stadium)
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .sportType(sportType)
+                .startAt(startAt)
+                .durationMinutes(durationMinutes)
+                .status(status)
+                .dayType(dayType)
+                .gameGrade(gameGrade)
+                .maxTicketPerUser(maxTicketPerUser)
+                .saleStartAt(saleStartAt)
+                .saleEndAt(saleEndAt)
+                .build();
+    }
+
     public boolean isOnSale() {
         return this.status == GameStatus.ON_SALE;
     }
