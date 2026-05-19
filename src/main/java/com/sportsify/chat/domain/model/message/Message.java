@@ -3,30 +3,32 @@ package com.sportsify.chat.domain.model.message;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
-import com.sportsify.chat.domain.model.message.event.DomainEvent;
-import com.sportsify.chat.domain.model.message.event.MessageDeleteEvent;
-import com.sportsify.chat.domain.model.message.event.MessageSentEvent;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
+import com.sportsify.chat.domain.model.event.EventType;
+import com.sportsify.chat.domain.model.event.message.MessageDeletePayLoad;
+import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import lombok.Getter;
+import org.springframework.data.domain.AbstractAggregateRoot;
+import org.springframework.data.domain.DomainEvents;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.Objects;
 
 /**
  * 메시지 Aggregate Root
  */
 @Getter
-public class Message {
+public class Message extends AbstractAggregateRoot<Message> {
 
     private final ChatRoomId roomId;
     private final MemberId senderId;
     private final MessageType type; //TEXT, IMAGE, FILE, SYSTEM
-    private final LocalDateTime createdAt;
-    private final List<DomainEvent> domainEvents = new ArrayList<>();
+    private final Instant createdAt;
     private final MessageContent content;
     private MessageId id;
     private MessageStatus status;   // ACTIVE, DELETED
+    private String pendingClientMessageId;  // assignId 후 이벤트 등록에 사용
 
     private Message(MessageId id,
                     ChatRoomId roomId,
@@ -34,7 +36,7 @@ public class Message {
                     MessageContent content,
                     MessageType type,
                     MessageStatus status,
-                    LocalDateTime createdAt) {
+                    Instant createdAt) {
         this.id = id;
         this.roomId = Objects.requireNonNull(roomId, "roomId");
         this.senderId = Objects.requireNonNull(senderId, "senderId");
@@ -51,9 +53,10 @@ public class Message {
                                MemberId senderId,
                                MessageContent content,
                                MessageType type,
-                               LocalDateTime now) {
+                               Instant now,
+                               String clientMessageId) {
         Message msg = new Message(null, roomId, senderId, content, type, MessageStatus.ACTIVE, now);
-        msg.domainEvents.add(MessageSentEvent.from(msg, now));
+        msg.pendingClientMessageId = clientMessageId; // ID 할당 후 이벤트 등록
         return msg;
     }
 
@@ -63,7 +66,7 @@ public class Message {
     public static Message system(ChatRoomId roomId,
                                  MemberId systemSenderId,
                                  MessageContent content,
-                                 LocalDateTime now) {
+                                 Instant now) {
         return new Message(null, roomId, systemSenderId, content, MessageType.SYSTEM,
                 MessageStatus.ACTIVE, now);
     }
@@ -77,15 +80,9 @@ public class Message {
                                   MessageContent content,
                                   MessageType type,
                                   MessageStatus status,
-                                  LocalDateTime createdAt) {
+                                  Instant createdAt) {
         Objects.requireNonNull(id, "id");
         return new Message(id, roomId, senderId, content, type, status, createdAt);
-    }
-
-    public List<DomainEvent> pullDomainEvents() {
-        List<DomainEvent> events = List.copyOf(domainEvents);
-        domainEvents.clear();
-        return events;
     }
 
     /**
@@ -96,12 +93,17 @@ public class Message {
             throw new IllegalStateException("MessageId already assigned");
         }
         this.id = Objects.requireNonNull(id, "id");
+        if (pendingClientMessageId != null) {
+            registerEvent(EventEnvelope.of(EventType.MESSAGE_SENT, roomId, createdAt,
+                    MessageSentPayload.from(this, pendingClientMessageId)));
+            pendingClientMessageId = null;
+        }
     }
 
     /**
      * 메시지를 논리 삭제
      */
-    public void softDelete(MemberId senderId, LocalDateTime now) {
+    public void softDelete(MemberId senderId, Instant now) {
         Objects.requireNonNull(senderId, "senderId");
         if (!senderId.equals(this.senderId)) {
             throw new IllegalStateException("Cannot delete message because senderId does not match");
@@ -110,7 +112,7 @@ public class Message {
             return;
         }
         this.status = MessageStatus.DELETED;
-        this.domainEvents.add(MessageDeleteEvent.from(this, now));
+        registerEvent(EventEnvelope.of(EventType.MESSAGE_DELETED, this.roomId, now, MessageDeletePayLoad.from(this)));
     }
 
 
@@ -123,6 +125,11 @@ public class Message {
 
     public boolean isDeleted() {
         return status == MessageStatus.DELETED;
+    }
+
+    @DomainEvents
+    public Collection<Object> getEvents() {
+        return super.domainEvents();
     }
 
 

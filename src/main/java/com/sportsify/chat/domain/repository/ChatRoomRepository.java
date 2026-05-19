@@ -15,6 +15,9 @@ public interface ChatRoomRepository {
 
     Optional<ChatRoom> findById(ChatRoomId id);
 
+
+    boolean existsByIdAndTypeAndStatus(ChatRoomId id, ChatRoomType type, ChatRoomStatus status);
+
     Optional<ChatRoom> findByIdForUpdateWrite(ChatRoomId id);
 
     Optional<ChatRoom> findByIdForUpdateRead(ChatRoomId id);
@@ -30,5 +33,4 @@ public interface ChatRoomRepository {
     List<ChatRoom> findActiveByRoomIds(List<ChatRoomId> roomIds, ChatRoomType type, Long cursor, int limit);
 
 
-    boolean existByIdandStatus(ChatRoomId id, ChatRoomStatus status);
 }

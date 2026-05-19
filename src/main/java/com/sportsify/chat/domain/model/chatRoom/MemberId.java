@@ -10,7 +10,7 @@ public final class MemberId {
 
     private MemberId(Long value) {
         if (value == null || value <= 0L) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "ChatRoomId must be positive");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "MemberId must be positive");
         }
         this.value = value;
     }

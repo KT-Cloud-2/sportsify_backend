@@ -1,0 +1,275 @@
+package com.sportsify.chat.infrastructure;
+
+import com.sportsify.chat.application.webSocket.ChatRoomAccessChecker;
+import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
+import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
+import com.sportsify.infrastructure.security.JwtProvider;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageDeliveryException;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.web.socket.WebSocketSession;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class StompAuthChannelInterceptorTest {
+
+    private static final Instant NOW = Instant.parse("2026-05-12T00:00:00Z");
+    private static final Instant TOKEN_EXPIRY = NOW.plusSeconds(3600);
+    private static final String TOKEN = "valid.jwt.token";
+    private static final String SID = "sid-1";
+    private static final long MEMBER_ID = 42L;
+    private static final String BLACKLIST_KEY = "auth:blacklist:" + TOKEN;
+
+    @Mock
+    JwtProvider jwtProvider;
+    @Mock
+    WebSocketSessionRegistry registry;
+    @Mock
+    StringRedisTemplate redisTemplate;
+    @Mock
+    ChatRoomAccessChecker accessChecker;
+    @Mock
+    ChatRoomRepository chatRoomRepository;
+    @Mock
+    MessageChannel channel;
+    @Mock
+    WebSocketSession wsSession;
+    @Mock
+    Claims claims;
+    @Mock
+    ApplicationEventPublisher eventPublisher;
+
+    StompAuthChannelInterceptor interceptor;
+
+    @BeforeEach
+    void setUp() {
+        interceptor = new StompAuthChannelInterceptor(
+                jwtProvider, registry, redisTemplate,
+                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher);
+    }
+
+    // ── 헬퍼 ─────────────────────────────────────────────────
+
+    private Message<byte[]> connectMessage(boolean withToken, boolean withWsSession) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setSessionId(SID);
+        if (withToken) {
+            accessor.addNativeHeader("Authorization", "Bearer " + TOKEN);
+        }
+        if (withWsSession) {
+            Map<String, Object> attrs = new HashMap<>();
+            attrs.put(WebSocketSessionRegistry.WS_SESSION_ATTR, wsSession);
+            accessor.setSessionAttributes(attrs);
+        }
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    private Message<byte[]> subscribeMessage(String destination) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setSessionId(SID);
+        accessor.setDestination(destination);
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    private Message<byte[]> sendMessage() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        accessor.setSessionId(SID);
+        accessor.setDestination("/app/chat.send");
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    /**
+     * 세션 레지스트리에 인증된 세션을 stub한다
+     */
+    private void stubAuthenticatedSession(long memberId) {
+        WebSocketSessionRegistry.SessionInfo info = new WebSocketSessionRegistry.SessionInfo(
+                SID, memberId, "USER", NOW, TOKEN_EXPIRY, null, new ConcurrentHashMap<>());
+        given(registry.get(SID)).willReturn(Optional.of(info));
+    }
+
+    // ── CONNECT 성공 ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("유효한 토큰으로 CONNECT 시 세션이 등록된다")
+    void connect_유효토큰_세션등록() {
+        given(redisTemplate.hasKey(BLACKLIST_KEY)).willReturn(false);
+        given(jwtProvider.parse(TOKEN)).willReturn(claims);
+        given(claims.getSubject()).willReturn(String.valueOf(MEMBER_ID));
+        given(claims.get("role", String.class)).willReturn("USER");
+        given(claims.getExpiration()).willReturn(Date.from(TOKEN_EXPIRY));
+
+        Message<?> result = interceptor.preSend(connectMessage(true, true), channel);
+
+        assertThat(result).isNotNull();
+        verify(registry).register(eq(SID), eq(wsSession), eq(MEMBER_ID), eq("USER"), eq(TOKEN_EXPIRY), eq(NOW));
+    }
+
+    @Test
+    @DisplayName("토큰 없이 CONNECT 시 익명 연결이 허용된다")
+    void connect_토큰없음_익명허용() {
+        Message<?> result = interceptor.preSend(connectMessage(false, false), channel);
+
+        assertThat(result).isNotNull();
+        verifyNoInteractions(jwtProvider);
+        verify(registry, never()).register(any(), any(), any(), any(), any(), any());
+    }
+
+    // ── CONNECT 실패 ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("블랙리스트 토큰으로 CONNECT 시 예외가 발생한다")
+    void connect_블랙리스트토큰_예외() {
+        given(redisTemplate.hasKey(BLACKLIST_KEY)).willReturn(true);
+
+        assertThatThrownBy(() -> interceptor.preSend(connectMessage(true, true), channel))
+                .isInstanceOf(MessageDeliveryException.class);
+        verifyNoInteractions(jwtProvider, registry);
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 JWT로 CONNECT 시 예외가 발생한다")
+    void connect_유효하지않은JWT_예외() {
+        given(redisTemplate.hasKey(BLACKLIST_KEY)).willReturn(false);
+        given(jwtProvider.parse(TOKEN)).willThrow(new JwtException("invalid"));
+
+        assertThatThrownBy(() -> interceptor.preSend(connectMessage(true, true), channel))
+                .isInstanceOf(MessageDeliveryException.class);
+        verifyNoInteractions(registry);
+    }
+
+    @Test
+    @DisplayName("WebSocket 세션이 없으면 CONNECT 시 예외가 발생한다")
+    void connect_WebSocket세션없음_예외() {
+        given(redisTemplate.hasKey(BLACKLIST_KEY)).willReturn(false);
+        given(jwtProvider.parse(TOKEN)).willReturn(claims);
+        given(claims.getSubject()).willReturn(String.valueOf(MEMBER_ID));
+        given(claims.get("role", String.class)).willReturn("USER");
+
+        assertThatThrownBy(() -> interceptor.preSend(connectMessage(true, false), channel))
+                .isInstanceOf(MessageDeliveryException.class);
+        verifyNoInteractions(registry);
+    }
+
+    // ── SUBSCRIBE 성공 ────────────────────────────────────────
+
+    @Test
+    @DisplayName("GAME 방은 인증 없이 구독할 수 있다")
+    void subscribe_GAME방_인증없이구독가능() {
+        ChatRoom room = mock(ChatRoom.class);
+        given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
+        given(accessChecker.canSubscribe(eq(room), any())).willReturn(true);
+
+        interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel);
+
+        verify(registry).subscribeRoom(eq(SID), any(), eq(1L));
+    }
+
+    @Test
+    @DisplayName("DIRECT 방을 인증된 멤버가 구독하면 subscribeRoom이 호출된다")
+    void subscribe_DIRECT방_인증멤버_구독성공() {
+        stubAuthenticatedSession(MEMBER_ID);
+        ChatRoom room = mock(ChatRoom.class);
+        given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
+        given(accessChecker.canSubscribe(eq(room), any())).willReturn(true);
+
+        interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel);
+
+        verify(registry).subscribeRoom(eq(SID), any(), eq(1L));
+    }
+
+    @Test
+    @DisplayName("방이 아닌 destination은 인증된 유저도 인증 없이도 구독할 수 있다")
+    void subscribe_비방목적지_통과() {
+        Message<?> result = interceptor.preSend(subscribeMessage("/user/queue/errors"), channel);
+
+        assertThat(result).isNotNull();
+        verifyNoInteractions(chatRoomRepository);
+    }
+
+    // ── SUBSCRIBE 실패 ────────────────────────────────────────
+
+    @Test
+    @DisplayName("존재하지 않는 방을 구독하면 예외가 발생한다")
+    void subscribe_방없음_예외() {
+        given(chatRoomRepository.findById(any())).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
+                .isInstanceOf(MessageDeliveryException.class);
+    }
+
+    @Test
+    @DisplayName("접근 거부된 방을 구독하면 예외가 발생한다")
+    void subscribe_접근거부_예외() {
+        ChatRoom room = mock(ChatRoom.class);
+        given(chatRoomRepository.findById(any())).willReturn(Optional.of(room));
+        given(accessChecker.canSubscribe(eq(room), any())).willReturn(false);
+
+        assertThatThrownBy(() -> interceptor.preSend(subscribeMessage("/topic/rooms/1"), channel))
+                .isInstanceOf(MessageDeliveryException.class);
+    }
+
+    // ── SEND ──────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("인증된 유저의 SEND는 통과된다")
+    void send_인증유저_통과() {
+        stubAuthenticatedSession(MEMBER_ID);
+
+        Message<?> result = interceptor.preSend(sendMessage(), channel);
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("미인증 유저의 SEND는 예외가 발생한다")
+    void send_미인증_예외() {
+        // registry.get(SID) 기본값 Optional.empty() → resolveAuthenticatedMemberId 에서 예외
+        assertThatThrownBy(() -> interceptor.preSend(sendMessage(), channel))
+                .isInstanceOf(MessageDeliveryException.class);
+    }
+
+    // ── 기타 커맨드 ───────────────────────────────────────────
+
+    @Test
+    @DisplayName("DISCONNECT 등 다른 커맨드는 그대로 통과된다")
+    void preSend_기타커맨드_통과() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
+        accessor.setSessionId(SID);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        Message<?> result = interceptor.preSend(message, channel);
+
+        assertThat(result).isNotNull();
+        verifyNoInteractions(jwtProvider, chatRoomRepository);
+    }
+}
