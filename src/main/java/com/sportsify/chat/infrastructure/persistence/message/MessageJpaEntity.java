@@ -4,7 +4,7 @@ package com.sportsify.chat.infrastructure.persistence.message;
 import jakarta.persistence.*;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Entity
@@ -26,8 +26,7 @@ public class MessageJpaEntity {
     @Column(name = "sender_id", nullable = false)
     private Long senderId;
 
-    @Lob
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT", length = 500)
     private String content;
 
     @Column(name = "type", nullable = false, length = 20)
@@ -37,7 +36,7 @@ public class MessageJpaEntity {
     private String status;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     protected MessageJpaEntity() {
         // for JPA
@@ -49,7 +48,7 @@ public class MessageJpaEntity {
                             String content,
                             String type,
                             String status,
-                            LocalDateTime createdAt) {
+                            Instant createdAt) {
         this.id = id;
         this.roomId = roomId;
         this.senderId = senderId;
@@ -83,7 +82,7 @@ public class MessageJpaEntity {
         this.status = status;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }

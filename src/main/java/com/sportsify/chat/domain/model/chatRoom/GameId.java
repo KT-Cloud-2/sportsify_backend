@@ -10,8 +10,8 @@ public final class GameId {
     private final Long value;
 
     private GameId(Long value) {
-        if (value <= 0L) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "MessageId must be positive");
+        if (value != null && value <= 0L) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "GameId must be positive");
         }
         this.value = value;
     }
