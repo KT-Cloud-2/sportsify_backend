@@ -101,4 +101,22 @@ public class Game {
     public void updateStatus(GameStatus status) {
         this.status = status;
     }
+
+    // === 디미터 법칙 위임 메서드 ===
+    
+    public String getHomeTeamName() {
+        return homeTeam.getName();
+    }
+
+    public String getAwayTeamName() {
+        return awayTeam.getName();
+    }
+
+    public String getStadiumName() {
+        return stadium.getName();
+    }
+
+    public String getSportTypeName() {
+        return sportType.name();
+    }
 }
