@@ -15,11 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
-
-import javax.sql.DataSource;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,7 +38,6 @@ class ChatMessageScenarioTest extends ScenarioTestSupport {
     @Autowired private ChatRoomMemberService chatRoomMemberService;
     @Autowired private MessageService messageService;
     @Autowired private JdbcTemplate jdbc;
-    @Autowired private DataSource dataSource;
 
     private Long user1Id;
     private String user1Token;
@@ -53,8 +48,7 @@ class ChatMessageScenarioTest extends ScenarioTestSupport {
     @BeforeAll
     void setUpOnce() throws Exception {
         cleanUp(jdbc);
-        ScriptUtils.executeSqlScript(dataSource.getConnection(),
-                new ClassPathResource("db/scenario/seed.sql"));
+        executeSeed();
 
         Member user1 = createMember(memberRepository, "chat-user1@test.com", "kakao-chat-user1");
         Member user2 = createMember(memberRepository, "chat-user2@test.com", "kakao-chat-user2");

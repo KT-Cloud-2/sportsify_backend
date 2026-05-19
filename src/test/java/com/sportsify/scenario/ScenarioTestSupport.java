@@ -18,13 +18,18 @@ import org.junit.jupiter.api.TestClassOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
@@ -62,6 +67,9 @@ public abstract class ScenarioTestSupport {
     @Autowired
     private NotificationSettingJpaRepository notificationSettingRepository;
 
+    @Autowired
+    private DataSource dataSource;
+
     protected MockMvc mockMvc;
 
     @BeforeEach
@@ -69,6 +77,12 @@ public abstract class ScenarioTestSupport {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
+    }
+
+    protected void executeSeed() throws Exception {
+        try (Connection connection = dataSource.getConnection()) {
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/scenario/seed.sql"));
+        }
     }
 
     protected void cleanUp(JdbcTemplate jdbc) {

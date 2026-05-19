@@ -15,12 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
-
-import javax.sql.DataSource;
 
 import java.time.LocalDateTime;
 
@@ -47,17 +43,13 @@ class GameStartNotificationScenarioTest extends ScenarioTestSupport {
     @Autowired
     private JdbcTemplate jdbc;
 
-    @Autowired
-    private DataSource dataSource;
-
     private Long memberId;
     private String accessToken;
 
     @BeforeAll
     void setUpOnce() throws Exception {
         cleanUp(jdbc);
-        ScriptUtils.executeSqlScript(dataSource.getConnection(),
-                new ClassPathResource("db/scenario/seed.sql"));
+        executeSeed();
         Member member = createMember(memberRepository, "game-start@test.com", "kakao-game-start-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
