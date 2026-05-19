@@ -44,9 +44,14 @@ public class ChatIntegrationTestFixture {
 
     @Transactional
     public ChatRoomJpaEntity createRoom(String name, String type, String status, Long createdBy) {
+        return createRoom(name, type, status, createdBy, null);
+    }
+
+    @Transactional
+    public ChatRoomJpaEntity createRoom(String name, String type, String status, Long createdBy, Long gameId) {
         createMemberRecord(createdBy);
         return roomJpaRepo.save(new ChatRoomJpaEntity(
-                null, name, type, null, null,
+                null, name, type, null, gameId,
                 LocalDateTime.now(), LocalDateTime.now(),
                 status, createdBy));
     }

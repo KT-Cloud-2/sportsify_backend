@@ -249,25 +249,35 @@ static void setUpMember(@Autowired MemberRepository memberRepository,
 **파일:** `ChatMessageScenarioTest.java`
 **관통 도메인:** 채팅방 → 입장 → 메시지
 
+**전제조건 (배경):**
+Game 생성 Controller/Service 미구현 상태. 운영자가 DB에 직접 INSERT하는 것으로 가정.
+`@BeforeEach`에서 Game + ChatRoom을 DB에 직접 INSERT한 뒤 테스트 시작.
+
 ```
-[회원 준비] DB insert + JWT 발급 (user1, user2 각각)
+[사전 준비] @BeforeEach — Game + ChatRoom DB 직접 insert
+[회원 준비] @BeforeEach — user1, user2 DB insert + JWT 발급
      │
-     ├─ 1. GET  /api/chat/rooms/game/{gameId}        채팅방 조회 → roomId 추출
+     ├─ 1. GET  /api/chat/rooms/game/{gameId}        game 기준 채팅방 조회 → roomId 추출
      ├─ 2. POST /api/chat/rooms/{roomId}/join        user1 입장
      ├─ 3. POST /api/chat/rooms/{roomId}/join        user2 입장
-     ├─ 4. [메시지 전송] MessageService.send() @Autowired 직접 호출 (user1)
-     └─ 5. GET  /api/chat/messages/history/{roomId}  user2 관점에서 메시지 조회
+     ├─ 4. [메시지 전송] MessageService.send() 직접 호출 (user1) — STOMP 대체
+     └─ 5. GET  /api/chat/messages/history/{roomId}  user2 관점에서 메시지 DB 저장 확인
 ```
+
+**실제 채팅 전체 여정 (참고):**
+```
+login → GET /api/chat/rooms/game/{gameId} → POST /api/chat/rooms/{roomId}/join
+      → SOCKET 연결 및 SUBSCRIBE → SEND
+```
+시나리오 테스트에서 STOMP SEND는 `MessageService.send()` 직접 호출로 대체.
+`StompAuthChannelInterceptor` + `WebSocketSessionRegistry` 가 실제 TCP 연결을 요구하기 때문.
 
 | 단계 | 검증 포인트 |
 |------|-------------|
+| 채팅방 조회 | game 기준 roomId 반환 |
 | 채팅방 입장 | memberId, roomId 응답 일치 |
-| 메시지 전송 | DB 저장 확인 |
+| 메시지 전송 | messageId 반환, DB 저장 확인 |
 | 메시지 조회 | user1이 보낸 메시지 1건 이상 존재 |
-
-> STOMP 실제 연결(`WebSocketStompClient`)은 `StompAuthChannelInterceptor` + `WebSocketSessionRegistry` 의존성으로 인해 별도 서버 기동 필요 → 범위 외.
-> 메시지 전송은 `MessageService` 직접 주입으로 대체. 비즈니스 로직 검증은 동일.
-> Game 생성 Controller/Service 미구현 (운영자가 DB 직접 관리) → `@BeforeEach`에서 Game + ChatRoom을 JdbcTemplate으로 직접 insert.
 
 ---
 
@@ -313,7 +323,7 @@ src/test/java/com/sportsify/
 | 1. 티켓 구매 전체 여정 | 강정훈 | 예정 | 유창민: `confirmPaymentMock` 컨트롤러 엔드포인트 |
 | 2. 티켓팅 오픈 알림 | 강정훈 | 예정 | 없음 (즉시 작성 가능) |
 | 3. 결제 취소 좌석 복구 | 강정훈 | 예정 | 유창민: 동일 |
-| 4. 채팅 메시지 전송 | 강정훈 | 예정 | 없음 (Game/ChatRoom은 @BeforeEach에서 DB 직접 insert) |
+| 4. 채팅 메시지 전송 | 강정훈 | 예정 | 없음 (Game + ChatRoom은 @BeforeEach DB 직접 insert, STOMP SEND는 MessageService 직접 호출로 대체) |
 | 5. 경기 시작 알림 | 강정훈 | 예정 | 없음 (즉시 작성 가능) |
 
 ---
