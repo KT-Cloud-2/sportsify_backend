@@ -2,10 +2,10 @@ package com.sportsify.game.presentation.controller;
 
 
 import com.sportsify.game.application.service.GameService;
-import com.sportsify.game.presentation.dto.GameDetailResponseDto;
-import com.sportsify.game.presentation.dto.GameListResponseDto;
-import com.sportsify.game.presentation.dto.GameSeatListResponseDto;
+import com.sportsify.game.presentation.dto.*;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,5 +42,10 @@ public class GameController {
             @RequestParam(required = false) String status
     ) {
         return ResponseEntity.ok(gameService.getGameSeats(gameId, grade, status));
+    }
+
+    @PostMapping
+    public ResponseEntity<GameCreateResponseDto> createGame(@Valid @RequestBody GameCreateRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(gameService.createGame(request));
     }
 }
