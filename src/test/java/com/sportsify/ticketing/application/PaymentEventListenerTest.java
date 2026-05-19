@@ -1,10 +1,10 @@
 package com.sportsify.ticketing.application;
 
+import com.sportsify.config.TestContainersConfig;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.member.domain.model.Member;
-import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
@@ -22,10 +22,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -36,9 +39,12 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Import(TestContainersConfig.class)
 @EnableAsync
 @ExtendWith(OutputCaptureExtension.class)
-class PaymentEventListenerTest extends RepositoryTestSupport {
+class PaymentEventListenerTest {
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;
@@ -80,8 +86,11 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        Order order = orderRepository.findById(orderId).orElseThrow();
-        order.updateStatus(OrderStatus.CONFIRMED);
+        transactionTemplate.executeWithoutResult(status -> {
+            Order order = orderRepository.findById(orderId).orElseThrow();
+            order.updateStatus(OrderStatus.CONFIRMED);
+            orderRepository.save(order);
+        });
 
         eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
 

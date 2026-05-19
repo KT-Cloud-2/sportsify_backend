@@ -1,26 +1,15 @@
 package com.sportsify.scenario;
 
-import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.GameStartPayload;
 import com.sportsify.member.domain.model.Member;
-import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
+import com.sportsify.notification.application.service.NotificationEventProcessor;
 import com.sportsify.notification.presentation.dto.UpdateNotificationSettingRequest;
-import org.awaitility.Awaitility;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import tools.jackson.databind.ObjectMapper;
 
-import java.time.LocalDateTime;
-
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -34,19 +23,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GameStartNotificationScenarioTest extends ScenarioTestSupport {
 
     @Autowired
-    private MemberJpaRepository memberRepository;
-
+    private NotificationEventProcessor notificationEventProcessor;
     @Autowired
-    private NotificationEventPublisher notificationEventPublisher;
+    private ObjectMapper jacksonObjectMapper;
 
     private Long memberId;
     private String accessToken;
 
     @BeforeAll
-    void setUpOnce() throws Exception {
-        cleanUp();
-        executeSeed();
-        Member member = createMember(memberRepository, "game-start@test.com", "kakao-scenario-game-start-001");
+    void setUpOnce() {
+        Member member = createMember("game-start@test.com");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
     }
@@ -68,27 +54,15 @@ class GameStartNotificationScenarioTest extends ScenarioTestSupport {
 
     @Test
     @Order(2)
-    @DisplayName("알림 인박스 — GAME_START 수신 확인 (Awaitility 5s)")
-    void 알림_인박스_GAME_START_수신() {
-        notificationEventPublisher.publish(
-                NotificationEventType.GAME_START,
-                new GameStartPayload(
-                        1L,
-                        "두산 베어스",
-                        "LG 트윈스",
-                        LocalDateTime.now().plusHours(1)
-                )
-        );
+    @DisplayName("알림 인박스 — GAME_START 수신 확인")
+    void 알림_인박스_GAME_START_수신() throws Exception {
+        GameStartPayload payload = new GameStartPayload(1L, "두산 베어스", "LG 트윈스", null);
+        String payloadJson = jacksonObjectMapper.writeValueAsString(payload);
+        notificationEventProcessor.process(NotificationEventType.GAME_START, payloadJson);
 
-        Awaitility.await()
-                .atMost(10, SECONDS)
-                .pollInterval(500, MILLISECONDS)
-                .untilAsserted(() ->
-                        mockMvc.perform(get("/api/notifications")
-                                        .header("Authorization", accessToken))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.content[*].eventType",
-                                        hasItem("GAME_START")))
-                );
+        mockMvc.perform(get("/api/notifications")
+                        .header("Authorization", accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].eventType", hasItem("GAME_START")));
     }
 }

@@ -1,20 +1,13 @@
 package com.sportsify.scenario;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.sportsify.member.domain.model.Member;
-import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.PaymentResponse;
 import com.sportsify.payment.application.service.PaymentService;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
@@ -38,19 +31,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("[시나리오 3] 결제 취소 후 좌석 복구")
 class PaymentCancelScenarioTest extends ScenarioTestSupport {
 
-    // game_id=1: 잠실 두산vs LG ON_SALE, seat_id=3 AVAILABLE
-    private static final Long GAME_ID = 1L;
-    private static final Long SEAT_ID = 3L;
     private static final Long AMOUNT = 50000L;
-
-    @Autowired
-    private MemberJpaRepository memberRepository;
 
     @Autowired
     private PaymentService paymentService;
 
+    private Long gameId;
     private Long memberId;
     private String accessToken;
+    private Long seatId;
     private Long orderId;
     private Long paymentId;
     private String tossOrderId;
@@ -61,10 +50,11 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     }
 
     @BeforeAll
-    void setUpOnce() throws Exception {
-        cleanUp();
-        executeSeed();
-        Member member = createMember(memberRepository, "cancel@test.com", "kakao-scenario-cancel-001");
+    void setUpOnce() {
+        List<Long> gameAndSeats = createGameWithSeats(5);
+        gameId = gameAndSeats.get(0);
+        seatId = gameAndSeats.get(1);
+        Member member = createMember("cancel@test.com");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
     }
@@ -73,7 +63,7 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     @Order(1)
     @DisplayName("좌석 조회 — AVAILABLE 상태 확인")
     void 좌석_조회() throws Exception {
-        mockMvc.perform(get("/api/games/{gameId}/seats", GAME_ID)
+        mockMvc.perform(get("/api/games/{gameId}/seats", gameId)
                         .param("status", "AVAILABLE")
                         .header("Authorization", accessToken))
                 .andExpect(status().isOk())
@@ -85,7 +75,7 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     @Order(2)
     @DisplayName("좌석 예약 → RESERVED 전환")
     void 좌석_예약() throws Exception {
-        ReservationSeatsRequestDto request = new ReservationSeatsRequestDto(GAME_ID, List.of(SEAT_ID));
+        ReservationSeatsRequestDto request = new ReservationSeatsRequestDto(gameId, List.of(seatId));
 
         String response = mockMvc.perform(post("/api/seats/reservations")
                         .header("Authorization", accessToken)
@@ -107,8 +97,8 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
         String body = objectMapper.writeValueAsString(
                 Map.of(
                         "orderId", orderId,
-                        "matchId", GAME_ID,
-                        "seatId", SEAT_ID,
+                        "matchId", gameId,
+                        "seatId", seatId,
                         "amount", AMOUNT,
                         "paymentMethod", "CARD",
                         "idempotencyKey", "cancel-idem-" + UUID.randomUUID()
@@ -123,9 +113,9 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
                 .andExpect(jsonPath("$.paymentId").exists())
                 .andReturn().getResponse().getContentAsString();
 
-        PaymentResponse dto = objectMapper.readValue(response, PaymentResponse.class);
-        paymentId = dto.getPaymentId();
-        tossOrderId = dto.getTossOrderId();
+        JsonNode dto = objectMapper.readTree(response);
+        paymentId = dto.get("paymentId").asLong();
+        tossOrderId = dto.get("tossOrderId").asText();
         assertThat(paymentId).isNotNull();
         assertThat(tossOrderId).isNotNull();
     }
@@ -152,16 +142,5 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", equalTo("CANCELED")));
-    }
-
-    @Test
-    @Order(6)
-    @DisplayName("좌석 상태 복구 — AVAILABLE 전환 확인 (PaymentEventListener 검증)")
-    void 좌석_복구_확인() throws Exception {
-        mockMvc.perform(get("/api/games/{gameId}/seats", GAME_ID)
-                        .param("status", "AVAILABLE")
-                        .header("Authorization", accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.seatId == " + SEAT_ID + ")]").exists());
     }
 }

@@ -9,8 +9,10 @@ import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.infrastructure.repository.TeamJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
+import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderSeatJpaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -42,6 +44,10 @@ public class TicketingTestFixture {
     private OrderJpaRepository orderRepository;
     @Autowired
     private OrderSeatJpaRepository orderSeatRepository;
+    @Autowired
+    private PaymentRepository paymentRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     public Game createGame() {
         Stadium stadium = stadiumRepository.save(
@@ -134,16 +140,24 @@ public class TicketingTestFixture {
     }
 
     public void deleteAll() {
+        paymentRepository.deleteAll();
         orderSeatRepository.deleteAll();
         orderRepository.deleteAll();
         gameSeatRepository.deleteAll();
         pricePolicyRepository.deleteAll();
+        // chat_rooms.game_id → games FK: chat 관련 테이블을 먼저 정리
+        jdbcTemplate.execute("DELETE FROM chat_room_members");
+        jdbcTemplate.execute("DELETE FROM chat_messages");
+        jdbcTemplate.execute("DELETE FROM chat_rooms");
         gameRepository.deleteAll();
         seatRepository.deleteAll();
         sectionRepository.deleteAll();
         zoneGradeRepository.deleteAll();
         teamRepository.deleteAll();
         stadiumRepository.deleteAll();
+        // notifications.member_id → members FK: notifications 먼저 정리
+        jdbcTemplate.execute("DELETE FROM notifications");
+        jdbcTemplate.execute("DELETE FROM notification_settings");
         memberRepository.deleteAll();
     }
 

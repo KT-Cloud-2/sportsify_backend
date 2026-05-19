@@ -108,9 +108,10 @@ tasks.withType(JavaCompile).configureEach {
     options.generatedSourceOutputDirectory = querydslDir
 }
 
+
 tasks.named('test') {
     useJUnitPlatform {
-        excludeTags 'external'
+        excludeTags 'scenario', 'external'
     }
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
 }

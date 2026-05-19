@@ -90,12 +90,16 @@ public class ChatIntegrationTestFixture {
 
     @Transactional
     public void deleteAll() {
-        // FK 의존 순서: chat_room_members(→chat_messages, →chat_rooms, →members)
-        //              → chat_messages(→chat_rooms) → chat_rooms(→members) → members
+        // FK 순서: chat_room_members → chat_messages → chat_rooms 먼저
         memberJpaRepo.deleteAll();
         messageJpaRepo.deleteAll();
         roomJpaRepo.deleteAll();
-        // members 테이블의 테스트용 레코드 정리 (id >= 1000은 테스트 전용 범위)
-        em.createNativeQuery("DELETE FROM members WHERE id >= 1000").executeUpdate();
+        // members 참조 테이블 정리 (FK 역순)
+        em.createNativeQuery("DELETE FROM payments").executeUpdate();
+        em.createNativeQuery("DELETE FROM order_seats").executeUpdate();
+        em.createNativeQuery("DELETE FROM orders").executeUpdate();
+        em.createNativeQuery("DELETE FROM notifications").executeUpdate();
+        em.createNativeQuery("DELETE FROM notification_settings").executeUpdate();
+        em.createNativeQuery("DELETE FROM members").executeUpdate();
     }
 }

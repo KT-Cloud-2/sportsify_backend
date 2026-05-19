@@ -5,13 +5,16 @@ import com.sportsify.notification.application.service.ScheduledEventClaimService
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.model.NotificationEventStatus;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
-import com.sportsify.support.RepositoryTestSupport;
+import com.sportsify.config.TestContainersConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -30,7 +33,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
+@SpringBootTest
+@ActiveProfiles("test")
+@Import(TestContainersConfig.class)
+class ScheduledEventClaimServiceIntegrationTest {
 
     @Autowired private ScheduledEventClaimService claimService;
     @Autowired private NotificationEventRepository eventRepository;
@@ -41,12 +47,14 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
     @BeforeEach
     void setUp() {
         clockReference.set(Clock.systemDefaultZone());
+        jdbcTemplate.execute("DELETE FROM notifications");
         jdbcTemplate.execute("DELETE FROM notification_events");
     }
 
     @AfterEach
     void tearDown() {
         clockReference.set(Clock.systemDefaultZone());
+        jdbcTemplate.execute("DELETE FROM notifications");
         jdbcTemplate.execute("DELETE FROM notification_events");
     }
 

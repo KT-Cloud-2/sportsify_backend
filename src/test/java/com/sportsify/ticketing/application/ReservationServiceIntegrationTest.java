@@ -6,7 +6,7 @@ import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.member.domain.model.Member;
-import com.sportsify.support.RepositoryTestSupport;
+import com.sportsify.config.TestContainersConfig;
 import com.sportsify.ticketing.application.scheduler.SeatExpirationScheduler;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.Order;
@@ -24,8 +24,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,7 +42,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ReservationServiceIntegrationTest extends RepositoryTestSupport {
+@SpringBootTest
+@ActiveProfiles("test")
+@Import(TestContainersConfig.class)
+class ReservationServiceIntegrationTest {
     private Member member;
     private Game game;
 
@@ -56,6 +63,9 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
     @Autowired
     private TestOrderEventListener testEventListener;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
 
     @BeforeEach
@@ -273,29 +283,34 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-        Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
-        order.updateExpiresAt(order.getExpiresAt().minusMinutes(16));
+        transactionTemplate.executeWithoutResult(status -> {
+            Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
+            order.updateExpiresAt(order.getExpiresAt().minusMinutes(16));
+            orderRepository.save(order);
+        });
 
         scheduler.expireReservedSeats();
 
-        Order savedOrder = orderRepository.findById(order.getId()).orElseThrow();
-        List<OrderSeat> orderSeats = savedOrder.getOrderSeats();
+        transactionTemplate.executeWithoutResult(status -> {
+            Order savedOrder = orderRepository.findById(resDto.orderId()).orElseThrow();
+            List<OrderSeat> orderSeats = savedOrder.getOrderSeats();
 
-        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.EXPIRED);
+            assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.EXPIRED);
 
-        assertThat(orderSeats)
-                .extracting(OrderSeat::getStatus)
-                .containsOnly(OrderSeatStatus.EXPIRED);
+            assertThat(orderSeats)
+                    .extracting(OrderSeat::getStatus)
+                    .containsOnly(OrderSeatStatus.EXPIRED);
 
-        assertThat(orderSeats)
-                .extracting(OrderSeat::getGameSeat)
-                .extracting(GameSeat::getSeatStatus)
-                .containsOnly(SeatStatus.AVAILABLE);
-
+            assertThat(orderSeats)
+                    .extracting(OrderSeat::getGameSeat)
+                    .extracting(GameSeat::getSeatStatus)
+                    .containsOnly(SeatStatus.AVAILABLE);
+        });
     }
 
     @Test
+    @Transactional
     @DisplayName("주문 생성 시, 총 금액이 올바르게 계산된다.")
     void createOrder_amountCalculation() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
