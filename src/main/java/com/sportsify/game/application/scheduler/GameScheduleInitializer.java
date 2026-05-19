@@ -31,14 +31,14 @@ public class GameScheduleInitializer {
         for (Game game : missedGames) {
             game.updateStatus(GameStatus.ON_SALE);
         }
-        log.info("서버 시작 보정 - {}건 즉시 ON_SALE 전환", missedGames.size());
+        log.info("[GAME_SCHEDULE_INIT] 서버 시작 보정 - {}건 즉시 ON_SALE 전환", missedGames.size());
 
         // 2. saleEndAt이 이미 지났는데 ON_SALE인 경기 → 즉시 SALE_CLOSED
         List<Game> missedCloseGames = gameRepository.findGamesToCloseSale(now);
         for (Game game : missedCloseGames) {
             game.updateStatus(GameStatus.SALE_CLOSED);
         }
-        log.info("서버 시작 보정 - {}건 즉시 SALE_CLOSED 전환", missedCloseGames.size());
+        log.info("[GAME_SCHEDULE_INIT] 서버 시작 보정 - {}건 즉시 SALE_CLOSED 전환", missedCloseGames.size());
 
         // 3. 아직 saleStartAt이 안 된 경기 → TaskScheduler 등록
         List<Game> upcomingGames = gameRepository.findUpcomingScheduledGames(now);
@@ -49,13 +49,13 @@ public class GameScheduleInitializer {
                 gameSaleTaskScheduler.scheduleSaleEnd(game.getId(), game.getSaleEndAt());
             }
         }
-        log.info("TaskScheduler 등록 - {}건 예약 완료", upcomingGames.size());
+        log.info("[GAME_SCHEDULE_INIT] TaskScheduler 등록 - {}건 예약 완료", upcomingGames.size());
 
         // 4. ON_SALE 상태이면서 saleEndAt이 아직인 경기 → 종료 예약만 등록
         List<Game> onSaleGames = gameRepository.findOnSaleGamesWithFutureSaleEnd(now);
         for (Game game : onSaleGames) {
             gameSaleTaskScheduler.scheduleSaleEnd(game.getId(), game.getSaleEndAt());
         }
-        log.info("판매 종료 예약 등록 - {}건", onSaleGames.size());
+        log.info("[GAME_SCHEDULE_INIT] 판매 종료 예약 등록 - {}건", onSaleGames.size());
     }
 }
