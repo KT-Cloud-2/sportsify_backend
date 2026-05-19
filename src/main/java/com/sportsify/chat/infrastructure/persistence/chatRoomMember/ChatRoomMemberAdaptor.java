@@ -8,7 +8,9 @@ import com.sportsify.chat.domain.model.message.MessageId;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +32,7 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
         ChatRoomMemberJpaEntity entity = prepareEntity(member);
         ChatRoomMemberJpaEntity saved = jpaRepo.save(entity);
         if (member.getId() == null) member.assignId(saved.getId());
-        return mapper.toDomain(saved);
+        return member;
     }
 
     @Override
@@ -38,7 +40,7 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
         ChatRoomMemberJpaEntity entity = prepareEntity(member);
         ChatRoomMemberJpaEntity saved = jpaRepo.saveAndFlush(entity);
         if (member.getId() == null) member.assignId(saved.getId());
-        return mapper.toDomain(saved);
+        return member;
     }
 
     private ChatRoomMemberJpaEntity prepareEntity(ChatRoomMember member) {
@@ -69,9 +71,13 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
                 })
                 .toList();
 
-        return jpaRepo.saveAll(entities).stream()
-                .map(mapper::toDomain)
-                .toList();
+        List<ChatRoomMemberJpaEntity> saved = jpaRepo.saveAll(entities);
+        for (int i = 0; i < members.size(); i++) {
+            if (members.get(i).getId() == null) {
+                members.get(i).assignId(saved.get(i).getId());
+            }
+        }
+        return members;
     }
 
     @Override
@@ -140,8 +146,20 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
     }
 
     @Override
-    public boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, LocalDateTime now) {
-        return jpaRepo.updateLastReadMessageIfGreater(roomId.value(), memberId.value(), messageId.value(), now) != 0;
+    public boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, Instant now) {
+        return jpaRepo.updateLastReadMessageIfGreater(roomId.value(), memberId.value(), messageId.value(),
+                LocalDateTime.ofInstant(now, ZoneOffset.UTC)) != 0;
+    }
+
+    @Override
+    public Map<MemberId, MessageId> findLastMessageIdsAndMemberIdsByRoomId(ChatRoomId roomId) {
+        return jpaRepo.findLastReadMessageIdsByRoomId(roomId.value())
+                .stream()
+                .filter(row -> row[1] != null)
+                .collect(Collectors.toMap(
+                        row -> MemberId.of((Long) row[0]),
+                        row -> MessageId.of((Long) row[1])
+                ));
     }
 
 

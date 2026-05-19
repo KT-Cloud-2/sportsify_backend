@@ -37,18 +37,15 @@ public class ChatRoomController implements ChatRoomApi {
 
     /**
      * 5-2. 내 채팅방 목록 조회
-     * [!주의] 해당 controller는 아직 완성되지 않았습니다. 추후 message쪽 controller를 완성 후 lastMessage와 unreadCount를 붙이는 작업이
-     * 추가로 필요합니다.
      *
      * @param memberId
      * @param request  ChatRoomListResponse
      * @return ResponseEntity<CommonResponse < ChatRoomListResponse>>
      */
     @GetMapping
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public ResponseEntity<ChatRoomListResponse> getMyRooms(
             @AuthenticationPrincipal Long memberId,
-            @Valid @RequestBody ChatRoomGetRequest request
+            @Valid @ModelAttribute ChatRoomGetRequest request
     ) {
         return ResponseEntity.ok(chatRoomService.getMyRooms(request, memberId));
     }
@@ -118,6 +115,38 @@ public class ChatRoomController implements ChatRoomApi {
     ) {
         chatRoomService.delete(roomId, memberId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 5-7. 채팅방 아카이브
+     *
+     * @param memberId
+     * @param roomId
+     * @return ResponseEntity<ChatRoomArchiveResponse>
+     */
+    @PatchMapping("/{roomId}/archive")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public ResponseEntity<ChatRoomArchiveResponse> archive(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long roomId
+    ) {
+        return ResponseEntity.ok(chatRoomService.archive(roomId, memberId));
+    }
+
+    /**
+     * 5-8. 채팅방 아카이브 복원
+     *
+     * @param memberId
+     * @param roomId
+     * @return ResponseEntity<ChatRoomArchiveResponse>
+     */
+    @PatchMapping("/{roomId}/unarchive")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public ResponseEntity<ChatRoomArchiveResponse> unarchive(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long roomId
+    ) {
+        return ResponseEntity.ok(chatRoomService.unarchive(roomId, memberId));
     }
 
 
