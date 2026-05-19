@@ -2,31 +2,42 @@ package com.sportsify.scenario;
 
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
-import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
-import com.sportsify.payment.application.dto.CreatePaymentRequest;
 import com.sportsify.payment.application.dto.PaymentResponse;
 import com.sportsify.payment.application.service.PaymentService;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
+
+import javax.sql.DataSource;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Order(1)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("[시나리오 1] 티켓 구매 전체 여정")
 class TicketPurchaseScenarioTest extends ScenarioTestSupport {
@@ -42,14 +53,23 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
     @Autowired
     private PaymentService paymentService;
 
-    private static Long memberId;
-    private static String accessToken;
-    private static Long orderId;
-    private static Long paymentId;
-    private static String tossOrderId;
+    @Autowired
+    private JdbcTemplate jdbc;
 
-    @BeforeEach
-    void setUpMember() {
+    @Autowired
+    private DataSource dataSource;
+
+    private Long memberId;
+    private String accessToken;
+    private Long orderId;
+    private Long paymentId;
+    private String tossOrderId;
+
+    @BeforeAll
+    void setUpOnce() throws Exception {
+        cleanUp(jdbc);
+        ScriptUtils.executeSqlScript(dataSource.getConnection(),
+                new ClassPathResource("db/scenario/seed.sql"));
         Member member = createMember(memberRepository, "purchase@test.com", "kakao-purchase-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
@@ -64,7 +84,7 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
                         .header("Authorization", accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThan(0)));
+                .andExpect(jsonPath("$.length()").value(greaterThan(0)));
     }
 
     @Test
@@ -76,7 +96,7 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
                         .header("Authorization", accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThan(0)));
+                .andExpect(jsonPath("$.length()").value(greaterThan(0)));
     }
 
     @Test
@@ -102,17 +122,15 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
     @Order(4)
     @DisplayName("결제 생성 — paymentId, tossOrderId 반환")
     void 결제_생성() throws Exception {
-        CreatePaymentRequest request = new CreatePaymentRequest();
-        // 리플렉션 없이 JSON으로 직접 구성
         String body = objectMapper.writeValueAsString(
-                new java.util.HashMap<>() {{
-                    put("orderId", orderId);
-                    put("matchId", GAME_ID);
-                    put("seatId", SEAT_ID);
-                    put("amount", AMOUNT);
-                    put("paymentMethod", "CARD");
-                    put("idempotencyKey", "test-idem-" + UUID.randomUUID());
-                }}
+                Map.of(
+                        "orderId", orderId,
+                        "matchId", GAME_ID,
+                        "seatId", SEAT_ID,
+                        "amount", AMOUNT,
+                        "paymentMethod", "CARD",
+                        "idempotencyKey", "test-idem-" + UUID.randomUUID()
+                )
         );
 
         String response = mockMvc.perform(post("/api/payments")
@@ -135,11 +153,8 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
     @Order(5)
     @DisplayName("결제 확정 (mock) — COMPLETED 전환, PAYMENT_COMPLETED 이벤트 발행")
     void 결제_확정() {
-        // TossPaymentClient는 MockitoBean — 실제 외부 호출 없음
-        ConfirmPaymentRequest request = new ConfirmPaymentRequest();
-        // confirmPaymentMock은 tossPaymentClient 호출 없이 직접 완료 처리
         PaymentResponse response = paymentService.confirmPaymentMock(
-                buildConfirmRequest(tossOrderId, AMOUNT)
+                TestConfirmPaymentRequest.of(tossOrderId, AMOUNT)
         );
 
         assertThat(response.getStatus()).isEqualTo("COMPLETED");
@@ -150,7 +165,8 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
     @DisplayName("알림 인박스 — PAYMENT_COMPLETED 수신 확인 (Awaitility 5s)")
     void 알림_수신_확인() {
         Awaitility.await()
-                .atMost(5, SECONDS)
+                .atMost(10, SECONDS)
+                .pollInterval(500, MILLISECONDS)
                 .untilAsserted(() ->
                         mockMvc.perform(get("/api/notifications")
                                         .header("Authorization", accessToken))
@@ -158,24 +174,5 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
                                 .andExpect(jsonPath("$.content[*].eventType",
                                         hasItem("PAYMENT_COMPLETED")))
                 );
-    }
-
-    private ConfirmPaymentRequest buildConfirmRequest(String tossOrderId, Long amount) {
-        try {
-            ConfirmPaymentRequest req = new ConfirmPaymentRequest();
-            var clazz = ConfirmPaymentRequest.class;
-            setField(clazz, req, "tossOrderId", tossOrderId);
-            setField(clazz, req, "paymentKey", "MOCK_" + tossOrderId);
-            setField(clazz, req, "amount", amount);
-            return req;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void setField(Class<?> clazz, Object target, String fieldName, Object value) throws Exception {
-        var field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 }

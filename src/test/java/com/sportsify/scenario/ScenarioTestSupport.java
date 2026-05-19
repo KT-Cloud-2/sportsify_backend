@@ -8,8 +8,13 @@ import com.sportsify.infrastructure.security.JwtProvider;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
+import com.sportsify.notification.domain.model.NotificationSetting;
+import com.sportsify.notification.infrastructure.repository.NotificationSettingJpaRepository;
 import com.sportsify.payment.infrastructure.toss.TossPaymentClient;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.TestClassOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -17,7 +22,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -36,7 +40,6 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 @Import(TestContainersConfig.class)
 @Tag("external")
 @TestClassOrder(ClassOrderer.OrderAnnotation.class)
-@Sql(scripts = "classpath:db/scenario/seed.sql")
 public abstract class ScenarioTestSupport {
 
     // 외부 I/O — 전부 여기에 집중 선언 (캐시 키 통일 핵심)
@@ -56,6 +59,9 @@ public abstract class ScenarioTestSupport {
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private NotificationSettingJpaRepository notificationSettingRepository;
+
     protected MockMvc mockMvc;
 
     @BeforeEach
@@ -65,8 +71,7 @@ public abstract class ScenarioTestSupport {
                 .build();
     }
 
-    @BeforeEach
-    void cleanUp(@Autowired JdbcTemplate jdbc) {
+    protected void cleanUp(JdbcTemplate jdbc) {
         jdbc.execute("""
                 TRUNCATE notifications, notification_events, notification_history,
                          payments, orders, order_seats,
@@ -77,9 +82,11 @@ public abstract class ScenarioTestSupport {
     }
 
     protected Member createMember(MemberJpaRepository memberRepository, String email, String providerId) {
-        return memberRepository.save(
+        Member member = memberRepository.save(
                 Member.create(email, email.split("@")[0], OAuthProvider.KAKAO, providerId)
         );
+        notificationSettingRepository.save(NotificationSetting.createDefault(member.getId()));
+        return member;
     }
 
     protected String bearerToken(Long memberId) {

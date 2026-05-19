@@ -7,15 +7,29 @@ import com.sportsify.payment.application.dto.PaymentResponse;
 import com.sportsify.payment.application.service.PaymentService;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
+
+import javax.sql.DataSource;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -24,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Order(3)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("[시나리오 3] 결제 취소 후 좌석 복구")
 class PaymentCancelScenarioTest extends ScenarioTestSupport {
@@ -39,14 +54,28 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     @Autowired
     private PaymentService paymentService;
 
-    private static Long memberId;
-    private static String accessToken;
-    private static Long orderId;
-    private static Long paymentId;
-    private static String tossOrderId;
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private DataSource dataSource;
+
+    private Long memberId;
+    private String accessToken;
+    private Long orderId;
+    private Long paymentId;
+    private String tossOrderId;
 
     @BeforeEach
-    void setUpMember() {
+    void resetMocks() {
+        willDoNothing().given(tossPaymentClient).cancel(any(), any());
+    }
+
+    @BeforeAll
+    void setUpOnce() throws Exception {
+        cleanUp(jdbc);
+        ScriptUtils.executeSqlScript(dataSource.getConnection(),
+                new ClassPathResource("db/scenario/seed.sql"));
         Member member = createMember(memberRepository, "cancel@test.com", "kakao-cancel-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
@@ -61,7 +90,7 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
                         .header("Authorization", accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThan(0)));
+                .andExpect(jsonPath("$.length()").value(greaterThan(0)));
     }
 
     @Test
@@ -80,6 +109,7 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
 
         ReservationSeatsResponseDto dto = objectMapper.readValue(response, ReservationSeatsResponseDto.class);
         orderId = dto.orderId();
+        assertThat(orderId).isNotNull();
     }
 
     @Test
@@ -87,14 +117,14 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     @DisplayName("결제 생성")
     void 결제_생성() throws Exception {
         String body = objectMapper.writeValueAsString(
-                new java.util.HashMap<>() {{
-                    put("orderId", orderId);
-                    put("matchId", GAME_ID);
-                    put("seatId", SEAT_ID);
-                    put("amount", AMOUNT);
-                    put("paymentMethod", "CARD");
-                    put("idempotencyKey", "cancel-idem-" + UUID.randomUUID());
-                }}
+                Map.of(
+                        "orderId", orderId,
+                        "matchId", GAME_ID,
+                        "seatId", SEAT_ID,
+                        "amount", AMOUNT,
+                        "paymentMethod", "CARD",
+                        "idempotencyKey", "cancel-idem-" + UUID.randomUUID()
+                )
         );
 
         String response = mockMvc.perform(post("/api/payments")
@@ -108,6 +138,8 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
         PaymentResponse dto = objectMapper.readValue(response, PaymentResponse.class);
         paymentId = dto.getPaymentId();
         tossOrderId = dto.getTossOrderId();
+        assertThat(paymentId).isNotNull();
+        assertThat(tossOrderId).isNotNull();
     }
 
     @Test
@@ -115,7 +147,7 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     @DisplayName("결제 확정 (mock)")
     void 결제_확정() {
         PaymentResponse response = paymentService.confirmPaymentMock(
-                buildConfirmRequest(tossOrderId, AMOUNT)
+                TestConfirmPaymentRequest.of(tossOrderId, AMOUNT)
         );
         assertThat(response.getStatus()).isEqualTo("COMPLETED");
     }
@@ -124,9 +156,6 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     @Order(5)
     @DisplayName("결제 취소 — CANCELED 전환 (tossPaymentClient.cancel mock)")
     void 결제_취소() throws Exception {
-        // tossPaymentClient.cancel()은 MockitoBean — 실제 Toss API 호출 없음
-        willDoNothing().given(tossPaymentClient).cancel(any(), any());
-
         String body = objectMapper.writeValueAsString(new CancelPaymentRequest("테스트 취소"));
 
         mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
@@ -146,24 +175,5 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
                         .header("Authorization", accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.seatId == " + SEAT_ID + ")]").exists());
-    }
-
-    private com.sportsify.payment.application.dto.ConfirmPaymentRequest buildConfirmRequest(String tossOrderId, Long amount) {
-        try {
-            com.sportsify.payment.application.dto.ConfirmPaymentRequest req =
-                    new com.sportsify.payment.application.dto.ConfirmPaymentRequest();
-            setField(req, "tossOrderId", tossOrderId);
-            setField(req, "paymentKey", "MOCK_" + tossOrderId);
-            setField(req, "amount", amount);
-            return req;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        var field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 }

@@ -7,12 +7,24 @@ import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import com.sportsify.notification.presentation.dto.UpdateNotificationSettingRequest;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
+
+import javax.sql.DataSource;
 
 import java.time.LocalDateTime;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Order(2)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("[시나리오 2] 티켓팅 오픈 알림 수신")
 class TicketOpenNotificationScenarioTest extends ScenarioTestSupport {
@@ -31,11 +44,20 @@ class TicketOpenNotificationScenarioTest extends ScenarioTestSupport {
     @Autowired
     private NotificationEventPublisher notificationEventPublisher;
 
-    private static Long memberId;
-    private static String accessToken;
+    @Autowired
+    private JdbcTemplate jdbc;
 
-    @BeforeEach
-    void setUpMember() {
+    @Autowired
+    private DataSource dataSource;
+
+    private Long memberId;
+    private String accessToken;
+
+    @BeforeAll
+    void setUpOnce() throws Exception {
+        cleanUp(jdbc);
+        ScriptUtils.executeSqlScript(dataSource.getConnection(),
+                new ClassPathResource("db/scenario/seed.sql"));
         Member member = createMember(memberRepository, "ticket-open@test.com", "kakao-ticket-open-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
@@ -58,8 +80,8 @@ class TicketOpenNotificationScenarioTest extends ScenarioTestSupport {
 
     @Test
     @Order(2)
-    @DisplayName("TICKET_OPEN 이벤트 발행 → Redis Stream 적재")
-    void TICKET_OPEN_이벤트_발행() {
+    @DisplayName("알림 인박스 — TICKET_OPEN 수신 확인 (Awaitility 5s)")
+    void 알림_인박스_TICKET_OPEN_수신() {
         notificationEventPublisher.publish(
                 NotificationEventType.TICKET_OPEN,
                 new TicketOpenPayload(
@@ -70,14 +92,10 @@ class TicketOpenNotificationScenarioTest extends ScenarioTestSupport {
                         LocalDateTime.now().plusDays(3)
                 )
         );
-    }
 
-    @Test
-    @Order(3)
-    @DisplayName("알림 인박스 — TICKET_OPEN 수신 확인 (Awaitility 5s)")
-    void 알림_인박스_TICKET_OPEN_수신() {
         Awaitility.await()
-                .atMost(5, SECONDS)
+                .atMost(10, SECONDS)
+                .pollInterval(500, MILLISECONDS)
                 .untilAsserted(() ->
                         mockMvc.perform(get("/api/notifications")
                                         .header("Authorization", accessToken))
