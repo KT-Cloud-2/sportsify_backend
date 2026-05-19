@@ -2,6 +2,9 @@ package com.sportsify.game.application;
 
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
+import com.sportsify.common.notification.NotificationEventPublisher;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.GameStartPayload;
 import com.sportsify.game.application.service.GameService;
 import com.sportsify.game.domain.model.*;
 import com.sportsify.game.domain.repository.GameRepository;
@@ -40,6 +43,10 @@ class GameServiceTest {
 
     @Mock
     private TeamRepository teamRepository;
+
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
+
 
     @Test
     @DisplayName("경기 생성 성공")
@@ -90,6 +97,7 @@ class GameServiceTest {
         assertThat(response.status()).isEqualTo(GameStatus.SCHEDULED);
 
         verify(gameRepository).save(any(Game.class));
+        verify(notificationEventPublisher).publish(eq(NotificationEventType.GAME_START), any(GameStartPayload.class));
     }
 
     @Test
@@ -193,5 +201,6 @@ class GameServiceTest {
         assertThat(response.awayTeamId()).isNull();
 
         verify(teamRepository, never()).findById(any());
+        verify(notificationEventPublisher).publish(eq(NotificationEventType.GAME_START), any(GameStartPayload.class));
     }
 }

@@ -1,6 +1,6 @@
 package com.sportsify.game.application;
 
-import com.sportsify.game.application.scheduler.GameSaleTaskScheduler;
+import com.sportsify.game.application.scheduler.GameStatusUpdater;
 import com.sportsify.game.domain.model.*;
 import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.StadiumRepository;
@@ -15,10 +15,10 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class GameSaleTaskSchedulerIntegrationTest extends RepositoryTestSupport {
+class GameStatusUpdaterIntegrationTest extends RepositoryTestSupport {
 
     @Autowired
-    private GameSaleTaskScheduler gameSaleTaskScheduler;
+    private GameStatusUpdater gameStatusUpdater;
 
     @Autowired
     private GameRepository gameRepository;
@@ -51,7 +51,7 @@ class GameSaleTaskSchedulerIntegrationTest extends RepositoryTestSupport {
                         .build()
         );
 
-        gameSaleTaskScheduler.openSale(game.getId());
+        gameStatusUpdater.openSale(game.getId());
 
         Game updated = gameRepository.findById(game.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(GameStatus.ON_SALE);
@@ -76,7 +76,7 @@ class GameSaleTaskSchedulerIntegrationTest extends RepositoryTestSupport {
                         .build()
         );
 
-        gameSaleTaskScheduler.closeSale(game.getId());
+        gameStatusUpdater.closeSale(game.getId());
 
         Game updated = gameRepository.findById(game.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(GameStatus.SALE_CLOSED);
@@ -100,7 +100,7 @@ class GameSaleTaskSchedulerIntegrationTest extends RepositoryTestSupport {
                         .build()
         );
 
-        gameSaleTaskScheduler.openSale(game.getId());
+        gameStatusUpdater.openSale(game.getId());
 
         Game unchanged = gameRepository.findById(game.getId()).orElseThrow();
         assertThat(unchanged.getStatus()).isEqualTo(GameStatus.ON_SALE);
@@ -109,7 +109,6 @@ class GameSaleTaskSchedulerIntegrationTest extends RepositoryTestSupport {
     @Test
     @DisplayName("존재하지 않는 gameId로 호출 시 예외 없이 무시된다.")
     void openSale_gameNotFound_noException() {
-        gameSaleTaskScheduler.openSale(9999L);
-        // 예외 발생하지 않으면 성공
+        gameStatusUpdater.openSale(9999L);
     }
 }

@@ -123,11 +123,10 @@ public class Game {
     }
 
     public String getHomeTeamName() {
-        return homeTeam.getName();
+        return homeTeam != null ? homeTeam.getName() : null;
     }
 
     public String getAwayTeamName() {
-        return awayTeam.getName();
+        return awayTeam != null ? awayTeam.getName() : null;
     }
-
 }
