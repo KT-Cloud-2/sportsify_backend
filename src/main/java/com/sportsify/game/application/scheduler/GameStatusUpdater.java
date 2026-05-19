@@ -1,5 +1,8 @@
 package com.sportsify.game.application.scheduler;
 
+import com.sportsify.common.notification.NotificationEventPublisher;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.TicketOpenPayload;
 import com.sportsify.game.domain.model.GameStatus;
 import com.sportsify.game.domain.repository.GameRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class GameStatusUpdater {
 
     private final GameRepository gameRepository;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Transactional
     public void openSale(Long gameId) {
         gameRepository.findById(gameId).ifPresent(game -> {
             if (game.getStatus() == GameStatus.SCHEDULED) {
                 game.updateStatus(GameStatus.ON_SALE);
+
+                notificationEventPublisher.publish(
+                        NotificationEventType.TICKET_OPEN,
+                        new TicketOpenPayload(game.getId(), game.getHomeTeamName(), game.getAwayTeamName(),
+                                game.getSaleStartAt(), game.getSaleEndAt()));
+
                 log.info("[GAME_STATUS] ON_SALE 전환 - gameId: {}", gameId);
             }
         });
