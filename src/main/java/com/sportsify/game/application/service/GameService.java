@@ -2,6 +2,9 @@ package com.sportsify.game.application.service;
 
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
+import com.sportsify.common.notification.NotificationEventPublisher;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.GameStartPayload;
 import com.sportsify.game.application.dto.SeatGradeSummary;
 import com.sportsify.game.application.scheduler.GameSaleTaskScheduler;
 import com.sportsify.game.domain.model.Game;
@@ -32,6 +35,8 @@ public class GameService {
     private final TeamRepository teamRepository;
 
     private final GameSaleTaskScheduler gameSaleTaskScheduler;
+
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public List<GameListResponseDto> getGames(
             String sportType,
@@ -136,6 +141,10 @@ public class GameService {
         Game savedGame = gameRepository.save(game);
 
         scheduleGameSale(savedGame);
+
+        notificationEventPublisher.publish(
+                NotificationEventType.GAME_START,
+                new GameStartPayload(game.getId(), game.getHomeTeamName(), game.getAwayTeamName(), game.getStartAt()));
 
         return GameCreateResponseDto.from(savedGame);
     }
