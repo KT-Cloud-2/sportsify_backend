@@ -34,6 +34,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
+    
     private static final String BLACKLIST_KEY_PREFIX = "auth:blacklist:";
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";

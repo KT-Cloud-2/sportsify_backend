@@ -25,8 +25,7 @@ import java.time.Instant;
 @Component
 @RequiredArgsConstructor
 public class ReadReceiptFlusher {
-
-
+    
     private final StringRedisTemplate redisTemplate;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final ChatEventPublisher chatEventPublisher;

@@ -24,6 +24,7 @@ import java.time.Instant;
 @Slf4j
 @RequiredArgsConstructor
 public class ChatStompController {
+
     private final MessageService messageService;
     private final ChatEventPublisher chatEventPublisher;
     private final Clock clock;

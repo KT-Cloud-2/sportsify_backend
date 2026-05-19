@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @AuthRequiredApi
 @CommonApiResponses
 public interface ChatRoomApi {
+    
     @SwaggerApi(summary = "5-1. 채팅방 생성")
     @SwaggerApiError(ErrorCode.INVALID_INPUT)
     @SwaggerApiError(ErrorCode.CONFLICT)

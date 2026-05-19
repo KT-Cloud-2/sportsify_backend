@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/chat/messages")
 @RequiredArgsConstructor
 public class MessageController implements MessageApi {
+    
     private final MessageService messageService;
 
     /**
@@ -56,7 +57,7 @@ public class MessageController implements MessageApi {
      * @param request  MessagePageNationRequest
      * @return ResponseEntity<CommonResponse < MessageListResponse>>
      */
-    @GetMapping("getMessages/{roomId}")
+    @GetMapping("/getMessages/{roomId}")
     public ResponseEntity<MessageListResponse> getMessages(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long roomId,

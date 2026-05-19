@@ -30,12 +30,21 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MessageService {
-    private static final DefaultRedisScript<Long> CAS_SCRIPT = new DefaultRedisScript<>(
-            "local c = redis.call('GET', KEYS[1]) " +
-                    "if c == false or tonumber(ARGV[1]) > tonumber(c) then " +
-                    "  redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2]) return 1 " +
-                    "end return 0", Long.class
-    );
+    
+    private static final DefaultRedisScript<Long> CAS_SCRIPT =
+            new DefaultRedisScript<>(
+                    """
+                            local c = redis.call('GET', KEYS[1])
+                            
+                            if c == false or tonumber(ARGV[1]) > tonumber(c) then
+                                redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+                                return 1
+                            end
+                            
+                            return 0
+                            """,
+                    Long.class
+            );
 
 
     final private MessageRepository messageRepo;

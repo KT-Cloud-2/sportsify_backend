@@ -23,6 +23,7 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     @Value("${app.cors.allowed-origins}")
     String[] allowedOrigins;

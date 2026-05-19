@@ -24,6 +24,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class ChatRoomMemberService {
+    
     private final ChatRoomRepository chatRoomRepo;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;

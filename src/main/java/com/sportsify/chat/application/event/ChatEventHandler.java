@@ -16,6 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Component
 @RequiredArgsConstructor
 public class ChatEventHandler {
+    
     private final ChatEventPublisher publisher;
     private final WebSocketSessionRegistry webSocketSessionRegistry;
 

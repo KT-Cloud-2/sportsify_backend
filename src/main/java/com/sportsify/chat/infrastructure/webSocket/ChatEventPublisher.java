@@ -11,6 +11,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class ChatEventPublisher {
+    
     public static final String ROOM_TOPIC_PREFIX = "/topic/rooms/";
     public static final String TYPING_SUFFIX = "/typing";
     public static final String SESSION_ERROR_QUEUE_PREFIX = "/queue/errors-user";
