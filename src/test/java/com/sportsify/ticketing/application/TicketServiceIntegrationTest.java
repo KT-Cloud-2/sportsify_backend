@@ -68,6 +68,19 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     }
 
     @Test
+    @DisplayName("createTickets 호출 시 요청자와 주문자가 불일치하면 예외가 발생한다.")
+    void createTickets_memberMismatch() {
+        Member otherMember = fixture.createMember("other@test.com", "other");
+
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
+
+        assertThatThrownBy(() -> ticketService.createTickets(resDto.orderId(), otherMember.getId()))
+                .isInstanceOf(BusinessException.class);
+    }
+
+
+    @Test
     @DisplayName("getMyTickets 호출 시 페이징이 올바르게 적용된다.")
     void getMyTickets_paging() {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);

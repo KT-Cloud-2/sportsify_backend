@@ -29,11 +29,14 @@ public class TicketService {
 
     @Transactional
     public void createTickets(Long orderId, Long memberId) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-
         Order order = orderRepository.findByIdWithOrderSeats(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (!order.getMemberId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
+        }
+
+        Member member = memberRepository.getReferenceById(memberId);
 
         order.getOrderSeats().forEach(orderSeat ->
                 ticketRepository.save(Ticket.create(orderSeat, member, orderSeat.getPrice())));

@@ -55,9 +55,10 @@ class TicketServiceTest {
         when(orderSeat1.getPrice()).thenReturn(10000);
         when(orderSeat2.getPrice()).thenReturn(15000);
 
-        when(memberRepository.findById(memberId)).thenReturn(Optional.of(member));
         when(orderRepository.findByIdWithOrderSeats(orderId)).thenReturn(Optional.of(order));
+        when(order.getMemberId()).thenReturn(memberId);
         when(order.getOrderSeats()).thenReturn(List.of(orderSeat1, orderSeat2));
+        when(memberRepository.getReferenceById(memberId)).thenReturn(member);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ticketService.createTickets(orderId, memberId);
@@ -65,22 +66,28 @@ class TicketServiceTest {
         verify(ticketRepository, times(2)).save(any(Ticket.class));
     }
 
-    @Test
-    @DisplayName("createTickets 호출 시 존재하지 않는 회원이면 예외가 발생한다.")
-    void createTickets_memberNotFound() {
-        when(memberRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> ticketService.createTickets(1L, 999L))
+    @Test
+    @DisplayName("createTickets 호출 시 요청자와 주문자가 불일치하면 예외가 발생한다.")
+    void createTickets_memberMismatch() {
+        Long orderId = 1L;
+        Long memberId = 1L;
+        Long otherMemberId = 2L;
+
+        Order order = mock(Order.class);
+
+        when(orderRepository.findByIdWithOrderSeats(orderId)).thenReturn(Optional.of(order));
+        when(order.getMemberId()).thenReturn(otherMemberId);
+
+        assertThatThrownBy(() -> ticketService.createTickets(orderId, memberId))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+                .isEqualTo(ErrorCode.ORDER_MEMBER_MISMATCH);
     }
 
     @Test
     @DisplayName("createTickets 호출 시 존재하지 않는 주문이면 예외가 발생한다.")
     void createTickets_orderNotFound() {
-        Member member = mock(Member.class);
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
         when(orderRepository.findByIdWithOrderSeats(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ticketService.createTickets(999L, 1L))

@@ -107,4 +107,24 @@ class TicketControllerApiTest extends WebMvcTestSupport {
                         .param("size", "10"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("GET /api/tickets — 400 잘못된 페이지 파라미터")
+    void getMyTickets_invalidPage() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
+                        .param("page", "-1")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /api/tickets — 400 잘못된 사이즈 파라미터")
+    void getMyTickets_invalidSize() throws Exception {
+        mockMvc.perform(get("/api/tickets")
+                        .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
+                        .param("page", "0")
+                        .param("size", "0"))
+                .andExpect(status().isBadRequest());
+    }
 }

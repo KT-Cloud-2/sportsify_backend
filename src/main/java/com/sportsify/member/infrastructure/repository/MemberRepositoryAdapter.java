@@ -28,4 +28,9 @@ public class MemberRepositoryAdapter implements MemberRepository {
     public boolean existsByNickname(String nickname) {
         return jpaRepository.existsByNickname(nickname);
     }
+
+    @Override
+    public Member getReferenceById(Long id) {
+        return jpaRepository.getReferenceById(id);
+    }
 }

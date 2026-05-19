@@ -137,6 +137,6 @@ public class Game {
     }
 
     public String getSportTypeName() {
-        return sportType.name();
+        return sportType != null ? sportType.name() : null;
     }
 }
