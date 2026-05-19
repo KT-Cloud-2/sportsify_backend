@@ -45,7 +45,9 @@ public enum ErrorCode {
     ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다."),
 
     // 게임
-    PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다.");
+    PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다."),
+    STADIUM_NOT_FOUND(HttpStatus.NOT_FOUND, "STADIUM_NOT_FOUND", "존재하지 않는 경기장입니다.");
+
 
     private final HttpStatus httpStatus;
     private final String code;
