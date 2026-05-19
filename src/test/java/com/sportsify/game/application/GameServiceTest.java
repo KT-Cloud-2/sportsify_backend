@@ -5,6 +5,7 @@ import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.GameStartPayload;
+import com.sportsify.game.application.scheduler.GameSaleTaskScheduler;
 import com.sportsify.game.application.service.GameService;
 import com.sportsify.game.domain.model.*;
 import com.sportsify.game.domain.repository.GameRepository;
@@ -47,6 +48,9 @@ class GameServiceTest {
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
 
+    @Mock
+    private GameSaleTaskScheduler gameSaleTaskScheduler;
+
 
     @Test
     @DisplayName("경기 생성 성공")
@@ -69,6 +73,8 @@ class GameServiceTest {
         when(teamRepository.findById(2L)).thenReturn(Optional.of(awayTeam));
 
         Game savedGame = mock(Game.class);
+        when(savedGame.getSaleStartAt()).thenReturn(startAt.minusDays(5));
+        when(savedGame.getSaleEndAt()).thenReturn(startAt.minusMinutes(30));
         when(savedGame.getId()).thenReturn(1L);
         when(savedGame.getStadium()).thenReturn(stadium);
         when(savedGame.getHomeTeam()).thenReturn(homeTeam);
@@ -96,6 +102,9 @@ class GameServiceTest {
         assertThat(response.awayTeamId()).isEqualTo(2L);
         assertThat(response.status()).isEqualTo(GameStatus.SCHEDULED);
 
+        verify(gameSaleTaskScheduler).scheduleSaleStart(eq(1L), eq(startAt.minusDays(5)));
+        verify(gameSaleTaskScheduler).scheduleSaleEnd(eq(1L), eq(startAt.minusMinutes(30)));
+        
         verify(gameRepository).save(any(Game.class));
         verify(notificationEventPublisher).publish(eq(NotificationEventType.GAME_START), any(GameStartPayload.class));
     }

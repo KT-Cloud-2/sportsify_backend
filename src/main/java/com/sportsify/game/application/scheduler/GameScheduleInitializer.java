@@ -1,7 +1,6 @@
 package com.sportsify.game.application.scheduler;
 
 import com.sportsify.game.domain.model.Game;
-import com.sportsify.game.domain.model.GameStatus;
 import com.sportsify.game.domain.repository.GameRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +19,7 @@ public class GameScheduleInitializer {
 
     private final GameRepository gameRepository;
     private final GameSaleTaskScheduler gameSaleTaskScheduler;
+    private final GameStatusUpdater gameStatusUpdater;
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
@@ -29,14 +29,14 @@ public class GameScheduleInitializer {
         // 1. saleStartAt이 이미 지났는데 SCHEDULED인 경기 → 즉시 ON_SALE
         List<Game> missedGames = gameRepository.findGamesReadyForSale(now);
         for (Game game : missedGames) {
-            game.updateStatus(GameStatus.ON_SALE);
+            gameStatusUpdater.openSale(game.getId());
         }
         log.info("[GAME_SCHEDULE_INIT] 서버 시작 보정 - {}건 즉시 ON_SALE 전환", missedGames.size());
 
         // 2. saleEndAt이 이미 지났는데 ON_SALE인 경기 → 즉시 SALE_CLOSED
         List<Game> missedCloseGames = gameRepository.findGamesToCloseSale(now);
         for (Game game : missedCloseGames) {
-            game.updateStatus(GameStatus.SALE_CLOSED);
+            gameStatusUpdater.closeSale(game.getId());
         }
         log.info("[GAME_SCHEDULE_INIT] 서버 시작 보정 - {}건 즉시 SALE_CLOSED 전환", missedCloseGames.size());
 

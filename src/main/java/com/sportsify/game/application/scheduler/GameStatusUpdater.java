@@ -20,7 +20,7 @@ public class GameStatusUpdater {
 
     @Transactional
     public void openSale(Long gameId) {
-        gameRepository.findById(gameId).ifPresent(game -> {
+        gameRepository.findByIdForUpdate(gameId).ifPresent(game -> {
             if (game.getStatus() == GameStatus.SCHEDULED) {
                 game.updateStatus(GameStatus.ON_SALE);
 
@@ -36,7 +36,7 @@ public class GameStatusUpdater {
 
     @Transactional
     public void closeSale(Long gameId) {
-        gameRepository.findById(gameId).ifPresent(game -> {
+        gameRepository.findByIdForUpdate(gameId).ifPresent(game -> {
             if (game.getStatus() == GameStatus.ON_SALE) {
                 game.updateStatus(GameStatus.SALE_CLOSED);
                 log.info("[GAME_STATUS] SALE_CLOSED 전환 - gameId: {}", gameId);

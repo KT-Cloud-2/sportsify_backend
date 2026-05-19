@@ -114,7 +114,7 @@ public class GameService {
         Team homeTeam = null;
         if (request.homeTeamId() != null) {
             homeTeam = teamRepository.findById(request.homeTeamId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.TEAM_NOT_FOUND, "id=" + request.awayTeamId()));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TEAM_NOT_FOUND, "id=" + request.homeTeamId()));
         }
 
         Team awayTeam = null;
@@ -144,7 +144,11 @@ public class GameService {
 
         notificationEventPublisher.publish(
                 NotificationEventType.GAME_START,
-                new GameStartPayload(game.getId(), game.getHomeTeamName(), game.getAwayTeamName(), game.getStartAt()));
+                new GameStartPayload(
+                        savedGame.getId(),
+                        savedGame.getHomeTeamName(),
+                        savedGame.getAwayTeamName(),
+                        savedGame.getStartAt()));
 
         return GameCreateResponseDto.from(savedGame);
     }

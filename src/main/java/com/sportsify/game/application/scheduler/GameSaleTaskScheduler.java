@@ -2,6 +2,7 @@ package com.sportsify.game.application.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -20,15 +21,23 @@ public class GameSaleTaskScheduler {
     public void scheduleSaleStart(Long gameId, LocalDateTime saleStartAt) {
         Instant startInstant = saleStartAt.atZone(ZoneId.systemDefault()).toInstant();
 
-        gameTaskScheduler.schedule(() -> gameStatusUpdater.openSale(gameId), startInstant);
-        log.info("[GAME_SALE_TASK] 판매 시작 예약 - gameId: {}, saleStartAt: {}", gameId, saleStartAt);
+        try {
+            gameTaskScheduler.schedule(() -> gameStatusUpdater.openSale(gameId), startInstant);
+            log.info("[GAME_SALE_TASK] 판매 시작 예약 - gameId: {}, saleStartAt: {}", gameId, saleStartAt);
+        } catch (TaskRejectedException ex) {
+            log.error("[GAME_SALE_TASK] 판매 시작 예약 거절 - gameId: {}, saleStartAt: {}", gameId, saleStartAt, ex);
+        }
     }
 
     public void scheduleSaleEnd(Long gameId, LocalDateTime saleEndAt) {
         Instant endInstant = saleEndAt.atZone(ZoneId.systemDefault()).toInstant();
 
-        gameTaskScheduler.schedule(() -> gameStatusUpdater.closeSale(gameId), endInstant);
-        log.info("[GAME_SALE_TASK] 판매 종료 예약 - gameId: {}, saleEndAt: {}", gameId, saleEndAt);
+        try {
+            gameTaskScheduler.schedule(() -> gameStatusUpdater.closeSale(gameId), endInstant);
+            log.info("[GAME_SALE_TASK] 판매 종료 예약 - gameId: {}, saleEndAt: {}", gameId, saleEndAt);
+        } catch (TaskRejectedException ex) {
+            log.error("[GAME_SALE_TASK] 판매 종료 예약 거절 - gameId: {}, saleEndAt: {}", gameId, saleEndAt, ex);
+        }
     }
 
 }
