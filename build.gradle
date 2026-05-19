@@ -110,7 +110,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform {
-        excludeTags 'external'
+        excludeTags 'external', 'scenario'
     }
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
 }
@@ -122,6 +122,21 @@ tasks.register('externalTest', Test) {
         includeTags 'external'
     }
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+}
+
+tasks.register('scenarioTest', Test) {
+    description = '시나리오(E2E) 테스트 — Testcontainers 기반, 로컬 및 CI 실행'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'scenario'
+    }
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+}
+
+tasks.register('localTest') {
+    description = '단위+통합+시나리오 테스트 전체 실행 — 로컬 개발용'
+    group = 'verification'
+    dependsOn 'test', 'scenarioTest'
 }
 
 // OpenAPI 스펙 export 설정

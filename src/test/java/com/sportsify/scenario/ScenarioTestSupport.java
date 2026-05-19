@@ -43,7 +43,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 @SpringBootTest
 @ActiveProfiles("test")
 @Import(TestContainersConfig.class)
-@Tag("external")
+@Tag("scenario")
 @TestClassOrder(ClassOrderer.OrderAnnotation.class)
 public abstract class ScenarioTestSupport {
 
