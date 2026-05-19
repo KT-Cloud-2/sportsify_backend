@@ -4,6 +4,7 @@ import com.sportsify.common.response.ErrorDetail;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -52,5 +53,15 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.badRequest()
                 .body(ErrorDetail.of(ErrorCode.INVALID_INPUT.getCode(), ErrorCode.INVALID_INPUT.getMessage(), detail));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorDetail> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        return ResponseEntity.badRequest()
+                .body(ErrorDetail.of(
+                        ErrorCode.REQUEST_INVALID.getCode(),
+                        ErrorCode.REQUEST_INVALID.getMessage(),
+                        null
+                ));
     }
 }
