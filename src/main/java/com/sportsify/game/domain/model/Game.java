@@ -121,4 +121,13 @@ public class Game {
     public void updateStatus(GameStatus status) {
         this.status = status;
     }
+
+    public String getHomeTeamName() {
+        return homeTeam.getName();
+    }
+
+    public String getAwayTeamName() {
+        return awayTeam.getName();
+    }
+
 }

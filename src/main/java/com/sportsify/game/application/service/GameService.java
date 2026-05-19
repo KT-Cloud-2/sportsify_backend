@@ -3,6 +3,7 @@ package com.sportsify.game.application.service;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.game.application.dto.SeatGradeSummary;
+import com.sportsify.game.application.scheduler.GameSaleTaskScheduler;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
@@ -29,6 +30,8 @@ public class GameService {
     private final GameSeatRepository gameSeatRepository;
     private final StadiumRepository stadiumRepository;
     private final TeamRepository teamRepository;
+
+    private final GameSaleTaskScheduler gameSaleTaskScheduler;
 
     public List<GameListResponseDto> getGames(
             String sportType,
@@ -132,6 +135,17 @@ public class GameService {
 
         Game savedGame = gameRepository.save(game);
 
+        scheduleGameSale(savedGame);
+
         return GameCreateResponseDto.from(savedGame);
+    }
+
+    private void scheduleGameSale(Game game) {
+        if (game.getSaleStartAt() != null) {
+            gameSaleTaskScheduler.scheduleSaleStart(game.getId(), game.getSaleStartAt());
+        }
+        if (game.getSaleEndAt() != null) {
+            gameSaleTaskScheduler.scheduleSaleEnd(game.getId(), game.getSaleEndAt());
+        }
     }
 }
