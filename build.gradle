@@ -110,7 +110,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform {
-        excludeTags 'external', 'scenario'
+        excludeTags 'external'
     }
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
 }
@@ -118,6 +118,8 @@ tasks.named('test') {
 tasks.register('externalTest', Test) {
     description = '외부 I/O 테스트 (Toss, SMTP, MQTT) — 수동 실행 전용'
     group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
         includeTags 'external'
     }
@@ -127,6 +129,8 @@ tasks.register('externalTest', Test) {
 tasks.register('scenarioTest', Test) {
     description = '시나리오(E2E) 테스트 — Testcontainers 기반, 로컬 및 CI 실행'
     group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
         includeTags 'scenario'
     }

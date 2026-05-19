@@ -16,7 +16,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -49,9 +48,6 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
     @Autowired
     private PaymentService paymentService;
 
-    @Autowired
-    private JdbcTemplate jdbc;
-
     private Long memberId;
     private String accessToken;
     private Long orderId;
@@ -60,7 +56,7 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
 
     @BeforeAll
     void setUpOnce() throws Exception {
-        cleanUp(jdbc);
+        cleanUp();
         executeSeed();
         Member member = createMember(memberRepository, "purchase@test.com", "kakao-purchase-001");
         memberId = member.getId();

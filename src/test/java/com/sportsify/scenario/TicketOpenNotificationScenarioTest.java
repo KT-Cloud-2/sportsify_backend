@@ -16,7 +16,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 
@@ -40,15 +39,12 @@ class TicketOpenNotificationScenarioTest extends ScenarioTestSupport {
     @Autowired
     private NotificationEventPublisher notificationEventPublisher;
 
-    @Autowired
-    private JdbcTemplate jdbc;
-
     private Long memberId;
     private String accessToken;
 
     @BeforeAll
     void setUpOnce() throws Exception {
-        cleanUp(jdbc);
+        cleanUp();
         executeSeed();
         Member member = createMember(memberRepository, "ticket-open@test.com", "kakao-ticket-open-001");
         memberId = member.getId();

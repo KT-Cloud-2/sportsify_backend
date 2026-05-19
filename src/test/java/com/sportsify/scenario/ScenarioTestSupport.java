@@ -64,6 +64,8 @@ public abstract class ScenarioTestSupport {
     private NotificationSettingJpaRepository notificationSettingRepository;
     @Autowired
     private DataSource dataSource;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void setUpMockMvc() {
@@ -78,8 +80,8 @@ public abstract class ScenarioTestSupport {
         }
     }
 
-    protected void cleanUp(JdbcTemplate jdbc) {
-        jdbc.execute("""
+    protected void cleanUp() {
+        jdbcTemplate.execute("""
                 TRUNCATE notifications, notification_events, notification_history,
                          payments, orders, order_seats,
                          notification_settings, notification_channels,

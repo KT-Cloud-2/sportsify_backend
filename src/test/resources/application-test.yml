@@ -47,6 +47,11 @@ spring:
           starttls:
             enable: false
 
+management:
+  health:
+    mail:
+      enabled: false
+
 jwt:
   secret: test-secret-key-must-be-at-least-32-chars-long
   access-token-expiry-ms: 900000
