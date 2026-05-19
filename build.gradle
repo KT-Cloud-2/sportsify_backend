@@ -109,7 +109,18 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'external'
+    }
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+}
+
+tasks.register('externalTest', Test) {
+    description = '외부 I/O 테스트 (Toss, SMTP, MQTT) — 수동 실행 전용'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'external'
+    }
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
 }
 
