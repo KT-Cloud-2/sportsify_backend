@@ -1,5 +1,8 @@
 package com.sportsify.game.application;
 
+import com.sportsify.common.notification.NotificationEventPublisher;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.TicketOpenPayload;
 import com.sportsify.game.application.scheduler.GameStatusUpdater;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameStatus;
@@ -25,6 +28,9 @@ class GameStatusUpdaterTest {
     @Mock
     private GameRepository gameRepository;
 
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
+
     @Test
     @DisplayName("openSale 호출 시 SCHEDULED 상태인 경기가 ON_SALE로 변경된다.")
     void openSale_changesStatusToOnSale() {
@@ -35,6 +41,7 @@ class GameStatusUpdaterTest {
         gameStatusUpdater.openSale(1L);
 
         verify(game).updateStatus(GameStatus.ON_SALE);
+        verify(notificationEventPublisher).publish(eq(NotificationEventType.TICKET_OPEN), any(TicketOpenPayload.class));
     }
 
     @Test
