@@ -2,8 +2,8 @@ package com.sportsify.game.application;
 
 import com.sportsify.game.application.scheduler.GameSaleTaskScheduler;
 import com.sportsify.game.application.scheduler.GameScheduleInitializer;
+import com.sportsify.game.application.scheduler.GameStatusUpdater;
 import com.sportsify.game.domain.model.Game;
-import com.sportsify.game.domain.model.GameStatus;
 import com.sportsify.game.domain.repository.GameRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,10 +30,14 @@ class GameScheduleInitializerTest {
     @Mock
     private GameSaleTaskScheduler gameSaleTaskScheduler;
 
+    @Mock
+    private GameStatusUpdater gameStatusUpdater;
+
     @Test
     @DisplayName("서버 시작 시 saleStartAt이 지난 SCHEDULED 경기를 즉시 ON_SALE로 전환한다.")
     void init_compensatesMissedGames() {
         Game missedGame = mock(Game.class);
+        when(missedGame.getId()).thenReturn(1L);
         when(gameRepository.findGamesReadyForSale(any())).thenReturn(List.of(missedGame));
         when(gameRepository.findGamesToCloseSale(any())).thenReturn(List.of());
         when(gameRepository.findUpcomingScheduledGames(any())).thenReturn(List.of());
@@ -41,13 +45,14 @@ class GameScheduleInitializerTest {
 
         gameScheduleInitializer.init();
 
-        verify(missedGame).updateStatus(GameStatus.ON_SALE);
+        verify(gameStatusUpdater).openSale(1L);
     }
 
     @Test
     @DisplayName("서버 시작 시 saleEndAt이 지난 ON_SALE 경기를 즉시 SALE_CLOSED로 전환한다.")
     void init_compensatesMissedCloseGames() {
         Game missedCloseGame = mock(Game.class);
+        when(missedCloseGame.getId()).thenReturn(1L);
         when(gameRepository.findGamesReadyForSale(any())).thenReturn(List.of());
         when(gameRepository.findGamesToCloseSale(any())).thenReturn(List.of(missedCloseGame));
         when(gameRepository.findUpcomingScheduledGames(any())).thenReturn(List.of());
@@ -55,7 +60,7 @@ class GameScheduleInitializerTest {
 
         gameScheduleInitializer.init();
 
-        verify(missedCloseGame).updateStatus(GameStatus.SALE_CLOSED);
+        verify(gameStatusUpdater).closeSale(1L);
     }
 
     @Test
@@ -86,7 +91,7 @@ class GameScheduleInitializerTest {
         Game onSaleGame = mock(Game.class);
         LocalDateTime saleEndAt = LocalDateTime.now().plusDays(2);
 
-        when(onSaleGame.getId()).thenReturn(2L);
+        when(onSaleGame.getId()).thenReturn(1L);
         when(onSaleGame.getSaleEndAt()).thenReturn(saleEndAt);
 
         when(gameRepository.findGamesReadyForSale(any())).thenReturn(List.of());
@@ -96,6 +101,6 @@ class GameScheduleInitializerTest {
 
         gameScheduleInitializer.init();
 
-        verify(gameSaleTaskScheduler).scheduleSaleEnd(2L, saleEndAt);
+        verify(gameSaleTaskScheduler).scheduleSaleEnd(1L, saleEndAt);
     }
 }
