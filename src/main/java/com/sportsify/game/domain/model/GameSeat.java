@@ -57,8 +57,13 @@ public class GameSeat {
         return seat.getId();
     }
 
+
+    public void release() {
+        seatStatus = SeatStatus.AVAILABLE;
+    }
+
     // === 디미터 법칙 위임 메서드 ===
-    
+
     public String getSeatNumber() {
         return seat.getSeatNumber();
     }

@@ -12,17 +12,34 @@ import java.util.Optional;
 public interface OrderJpaRepository extends JpaRepository<Order, Long> {
 
     @Query("""
-            SELECT DISTINCT o FROM Order o
-            JOIN FETCH o.orderSeats os
-            JOIN FETCH os.gameSeat
-            WHERE o.status = 'PENDING' AND o.expiresAt < :now
-            """)
-    List<Order> findExpiredPendingOrdersWithSeats(@Param("now") LocalDateTime now);
-
-    @Query("""
             SELECT o FROM Order o
             JOIN FETCH o.orderSeats os
             WHERE o.id = :orderId
             """)
     Optional<Order> findByIdWithOrderSeats(@Param("orderId") Long orderId);
+
+    @Query("""
+             SELECT DISTINCT o FROM Order o
+             JOIN FETCH o.orderSeats os
+             JOIN FETCH os.gameSeat
+             WHERE o.status = 'PENDING'
+             AND o.expiresAt < :now
+             AND NOT EXISTS(SELECT p FROM Payment p WHERE p.orderId = o.id)
+            """
+    )
+    List<Order> findExpiredPendingOrdersWithoutPayment(@Param("now") LocalDateTime now);
+
+    @Query("""
+             SELECT DISTINCT o FROM Order o
+             JOIN FETCH o.orderSeats os
+             JOIN FETCH os.gameSeat
+             WHERE o.status = 'PAYING'
+             AND EXISTS (
+                     SELECT p FROM Payment p
+                     WHERE p.orderId = o.id
+                     AND p.status IN ('FAILED', 'CANCELED', 'REFUNDED')
+             )
+            """
+    )
+    List<Order> findPayingOrdersWithFailedPayment();
 }

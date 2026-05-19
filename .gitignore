@@ -65,3 +65,6 @@ docs/docs-export.html
 /claude.md
 ./.claude
 .claude/settings.local.json
+
+### Logs ###
+logs/
