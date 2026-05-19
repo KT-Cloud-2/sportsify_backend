@@ -6,23 +6,22 @@ import lombok.Builder;
 import java.time.LocalDateTime;
 
 @Builder
-public class TicketItemDto {
-
-    private Long ticketId;
-    private String ticketNumber;
-    private Long gameId;
-    private String sportType;
-    private String team1Name;
-    private String team2Name;
-    private LocalDateTime gameTime;
-    private String venue;
-    private String seatGrade;
-    private String seatSection;
-    private String seatNumber;
-    private Integer price;
-    private String status;
-    private LocalDateTime issuedAt;
-
+public record TicketItemDto(
+        Long ticketId,
+        String ticketNumber,
+        Long gameId,
+        String sportType,
+        String team1Name,
+        String team2Name,
+        LocalDateTime gameTime,
+        String venue,
+        String seatGrade,
+        String seatSection,
+        String seatNumber,
+        Integer price,
+        String status,
+        LocalDateTime issuedAt
+) {
     public static TicketItemDto from(Ticket ticket) {
         return TicketItemDto.builder()
                 .ticketId(ticket.getId())
