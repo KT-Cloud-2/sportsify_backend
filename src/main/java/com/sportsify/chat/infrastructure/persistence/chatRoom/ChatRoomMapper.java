@@ -11,21 +11,18 @@ public class ChatRoomMapper {
 
 
     public ChatRoom toDomain(ChatRoomJpaEntity entity) {
-
         return ChatRoom.restore(
                 ChatRoomId.of(entity.getId()),
                 ChatRoomName.of(entity.getName()),
                 ChatRoomType.valueOf(entity.getType()),
                 entity.getImageUrl(),
-                GameId.of(entity.getGameId()),
+                entity.getGameId() != null ? GameId.of(entity.getGameId()) : null,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 ChatRoomStatus.valueOf(entity.getStatus()),
                 MemberId.of(entity.getCreatedBy())
-
         );
     }
-
 
     public ChatRoomJpaEntity toNewJpaEntity(ChatRoom domain) {
         return new ChatRoomJpaEntity(
@@ -33,7 +30,7 @@ public class ChatRoomMapper {
                 domain.getName().value(),
                 domain.getType().name(),
                 domain.getImageUrl(),
-                domain.getGameId().value(),
+                domain.getGameId() != null ? domain.getGameId().value() : null,
                 domain.getCreatedAt(),
                 domain.getUpdatedAt(),
                 domain.getStatus().name(),
@@ -41,12 +38,11 @@ public class ChatRoomMapper {
         );
     }
 
-
     public void applyToJpa(ChatRoomJpaEntity entity, ChatRoom domain) {
         entity.setName(domain.getName().value());
         entity.setType(domain.getType().name());
         entity.setImageUrl(domain.getImageUrl());
-        entity.setGameId(domain.getGameId().value());
+        entity.setGameId(domain.getGameId() != null ? domain.getGameId().value() : null);
         entity.setUpdatedAt(domain.getUpdatedAt());
         entity.setStatus(domain.getStatus().name());
     }

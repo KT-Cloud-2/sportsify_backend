@@ -94,6 +94,26 @@ public class Game {
         this.saleEndAt = saleEndAt;
     }
 
+    public static Game create(Stadium stadium, Team homeTeam, Team awayTeam, SportType sportType,
+                              LocalDateTime startAt, Integer durationMinutes, GameStatus status,
+                              DayType dayType, GameGrade gameGrade, Integer maxTicketPerUser,
+                              LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
+        return Game.builder()
+                .stadium(stadium)
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .sportType(sportType)
+                .startAt(startAt)
+                .durationMinutes(durationMinutes)
+                .status(status)
+                .dayType(dayType)
+                .gameGrade(gameGrade)
+                .maxTicketPerUser(maxTicketPerUser)
+                .saleStartAt(saleStartAt)
+                .saleEndAt(saleEndAt)
+                .build();
+    }
+
     public boolean isOnSale() {
         return this.status == GameStatus.ON_SALE;
     }
@@ -103,13 +123,13 @@ public class Game {
     }
 
     // === 디미터 법칙 위임 메서드 ===
-    
+
     public String getHomeTeamName() {
-        return homeTeam.getName();
+        return homeTeam != null ? homeTeam.getName() : null;
     }
 
     public String getAwayTeamName() {
-        return awayTeam.getName();
+        return awayTeam != null ? awayTeam.getName() : null;
     }
 
     public String getStadiumName() {

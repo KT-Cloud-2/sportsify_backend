@@ -15,10 +15,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/chat/messages")
 @RequiredArgsConstructor
 public class MessageController implements MessageApi {
+    
     private final MessageService messageService;
 
     /**
-     * 5-12. 채팅 이력 조회
+     * 5-14. 채팅 이력 조회
      *
      * @param memberId
      * @param roomId
@@ -29,13 +30,13 @@ public class MessageController implements MessageApi {
     public ResponseEntity<MessageListResponse> history(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long roomId,
-            @Valid @RequestBody MessagePageNationRequest request
+            @Valid @ModelAttribute MessagePageNationRequest request
     ) {
         return ResponseEntity.ok(messageService.getHistory(request, roomId, memberId));
     }
 
     /**
-     * 5-14. 메시지 삭제
+     * 5-16. 메시지 삭제
      *
      * @param memberId
      * @param messageId
@@ -49,18 +50,18 @@ public class MessageController implements MessageApi {
     }
 
     /**
-     * 5-15. 채팅방 메시지 조회
+     * 5-17. 채팅방 메시지 조회
      *
      * @param memberId
      * @param roomId
      * @param request  MessagePageNationRequest
      * @return ResponseEntity<CommonResponse < MessageListResponse>>
      */
-    @GetMapping("getMessages/{roomId}")
+    @GetMapping("/getMessages/{roomId}")
     public ResponseEntity<MessageListResponse> getMessages(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long roomId,
-            @Valid @RequestBody MessagePageNationRequest request
+            @Valid @ModelAttribute MessagePageNationRequest request
     ) {
         return ResponseEntity.ok(messageService.getMessages(request, roomId, memberId));
     }

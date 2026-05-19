@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
+
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -99,5 +102,56 @@ class ChatRoomMemberControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.roomId").value(ROOM_ID))
                 .andExpect(jsonPath("$.memberId").value(targetId))
                 .andExpect(jsonPath("$.status").value("BANNED"));
+    }
+
+    // ──────────────────────── API 실패 Test ────────────────────────
+
+    /**
+     * DIRECT 방에는 추가 초대가 허용되지 않으므로 서비스가 BUSINESS_RULE_VIOLATION을 던지고 422로 응답해야 한다.
+     * 실패 포인트: 상태 코드가 500으로 뭉개지면 클라이언트가 UI에서 적절한 안내를 표시할 수 없음.
+     */
+    @Test
+    @DisplayName("POST /api/chat/rooms/{roomId}/invite — 422 DIRECT 방에 초대 시도하면 실패")
+    void DIRECT방_초대_422() throws Exception {
+        given(chatRoomMemberService.invite(eq(ROOM_ID), eq(MEMBER_ID), eq(INVITEE_ID)))
+                .willThrow(new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "DIRECT 방에는 추가 초대가 불가합니다."));
+
+        mockMvc.perform(post("/api/chat/rooms/{roomId}/invite", ROOM_ID)
+                        .param("inviteeId", String.valueOf(INVITEE_ID))
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("BUSINESS_RULE_VIOLATION"));
+    }
+
+    /**
+     * 서비스가 NOT_FOUND를 던지면 404로 응답해야 한다.
+     * 존재하지 않는 방에 입장을 시도하는 경우.
+     */
+    @Test
+    @DisplayName("POST /api/chat/rooms/{roomId}/join — 404 존재하지 않는 채팅방 입장 시 실패")
+    void 채팅방_입장_없는방_404() throws Exception {
+        given(chatRoomMemberService.join(eq(ROOM_ID), eq(MEMBER_ID)))
+                .willThrow(new BusinessException(ErrorCode.NOT_FOUND, "채팅방이 없습니다."));
+
+        mockMvc.perform(post("/api/chat/rooms/{roomId}/join", ROOM_ID)
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    /**
+     * BAN된 멤버가 입장하면 BUSINESS_RULE_VIOLATION(422)이 반환되어야 한다.
+     * 실패 포인트: 상태 코드가 500으로 뭉개지면 클라이언트가 오류 원인을 알 수 없음.
+     */
+    @Test
+    @DisplayName("POST /api/chat/rooms/{roomId}/join — 422 BAN된 멤버가 입장 시도하면 실패")
+    void 채팅방_입장_BAN멤버_422() throws Exception {
+        given(chatRoomMemberService.join(eq(ROOM_ID), eq(MEMBER_ID)))
+                .willThrow(new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "BAN된 멤버입니다."));
+
+        mockMvc.perform(post("/api/chat/rooms/{roomId}/join", ROOM_ID)
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("BUSINESS_RULE_VIOLATION"));
     }
 }

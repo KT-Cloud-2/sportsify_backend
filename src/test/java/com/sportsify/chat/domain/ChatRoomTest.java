@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChatRoomTest {
 
@@ -132,15 +133,14 @@ class ChatRoomTest {
     }
 
     @Test
-    @DisplayName("이미 ARCHIVED 채팅방을 아카이브해도 updatedAt이 갱신되지 않는다")
-    void archive_ARCHIVED_멱등() {
+    @DisplayName("이미 ARCHIVED 채팅방을 다시 아카이브하면 예외가 발생한다")
+    void archive_ARCHIVED_예외() {
         ChatRoom room = ChatRoom.restore(
                 ChatRoomId.of(1L), ChatRoomName.of("한화 VS LG"), ChatRoomType.GAME,
                 null, GAME_ID, NOW, NOW, ChatRoomStatus.ARCHIVED, CREATOR);
 
-        room.archive(LATER);
-
-        assertThat(room.getUpdatedAt()).isEqualTo(NOW);
+        assertThatThrownBy(() -> room.archive(LATER))
+                .isInstanceOf(com.sportsify.common.exception.BusinessException.class);
     }
 
     // ──────────────────────── delete ────────────────────────
@@ -168,11 +168,113 @@ class ChatRoomTest {
         assertThat(room.getUpdatedAt()).isEqualTo(NOW);
     }
 
+    // ──────────────────────── markEmpty ────────────────────────
+
+    @Test
+    @DisplayName("ACTIVE 채팅방에서 마지막 멤버 퇴장 시 EMPTY 상태로 전환된다")
+    void markEmpty_ACTIVE에서EMPTY전환() {
+        ChatRoom room = activeGameRoom();
+
+        room.markEmpty(LATER);
+
+        assertThat(room.getStatus()).isEqualTo(ChatRoomStatus.EMPTY);
+        assertThat(room.getUpdatedAt()).isEqualTo(LATER);
+    }
+
+    @Test
+    @DisplayName("이미 EMPTY인 채팅방에 markEmpty를 호출해도 updatedAt이 갱신되지 않는다")
+    void markEmpty_EMPTY_멱등() {
+        ChatRoom room = emptyGameRoom();
+
+        room.markEmpty(LATER);
+
+        assertThat(room.getStatus()).isEqualTo(ChatRoomStatus.EMPTY);
+        assertThat(room.getUpdatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("DELETED 채팅방에 markEmpty를 호출하면 예외가 발생한다")
+    void markEmpty_DELETED_예외() {
+        ChatRoom room = ChatRoom.restore(
+                ChatRoomId.of(1L), ChatRoomName.of("한화 VS LG"), ChatRoomType.GAME,
+                null, GAME_ID, NOW, NOW, ChatRoomStatus.DELETED, CREATOR);
+
+        assertThatThrownBy(() -> room.markEmpty(LATER))
+                .isInstanceOf(com.sportsify.common.exception.BusinessException.class);
+    }
+
+    // ──────────────────────── reactivate ────────────────────────
+
+    @Test
+    @DisplayName("EMPTY 채팅방에 첫 멤버가 입장하면 ACTIVE 상태로 복원된다")
+    void reactivate_EMPTY에서ACTIVE복원() {
+        ChatRoom room = emptyGameRoom();
+
+        room.reactivate(LATER);
+
+        assertThat(room.getStatus()).isEqualTo(ChatRoomStatus.ACTIVE);
+        assertThat(room.getUpdatedAt()).isEqualTo(LATER);
+    }
+
+    @Test
+    @DisplayName("EMPTY가 아닌 채팅방에 reactivate를 호출해도 상태가 변경되지 않는다")
+    void reactivate_EMPTY아님_노옵() {
+        ChatRoom room = activeGameRoom();
+
+        room.reactivate(LATER);
+
+        assertThat(room.getStatus()).isEqualTo(ChatRoomStatus.ACTIVE);
+        assertThat(room.getUpdatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("ARCHIVED 채팅방에 reactivate를 호출해도 상태가 변경되지 않는다")
+    void reactivate_ARCHIVED_노옵() {
+        ChatRoom room = ChatRoom.restore(
+                ChatRoomId.of(1L), ChatRoomName.of("한화 VS LG"), ChatRoomType.GAME,
+                null, GAME_ID, NOW, NOW, ChatRoomStatus.ARCHIVED, CREATOR);
+
+        room.reactivate(LATER);
+
+        assertThat(room.getStatus()).isEqualTo(ChatRoomStatus.ARCHIVED);
+        assertThat(room.getUpdatedAt()).isEqualTo(NOW);
+    }
+
+    // ──────────────────────── EMPTY 상태에서의 다른 동작 ────────────────────────
+
+    @Test
+    @DisplayName("EMPTY 채팅방도 아카이브할 수 있다")
+    void archive_EMPTY방_아카이브가능() {
+        ChatRoom room = emptyGameRoom();
+
+        room.archive(LATER);
+
+        assertThat(room.getStatus()).isEqualTo(ChatRoomStatus.ARCHIVED);
+        assertThat(room.getUpdatedAt()).isEqualTo(LATER);
+    }
+
+    @Test
+    @DisplayName("EMPTY 채팅방에서도 방장이 이름을 변경할 수 있다")
+    void rename_EMPTY방_이름변경가능() {
+        ChatRoom room = emptyGameRoom();
+
+        room.rename(ChatRoomName.of("새 이름"), LATER, CREATOR);
+
+        assertThat(room.getName()).isEqualTo(ChatRoomName.of("새 이름"));
+        assertThat(room.getUpdatedAt()).isEqualTo(LATER);
+    }
+
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
 
     private ChatRoom activeGameRoom() {
         return ChatRoom.restore(
                 ChatRoomId.of(1L), ChatRoomName.of("한화 VS LG"), ChatRoomType.GAME,
                 null, GAME_ID, NOW, NOW, ChatRoomStatus.ACTIVE, CREATOR);
+    }
+
+    private ChatRoom emptyGameRoom() {
+        return ChatRoom.restore(
+                ChatRoomId.of(1L), ChatRoomName.of("한화 VS LG"), ChatRoomType.GAME,
+                null, GAME_ID, NOW, NOW, ChatRoomStatus.EMPTY, CREATOR);
     }
 }
