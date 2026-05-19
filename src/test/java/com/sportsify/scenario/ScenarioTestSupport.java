@@ -47,30 +47,23 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 @TestClassOrder(ClassOrderer.OrderAnnotation.class)
 public abstract class ScenarioTestSupport {
 
-    // 외부 I/O — 전부 여기에 집중 선언 (캐시 키 통일 핵심)
-    @MockitoBean
-    protected TossPaymentClient tossPaymentClient;
-
-    @MockitoBean
-    protected JavaMailSender mailSender;
-
     protected final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
+    // 외부 I/O — 전부 여기에 집중 선언 (캐시 키 통일 핵심)
+    @MockitoBean
+    protected TossPaymentClient tossPaymentClient;
+    @MockitoBean
+    protected JavaMailSender mailSender;
     @Autowired
     protected JwtProvider jwtProvider;
-
+    protected MockMvc mockMvc;
     @Autowired
     private WebApplicationContext context;
-
     @Autowired
     private NotificationSettingJpaRepository notificationSettingRepository;
-
     @Autowired
     private DataSource dataSource;
-
-    protected MockMvc mockMvc;
 
     @BeforeEach
     void setUpMockMvc() {
