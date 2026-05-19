@@ -37,7 +37,10 @@ public class PaymentRetryEventListener {
     }
 
     private Long extractOrderId(MethodRetryEvent event) {
-        if (!(event.getSource() instanceof MethodInvocation invocation)) return;
+        if (!(event.getSource() instanceof MethodInvocation invocation)) {
+            throw new IllegalStateException("MethodRetryEvent의 source가 MethodInvocation이 아닙니다: " + event.getSource().getClass());
+        }
+
         Object[] args = invocation.getArguments();
 
         if (args.length == 0) return null;
