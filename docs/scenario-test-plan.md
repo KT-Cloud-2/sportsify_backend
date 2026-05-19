@@ -267,7 +267,7 @@ static void setUpMember(@Autowired MemberRepository memberRepository,
 
 > STOMP 실제 연결(`WebSocketStompClient`)은 `StompAuthChannelInterceptor` + `WebSocketSessionRegistry` 의존성으로 인해 별도 서버 기동 필요 → 범위 외.
 > 메시지 전송은 `MessageService` 직접 주입으로 대체. 비즈니스 로직 검증은 동일.
-> **블로커:** 게임 생성 시 채팅방 자동 생성 완료 여부 (주병규 확인 필요)
+> Game 생성 Controller/Service 미구현 (운영자가 DB 직접 관리) → `@BeforeEach`에서 Game + ChatRoom을 JdbcTemplate으로 직접 insert.
 
 ---
 
@@ -313,7 +313,7 @@ src/test/java/com/sportsify/
 | 1. 티켓 구매 전체 여정 | 강정훈 | 예정 | 유창민: `confirmPaymentMock` 컨트롤러 엔드포인트 |
 | 2. 티켓팅 오픈 알림 | 강정훈 | 예정 | 없음 (즉시 작성 가능) |
 | 3. 결제 취소 좌석 복구 | 강정훈 | 예정 | 유창민: 동일 |
-| 4. 채팅 메시지 전송 | 강정훈 | 예정 | 주병규: 게임 생성 시 채팅방 자동 생성 |
+| 4. 채팅 메시지 전송 | 강정훈 | 예정 | 없음 (Game/ChatRoom은 @BeforeEach에서 DB 직접 insert) |
 | 5. 경기 시작 알림 | 강정훈 | 예정 | 없음 (즉시 작성 가능) |
 
 ---
@@ -341,4 +341,4 @@ src/test/java/com/sportsify/
 |------|------|------|
 | 유창민 | `POST /api/payments/confirm/mock` `@Profile("test")` 컨트롤러 엔드포인트 추가 | 시나리오 1, 3 블로커. 서비스 메서드(`confirmPaymentMock()`)는 이미 구현됨 |
 | 손하영 | `R__sample_data.sql` 에 `ON_SALE` 경기 + `AVAILABLE` 좌석 seed 데이터 확인 | 시나리오 1, 3 전제조건 |
-| 주병규 | 게임 생성 시 채팅방 자동 생성 완료 여부 확인 | 시나리오 4 블로커 |
+| 주병규 | — | 시나리오 4 블로커 해소 (Game/ChatRoom은 @BeforeEach에서 직접 insert로 우회) |
