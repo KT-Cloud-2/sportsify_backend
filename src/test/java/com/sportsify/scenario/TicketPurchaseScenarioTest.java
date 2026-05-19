@@ -58,7 +58,7 @@ class TicketPurchaseScenarioTest extends ScenarioTestSupport {
     void setUpOnce() throws Exception {
         cleanUp();
         executeSeed();
-        Member member = createMember(memberRepository, "purchase@test.com", "kakao-purchase-001");
+        Member member = createMember(memberRepository, "purchase@test.com", "kakao-scenario-purchase-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
     }

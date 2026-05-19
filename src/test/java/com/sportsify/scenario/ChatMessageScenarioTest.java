@@ -48,8 +48,8 @@ class ChatMessageScenarioTest extends ScenarioTestSupport {
         cleanUp();
         executeSeed();
 
-        Member user1 = createMember(memberRepository, "chat-user1@test.com", "kakao-chat-user1");
-        Member user2 = createMember(memberRepository, "chat-user2@test.com", "kakao-chat-user2");
+        Member user1 = createMember(memberRepository, "chat-user1@test.com", "kakao-scenario-chat-user1");
+        Member user2 = createMember(memberRepository, "chat-user2@test.com", "kakao-scenario-chat-user2");
         user1Id = user1.getId();
         user2Id = user2.getId();
         user1Token = bearerToken(user1Id);

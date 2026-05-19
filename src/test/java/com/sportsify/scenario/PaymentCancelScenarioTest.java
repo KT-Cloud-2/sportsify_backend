@@ -64,7 +64,7 @@ class PaymentCancelScenarioTest extends ScenarioTestSupport {
     void setUpOnce() throws Exception {
         cleanUp();
         executeSeed();
-        Member member = createMember(memberRepository, "cancel@test.com", "kakao-cancel-001");
+        Member member = createMember(memberRepository, "cancel@test.com", "kakao-scenario-cancel-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
     }

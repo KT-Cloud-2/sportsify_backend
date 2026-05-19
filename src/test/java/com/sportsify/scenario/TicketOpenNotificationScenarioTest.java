@@ -46,7 +46,7 @@ class TicketOpenNotificationScenarioTest extends ScenarioTestSupport {
     void setUpOnce() throws Exception {
         cleanUp();
         executeSeed();
-        Member member = createMember(memberRepository, "ticket-open@test.com", "kakao-ticket-open-001");
+        Member member = createMember(memberRepository, "ticket-open@test.com", "kakao-scenario-ticket-open-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
     }

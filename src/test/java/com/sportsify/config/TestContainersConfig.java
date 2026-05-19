@@ -14,6 +14,7 @@ public class TestContainersConfig {
     @ServiceConnection
     public PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(DockerImageName.parse("postgres:18"))
+                .withReuse(true)
                 .withDatabaseName("sportsify");
     }
 
@@ -21,6 +22,7 @@ public class TestContainersConfig {
     @ServiceConnection(name = "redis")
     public GenericContainer<?> redisContainer() {
         return new GenericContainer<>(DockerImageName.parse("redis:8-alpine"))
+                .withReuse(true)
                 .withExposedPorts(6379);
     }
 }

@@ -46,7 +46,7 @@ class GameStartNotificationScenarioTest extends ScenarioTestSupport {
     void setUpOnce() throws Exception {
         cleanUp();
         executeSeed();
-        Member member = createMember(memberRepository, "game-start@test.com", "kakao-game-start-001");
+        Member member = createMember(memberRepository, "game-start@test.com", "kakao-scenario-game-start-001");
         memberId = member.getId();
         accessToken = bearerToken(memberId);
     }

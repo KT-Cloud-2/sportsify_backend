@@ -81,12 +81,18 @@ public abstract class ScenarioTestSupport {
     }
 
     protected void cleanUp() {
+        // 시나리오 멤버(provider_id 'kakao-scenario-*')와 연관 데이터만 삭제
+        // TRUNCATE 대신 선별 삭제로 다른 통합 테스트 데이터 보호
         jdbcTemplate.execute("""
-                TRUNCATE notifications, notification_events, notification_history,
-                         payments, orders, order_seats,
-                         notification_settings, notification_channels,
-                         member_favorite_teams, members
-                RESTART IDENTITY CASCADE
+                DELETE FROM notifications         WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%');
+                DELETE FROM notification_history  WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%');
+                DELETE FROM notification_settings WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%');
+                DELETE FROM notification_channels WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%');
+                DELETE FROM notification_events;
+                DELETE FROM order_seats WHERE order_id IN (SELECT id FROM orders WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%'));
+                DELETE FROM payments            WHERE order_id  IN (SELECT id FROM orders WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%'));
+                DELETE FROM orders              WHERE member_id IN (SELECT id FROM members WHERE provider_id LIKE 'kakao-scenario-%');
+                DELETE FROM members             WHERE provider_id LIKE 'kakao-scenario-%';
                 """);
     }
 
