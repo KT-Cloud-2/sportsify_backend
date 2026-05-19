@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class TicketTest {
 
     @Test
-    @DisplayName("Ticket 생성 시 CONFIRMED 상태와 ticketNumber가 설정된다.\"")
+    @DisplayName("Ticket 생성 시 CONFIRMED 상태와 ticketNumber가 설정된다.")
     void createTicket() {
 
         OrderSeat mockOrderSeat = mock(OrderSeat.class);
