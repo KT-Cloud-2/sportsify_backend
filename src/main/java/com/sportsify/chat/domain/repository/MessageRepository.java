@@ -6,6 +6,7 @@ import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.model.message.MessageId;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -25,4 +26,14 @@ public interface MessageRepository {
     List<Message> findByRoomAndMemberBefore(ChatRoomId roomId, MemberId memberId, Long beforeMessageId, int limit);
 
     long countAfter(ChatRoomId roomId, Long afterMessageId);
+
+
+    List<Message> findMyLatestByRooms(List<ChatRoomId> roomIds, MemberId memberId);
+
+    List<Message> findLatestByRooms(List<ChatRoomId> roomIds);
+
+    Map<ChatRoomId, Long> countUnreadByRooms(Map<ChatRoomId, Long> lastReadMap);
+
+    List<Message> findByRoomAfter(ChatRoomId roomId, Long afterMessageId, int limit);
+
 }

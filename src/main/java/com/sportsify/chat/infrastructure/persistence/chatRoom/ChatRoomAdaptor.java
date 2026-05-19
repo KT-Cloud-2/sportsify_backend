@@ -25,23 +25,28 @@ public class ChatRoomAdaptor implements ChatRoomRepository {
 
     @Override
     public ChatRoom save(ChatRoom chatRoom) {
-        ChatRoomJpaEntity entity;
         if (chatRoom.getId() == null) {
-            entity = mapper.toNewJpaEntity(chatRoom);
-        } else {
-            Long id = chatRoom.getId().value();
-            entity = jpaRepository.findById(id)
-                    .orElseThrow(() -> new IllegalStateException(
-                            "ChatRoom not found for update: id=" + id));
-            mapper.applyToJpa(entity, chatRoom);
+            ChatRoomJpaEntity saved = jpaRepository.save(mapper.toNewJpaEntity(chatRoom));
+            chatRoom.assignId(ChatRoomId.of(saved.getId()));
+            return chatRoom;
         }
-        ChatRoomJpaEntity saved = jpaRepository.save(entity);
-        return mapper.toDomain(saved);
+        Long id = chatRoom.getId().value();
+        ChatRoomJpaEntity entity = jpaRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException(
+                        "ChatRoom not found for update: id=" + id));
+        mapper.applyToJpa(entity, chatRoom);
+        jpaRepository.save(entity);
+        return chatRoom;
     }
 
     @Override
     public Optional<ChatRoom> findById(ChatRoomId id) {
         return jpaRepository.findById(id.value()).map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByIdAndTypeAndStatus(ChatRoomId id, ChatRoomType type, ChatRoomStatus status) {
+        return jpaRepository.existsByIdAndTypeAndStatus(id.value(), type.name(), status.name());
     }
 
     @Override
@@ -89,9 +94,5 @@ public class ChatRoomAdaptor implements ChatRoomRepository {
                 .stream().map(mapper::toDomain).toList();
     }
 
-    @Override
-    public boolean existByIdandStatus(ChatRoomId id, ChatRoomStatus status) {
-        return jpaRepository.existsByIdAndStatus(id.value(), status.name());
-    }
 
 }

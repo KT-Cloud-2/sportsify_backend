@@ -19,4 +19,13 @@ public record ChatRoomMemberResponse(
                 member.getJoinedAt()
         );
     }
+
+    public static ChatRoomMemberResponse from(ChatRoomMember member, boolean isNotification) {
+        return new ChatRoomMemberResponse(
+                member.getRoomId().value(),
+                member.getMemberId().value(),
+                isNotification ? "UN_NOTIFICATION" : "NOTIFICATION",
+                member.getJoinedAt()
+        );
+    }
 }
