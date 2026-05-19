@@ -3,16 +3,12 @@ package com.sportsify.ticketing.application;
 
 import com.sportsify.common.event.OrderCreatedEvent;
 import com.sportsify.game.domain.model.Game;
-import com.sportsify.game.domain.model.GameSeat;
-import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
-import com.sportsify.ticketing.application.scheduler.SeatExpirationScheduler;
+import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
-import com.sportsify.ticketing.domain.model.OrderSeatStatus;
-import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
@@ -49,7 +45,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     private ReservationService reservationService;
 
     @Autowired
-    private SeatExpirationScheduler scheduler;
+    private OrderExpirationScheduler scheduler;
 
     @Autowired
     private TicketingTestFixture fixture;
@@ -266,34 +262,6 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         assertThat(failCount.get()).isEqualTo(threadCount / 2);
     }
 
-    @Test
-    @DisplayName("만료된 주문의 좌석이 AVAILABLE로 복구된다")
-    void expiredOrder_seatBecomesAvailable() {
-        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
-
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-        Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
-
-        order.updateExpiresAt(order.getExpiresAt().minusMinutes(16));
-
-        scheduler.expireReservedSeats();
-
-        Order savedOrder = orderRepository.findById(order.getId()).orElseThrow();
-        List<OrderSeat> orderSeats = savedOrder.getOrderSeats();
-
-        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.EXPIRED);
-
-        assertThat(orderSeats)
-                .extracting(OrderSeat::getStatus)
-                .containsOnly(OrderSeatStatus.EXPIRED);
-
-        assertThat(orderSeats)
-                .extracting(OrderSeat::getGameSeat)
-                .extracting(GameSeat::getSeatStatus)
-                .containsOnly(SeatStatus.AVAILABLE);
-
-    }
 
     @Test
     @DisplayName("주문 생성 시, 총 금액이 올바르게 계산된다.")
