@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReservationControllerApiTest extends WebMvcTestSupport {
 
     private static final Long TEST_MEMBER_ID = 1L;
-    private static final ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+    private static final ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
 
     @MockitoBean
     private ReservationService reservationService;
@@ -49,8 +49,9 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 1L,
                 OrderStatus.PENDING,
                 LocalDateTime.now(),
+                50000L,
                 List.of(mock(ReservationSeatsResponseDto.ReservationSeatDto.class)),
-                LocalDateTime.now()
+                LocalDateTime.now().plusMinutes(15)
         );
 
         when(reservationService.reserveSeat(any(), any())).thenReturn(resDto);
@@ -63,9 +64,22 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.orderId").value(1L))
                 .andExpect(jsonPath("$.memberId").value(1L))
                 .andExpect(jsonPath("$.gameId").value(1L))
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.amount").value(50000));
+    }
 
+    @Test
+    @DisplayName("POST /api/seats/reservations — 400 다른 게임의 좌석 포함")
+    void gameMismatch() throws Exception {
 
+        when(reservationService.reserveSeat(any(), any())).thenThrow(new BusinessException(ErrorCode.GAME_MISMATCH));
+
+        mockMvc.perform(post("/api/seats/reservations")
+                        .header("Authorization", bearerToken(TEST_MEMBER_ID, "USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reqDto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("GAME_MISMATCH"));
     }
 
     @Test
@@ -81,7 +95,6 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
     }
-
 
     @Test
     @DisplayName("POST /api/seats/reservations — 404 존재하지 않는 좌석")
@@ -111,7 +124,6 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("SEAT_ALREADY_RESERVED"));
     }
 
-
     @Test
     @DisplayName("POST /api/seats/reservations — 422 판매 중 아닌 경기")
     void gameNotOnSale() throws Exception {
@@ -126,7 +138,6 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("GAME_NOT_ON_SALE"));
     }
 
-
     @Test
     @DisplayName("POST /api/seats/reservations — 422 최대 좌석 선점 개수 초과")
     void exceedTicketLimit() throws Exception {
@@ -140,5 +151,4 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 .andExpect(status().is(422))
                 .andExpect(jsonPath("$.code").value("TICKET_LIMIT_EXCEEDED"));
     }
-
 }

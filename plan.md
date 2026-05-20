@@ -58,47 +58,49 @@
 
 ### 팀 (담당: 강정훈)
 
-- [x] 팀 목록 조회 (`GET /api/teams`) — sportType, isActive 필터 
+- [x] 팀 목록 조회 (`GET /api/teams`) — sportType, isActive 필터
 - [x] 팀 상세 조회 (`GET /api/teams/{teamId}`)
 - [x] 선호 팀 추가 (`POST /api/members/me/favorite-teams`)
 - [x] 선호 팀 목록 조회 (`GET /api/members/me/favorite-teams`)
 - [x] 선호 팀 우선순위 수정 (`PATCH /api/members/me/favorite-teams/{teamId}/priority`)
 - [x] 선호 팀 삭제 (`DELETE /api/members/me/favorite-teams/{teamId}`)
-- [x] 관리자 팀 등록 (`POST /api/admin/teams`) (샘플 데이터로 대체)
-- [x] 관리자 팀 수정 (`PUT /api/admin/teams/{teamId}`) (샘플 데이터로 대체)
-- [x] 관리자 팀 비활성화 (`DELETE /api/admin/teams/{teamId}`) (샘플 데이터로 대체)
+- [ ] 관리자 팀 등록 (`POST /api/admin/teams`) — 샘플 데이터 직접 삽입으로 대체 (미구현)
+- [ ] 관리자 팀 수정 (`PUT /api/admin/teams/{teamId}`) — 미구현
+- [ ] 관리자 팀 비활성화 (`DELETE /api/admin/teams/{teamId}`) — 미구현
 
 ### 경기 / 좌석 (담당: 손하영)
 
-- [ ] 경기 목록 조회 (`GET /api/games`) — 필터 + 커서 페이지네이션
-- [ ] 경기 상세 조회 (`GET /api/games/{gameId}`) — seatGradeSummary 포함
-- [ ] 좌석 목록 조회 (`GET /api/games/{gameId}/seats`) — teamSide, grade 필터
-- [ ] 관리자 경기 등록 (`POST /api/admin/games`)
+- [x] 경기 목록 조회 (`GET /api/games`) — 필터 (sportType, teamId, status, from, to)
+- [x] 경기 상세 조회 (`GET /api/games/{gameId}`) — seatGradeSummary 포함
+- [x] 좌석 목록 조회 (`GET /api/games/{gameId}/seats`) — grade, status 필터
+- [x] 경기 등록 (`POST /api/games`) — saleStartAt/saleEndAt 기반 자동 판매 전환 예약
+- [x] 경기 상태 자동 전환 — TaskScheduler + 서버 시작 시 보정 (`GameScheduleInitializer`)
+- [x] 가격 정책 조회 (`PricePolicyService`) — 경기장×요일×등급×경기등급 조합
 - [ ] 관리자 경기 수정 (`PUT /api/admin/games/{gameId}`)
-- [ ] 관리자 경기 상태 변경 (`PATCH /api/admin/games/{gameId}/status`) — 상태 전이 규칙 포함
+- [ ] 관리자 경기 상태 수동 변경 (`PATCH /api/admin/games/{gameId}/status`) — 상태 전이 규칙 포함
 - [ ] 관리자 경기 삭제 soft delete (`DELETE /api/admin/games/{gameId}`)
 - [ ] 관리자 좌석 일괄 생성 Bulk Insert (`POST /api/admin/games/{gameId}/seats/bulk`)
 
 ### 예매 (담당: 손하영)
 
-- [ ] 좌석 선점 — Redis `SETNX` + DB 비관적 락 (`POST /api/tickets/reserve`)
-- [ ] 내 예매 내역 조회 (`GET /api/tickets`) — status 필터
+- [x] 좌석 선점 + 주문 생성 (`POST /api/seats/reservations`) — DB 비관적 락, 다중 좌석 All-or-Nothing
+- [x] 내 예매 내역 조회 (`GET /api/tickets`) — Offset 페이지네이션 (page, size)
+- [x] 티켓 발급 — 결제 완료 이벤트(`PaymentCompletedEvent`) 수신 시 자동 생성
+- [x] 주문 만료 자동 해제 — `@Scheduled(fixedRate=60s)` 스캔 (`OrderExpirationScheduler`)
+- [x] 결제 연동 이벤트 처리 — `PaymentStartedEvent` / `PaymentCompletedEvent` / `PaymentCancelledEvent`
 - [ ] 예매 상세 조회 (`GET /api/tickets/{ticketId}`)
 - [ ] 티켓 취소 + 결제 도메인에 취소 신호 전달 (`POST /api/tickets/{ticketId}/cancel`)
-- [ ] 선점 자동 해제 — Redis TTL Keyspace Notification + @Scheduled 백업
 
 ### 결제 (담당: 유창민)
 
-- [ ] 결제 요청 등록 (`POST /api/payments/request`) — Idempotency Key 발급
-- [ ] 결제 검증 (`POST /api/payments/verify`) — 금액 위변조 검증 + 상태 확정
-- [ ] PG Webhook 수신 (`POST /api/payments/webhook`) — 서명 검증 + Redis Streams 발행
+- [x] 결제 요청 등록 (`POST /api/payments`) — Toss Payments 연동
+- [x] 결제 승인 (`POST /api/payments/confirm`) — 금액 위변조 검증 + Toss 최종 승인
+- [x] 결제 취소 (`POST /api/payments/{paymentId}/cancel`) — Toss Payments 취소 연동
 - [ ] 내 결제 내역 조회 (`GET /api/payments`)
 - [ ] 결제 상세 조회 (`GET /api/payments/{paymentId}`)
 - [ ] 결제 타임아웃 자동 취소 — @Scheduled (15분)
 
 ### 채팅 (담당: 주병규)
-
-> HTTP REST API는 구현 완료. STOMP WebSocket 실시간 연결은 미구현.
 
 - [x] 채팅방 생성 (`POST /api/chat/rooms`) — DIRECT/GAME 타입, DIRECT 중복 방지 Advisory Lock
 - [x] 내 채팅방 목록 조회 (`GET /api/chat/rooms`) — 커서 페이지네이션, 참여자 수 포함
@@ -106,33 +108,48 @@
 - [x] 채팅방 상세 조회 (`GET /api/chat/rooms/{roomId}`)
 - [x] 채팅방 정보 수정 (`PATCH /api/chat/rooms/{roomId}`) — name/imageUrl, 방장만 가능
 - [x] 채팅방 삭제 (`DELETE /api/chat/rooms/{roomId}`) — soft delete, 멤버 일괄 퇴장
+- [x] 채팅방 아카이브 (`PATCH /api/chat/rooms/{roomId}/archive`)
+- [x] 채팅방 아카이브 복원 (`PATCH /api/chat/rooms/{roomId}/unarchive`)
 - [x] 채팅방 입장 (`POST /api/chat/rooms/{roomId}/join`) — Advisory Lock으로 중복 방지
 - [x] 채팅방 나가기 (`DELETE /api/chat/rooms/{roomId}/leave`)
 - [x] 참여자 초대 (`POST /api/chat/rooms/{roomId}/invite?inviteeId=`) — INVITED 상태
 - [x] 채팅방 알림 설정 변경 (`PATCH /api/chat/rooms/{roomId}/notification?enabled=`)
 - [x] 멤버 BAN (`POST /api/chat/rooms/{roomId}/ban?targetId=`) — 방장만 가능, 재입장 불가
+- [x] 내 초대 목록 조회 (`GET /api/chat/rooms/getMyInvites`)
+- [x] 초대 거부 (`POST /api/chat/rooms/{roomId}/reject`)
 - [x] 텍스트 메시지 전송 + DB 저장 (`MessageService.send`) — DomainEvent 발행
 - [x] 메시지 삭제 soft delete (`DELETE /api/chat/messages/{messageId}`) — 본인만 가능
 - [x] 채팅 이력 조회 (`GET /api/chat/messages/history/{roomId}`) — 커서 페이지네이션
 - [x] 채팅방 메시지 조회 (`GET /api/chat/messages/getMessages/{roomId}`) — lastRead 자동 갱신
-- [ ] WebSocket STOMP 엔드포인트 설정 (`/ws/chat`)
-- [ ] STOMP CONNECT 시 JWT 인증 (`ChannelInterceptor`) + 세션 기반 인증 상태 관리
-- [ ] heartbeat 기반 세션 TTL 갱신 및 만료 스케줄러
-- [ ] 로그아웃/토큰 revoke 시 STOMP 세션 강제 종료
-- [ ] 메시지 WebSocket 브로드캐스트 (MessageSentEvent 구독)
+- [x] WebSocket STOMP 엔드포인트 설정 (`/ws/chat`) — `WebSocketConfig` + `WebSocketMessageBrokerConfigurer`
+- [x] STOMP CONNECT 시 JWT 인증 (`StompAuthChannelInterceptor`) + `WebSocketSessionRegistry` 세션 관리
+- [x] heartbeat 기반 세션 TTL 갱신 및 만료 스케줄러 — `@Scheduled(fixedRate=60_000)` 30s grace period
+- [x] 로그아웃/토큰 revoke 시 STOMP 세션 강제 종료 — `revokeUser()`, `forceDisconnect()`
+- [x] 메시지 WebSocket 브로드캐스트 — `ChatEventPublisher` + `SimpMessagingTemplate`
+- [x] 재연결 시 미수신 메시지 재전송 — `MissedMessageReplayer`
+- [x] STOMP `/chat.send`, `/chat.read`, `/chat.typing` 핸들러 — `ChatStompController`
 
 ### 알림 (담당: 강정훈)
 
 - [x] Redis Streams Consumer Group 설정 (모든 Stream 공통)
+- [x] 알림 인박스 조회 (`GET /api/notifications`) — 페이지네이션
+- [x] 알림 단건 읽음 처리 (`PATCH /api/notifications/{notificationId}/read`)
+- [x] 알림 전체 읽음 처리 (`PATCH /api/notifications/read-all`)
+- [x] SSE 실시간 알림 스트림 (`GET /api/notifications/stream`)
 - [x] `notification_settings` 테이블 + 조회 API (`GET /api/notifications/settings`)
-- [x] 알림 설정 변경 API (`PUT /api/notifications/settings`)
-- [x] `notification_channels` 테이블 + CRUD API (`/api/notifications/channels`)
-- [x] 알림 발송 이력 조회 (`GET /api/notifications/history`)
+- [x] 알림 설정 변경 API (`PUT /api/notifications/settings`) — 4가지 알림 유형 토글
+- [x] 알림 채널 목록 조회 (`GET /api/notifications/channels`)
+- [x] 알림 채널 등록 (`POST /api/notifications/channels`) — EMAIL, MQTT
+- [x] 알림 채널 삭제 (`DELETE /api/notifications/channels/{channelId}`)
+- [x] 알림 채널 활성화 토글 (`PATCH /api/notifications/channels/{channelId}/toggle`)
 - [x] 티켓 오픈 알림 — `ticket.opened` Consumer
 - [x] 결제 완료 알림 — `payment.completed` Consumer
-- [x] 경기 시작 알림 — `game.starting` Consumer + @Scheduled
+- [x] 경기 시작 알림 — `game.starting` Consumer + `@Scheduled`
 - [x] 멘션 알림 — `chat.mentioned` Consumer
-- [x] Email 발송 — JavaMailSender (SimpleMailMessage, Thymeleaf 미사용)
+- [x] Email 발송 — JavaMailSender (SimpleMailMessage)
+- [x] MQTT 알림 발행 — Mosquitto Broker 연동 (토픽: `notification/{memberId}`)
+- [x] 알림 이벤트 DB 영속화 (`notification_events`) — Redis 발행 전 저장
+- [x] 중복 알림 방지 — `notifications` UNIQUE(event_id, member_id)
 
 ---
 
@@ -169,23 +186,20 @@
 
 ### 채팅
 
-> 1:1(DIRECT)/GAME 채팅방 REST API 완료. Sprint 2는 STOMP 실시간 연결 구현 집중.
-
 - [x] 1:1(DIRECT) 채팅방 생성 + 중복 방지 (Advisory Lock 적용)
 - [x] 참여자 초대 (`INVITED` 상태)
+- [x] 메시지 삭제 soft delete + WebSocket 이벤트 발행
+- [x] 메시지 읽음 상태 — Redis `chat:read:{roomId}:{memberId}` + `ReadReceiptFlusher` 주기적 DB 동기화
+- [x] 읽음 이벤트 멀티캐스트 — `@Scheduled` 5초 주기 Redis→DB flush + READ_RECEIPT 브로드캐스트
+- [x] 채팅방 알림 설정 (`notification_enabled` 토글)
+- [x] 내가 참여한 채팅방 목록 (`GET /api/chat/rooms`)
 - [ ] 이미지/파일 메시지 전송 (S3 or 로컬 저장)
-- [ ] 메시지 삭제 (soft delete + WebSocket 이벤트)
-- [ ] 메시지 읽음 상태 — Redis `last_read` + 주기적 DB 동기화
-- [ ] 읽음 이벤트 멀티캐스트 — 100~500ms 주기 in-memory 이벤트 배치
-- [ ] 채팅방 알림 설정 (`notification_enabled` 토글)
 - [ ] 응원 열기 지수 (`GET /api/chat/intensity/{gameId}`)
-- [ ] 내가 참여한 채팅방 목록 (`GET /api/chat/rooms`)
 
 ### 알림 (담당: 강정훈)
 
-- [x] MQTT 알림 발행 — Mosquitto Broker 연동 (토픽: `notification/{memberId}`)
-- [x] 알림 이벤트 DB 영속화 (`notification_events`) — Redis 발행 전 저장
-- [x] 중복 알림 방지 — `notifications` UNIQUE(event_id, member_id)
+- [x] 장애 복구 — `ProcessingStuckRecoveryService` PROCESSING 상태 감지 + 재처리
+- [x] PEL 정리 — `NotificationStreamMaintenanceScheduler` Dead Letter 처리
 - [ ] 알림 설정 Redis 캐싱 (`notification:settings:{memberId}`, TTL 1시간)
 - [ ] DLQ 실패 처리 — 3회 재시도 후 DLQ 적재 (현재 PEL + Maintenance Scheduler로 대체)
 - [ ] Fan-out Worker Pool 병렬 처리 (현재 단일 스레드 청크 처리)
@@ -281,18 +295,33 @@ Sprint 0 (공통 인프라)
 
 ---
 
-## 현황 요약 (2026-04-27 기준)
+## 현황 요약 (2026-05-20 기준)
 
 | 항목 | 상태 |
 |------|------|
-| 프로젝트 기반 (Spring Boot 4.0.3 + Java 25) | 완료 |
-| 의존성 (JPA, Redis, Security, JWT, OAuth2 등) | 완료 |
-| DB 스키마 (Flyway V1) | 완료 |
+| 프로젝트 기반 (Spring Boot 4.0.3 + Java 25) | **완료** |
+| 의존성 (JPA, Redis, Security, JWT, OAuth2 등) | **완료** |
+| DB 스키마 (Flyway V1~V6) | **완료** |
 | Spring Security + JWT 필터 + 블랙리스트 | **완료** |
 | OAuth2 소셜 로그인 (Google, Kakao) | **완료** |
-| 회원 인증 API (토큰 갱신, 로그아웃) | **완료** |
-| 회원 정보 API (조회, 닉네임 수정, 탈퇴) | **완료** |
-| 선호 팀 API (추가, 조회, 우선순위, 삭제) | **완료** |
-| 팀 목록/상세 조회, 관리자 팀 CRUD | **미구현** |
-| 경기/좌석/예매/결제/채팅/알림 | **미구현** |
+| 회원/인증 API (토큰 갱신, 로그아웃, 정보 수정/탈퇴) | **완료** |
+| 선호 팀 API (추가/조회/우선순위/삭제) | **완료** |
+| 팀 조회 API (목록/상세) | **완료** |
+| 팀 Admin API (등록/수정/비활성화) | **미구현** (샘플 데이터 직접 삽입으로 대체) |
+| 경기 API (목록/상세/좌석/등록) | **완료** |
+| 경기 Admin API (수정/상태변경/삭제/좌석 bulk) | **미구현** |
+| 예매/주문 API | **완료** |
+| 예매 상세 조회 / 티켓 취소 | **미구현** |
+| 결제 API (create/confirm/cancel) | **완료** |
+| 결제 내역 조회 | **미구현** |
+| 채팅 REST API (방 관리/멤버/메시지/아카이브/초대거부) | **완료** |
+| 채팅 STOMP WebSocket (실시간 메시지/읽음/타이핑) | **완료** |
+| 채팅 읽음 처리 (Redis + 주기 flush) | **완료** |
+| 알림 파이프라인 (Redis Streams → SSE + Email + MQTT) | **완료** |
+| 알림 인박스 API (조회/읽음/전체읽음) | **완료** |
+| 알림 설정 + 채널 CRUD API | **완료** |
+| 알림 예약 스케줄러 (@Scheduled 5분 주기) | **완료** |
+| 알림 장애 복구 (PEL + ProcessingStuck 감지) | **완료** |
+| 테스트 (533건, 80 클래스) | **완료** |
+| GitHub Actions CI | **완료** |
 | 인프라 (EC2, ALB, CD) | **구성 필요** |

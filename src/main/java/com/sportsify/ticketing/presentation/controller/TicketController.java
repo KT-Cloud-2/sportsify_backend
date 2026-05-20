@@ -1,6 +1,7 @@
 package com.sportsify.ticketing.presentation.controller;
 
 import com.sportsify.ticketing.application.service.TicketService;
+import com.sportsify.ticketing.presentation.api.TicketApi;
 import com.sportsify.ticketing.presentation.dto.TicketListResponseDto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/tickets")
 @RequiredArgsConstructor
 @Validated
-public class TicketController {
+public class TicketController implements TicketApi {
 
     final private TicketService ticketService;
 

@@ -10,7 +10,6 @@ import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.GameSeatRepository;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.repository.MemberRepository;
-import com.sportsify.ticketing.application.event.OrderEventPublisher;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
@@ -26,11 +25,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,17 +56,10 @@ public class ReservationServiceTest {
     @Mock
     private GameRepository gameRepository;
 
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    private OrderEventPublisher orderEventPublisher;
-
     @Test
     @DisplayName("존재하지 않는 회원 ID를 요청으로 받으면 예외를 반환한다.")
     public void notFoundMember() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
 
         when(memberRepository.findById(1L)).thenReturn(Optional.empty());
 
@@ -82,7 +72,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("존재하지 않는 게임 ID를 요청으로 받으면 예외를 반환한다.")
     public void notFoundGame() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
         Member mockMember = mock(Member.class);
 
         when(memberRepository.findById(1L)).thenReturn(Optional.of(mockMember));
@@ -97,7 +87,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("요청된 게임이 판매 중 상태가 아니라면 예외를 반환한다.")
     public void notOnSaleGame() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -115,7 +105,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("최대 요청 가능 매수를 초과하면 예외를 반환한다.")
     public void exceedTicketCapacity() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L, 2L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -135,18 +125,52 @@ public class ReservationServiceTest {
     }
 
     @Test
-    @DisplayName("선점 가능한 좌석 수와 요청한 좌석 수가 일치하지 않으면 예외를 반환한다.")
-    public void checkAvailableSeats() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+    @DisplayName("다른 게임의 좌석이 포함되어 있으면 예외를 반환한다.")
+    public void gameMismatch() {
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L, 2L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
+        GameSeat seat1 = mock(GameSeat.class);
+        GameSeat seat2 = mock(GameSeat.class);
+        Game otherGame = mock(Game.class);
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(mockMember));
+        when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
+        when(mockGame.isOnSale()).thenReturn(true);
+        when(mockGame.getMaxTicketPerUser()).thenReturn(4);
+        when(mockGame.getId()).thenReturn(1L);
+
+        when(gameSeatRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(seat1, seat2));
+        when(seat1.getGame()).thenReturn(mockGame);
+        when(seat2.getGame()).thenReturn(otherGame);
+        when(otherGame.getId()).thenReturn(999L);
+
+        assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.GAME_MISMATCH);
+    }
+
+    @Test
+    @DisplayName("선점 가능한 좌석 수와 요청한 좌석 수가 일치하지 않으면 예외를 반환한다.")
+    public void checkAvailableSeats() {
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
+
+        Member mockMember = mock(Member.class);
+        Game mockGame = mock(Game.class);
+        GameSeat seat1 = mock(GameSeat.class);
 
         when(memberRepository.findById(1L)).thenReturn(Optional.of(mockMember));
         when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
         when(mockGame.isOnSale()).thenReturn(true);
         when(mockGame.getMaxTicketPerUser()).thenReturn(2);
-        when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds())).thenReturn(Collections.emptyList());
+        when(mockGame.getId()).thenReturn(1L);
+
+        when(gameSeatRepository.findAllById(List.of(1L))).thenReturn(List.of(seat1));
+        when(seat1.getGame()).thenReturn(mockGame);
+
+        when(gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(anyLong(), anyList())).thenReturn(Collections.emptyList());
 
         assertThatThrownBy(() -> reservationService.reserveSeat(1L, reqDto))
                 .isInstanceOf(BusinessException.class)
@@ -157,7 +181,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("사용 가능한 좌석 수가 같을 때, 각 좌석이 선점된다.")
     public void updateSeatStatus() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L, 3L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L, 2L, 3L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -169,11 +193,19 @@ public class ReservationServiceTest {
         when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
         when(mockGame.isOnSale()).thenReturn(true);
         when(mockGame.getMaxTicketPerUser()).thenReturn(4);
-        when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds()))
-                .thenReturn(List.of(seat1, seat2, seat3));
+        when(mockGame.getId()).thenReturn(1L);
 
-        when(pricePolicyService.getPriceMap(any(Game.class), anyList()))
-                .thenReturn(Map.of("STANDARD", 10000));
+        when(gameSeatRepository.findAllById(List.of(1L, 2L, 3L))).thenReturn(List.of(seat1, seat2, seat3));
+        when(seat1.getGame()).thenReturn(mockGame);
+        when(seat2.getGame()).thenReturn(mockGame);
+        when(seat3.getGame()).thenReturn(mockGame);
+
+        when(seat1.getPrice()).thenReturn(10000);
+        when(seat2.getPrice()).thenReturn(10000);
+        when(seat3.getPrice()).thenReturn(10000);
+
+        when(gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(anyLong(), anyList()))
+                .thenReturn(List.of(seat1, seat2, seat3));
 
         when(seat1.getZoneGradeName()).thenReturn("STANDARD");
         when(seat2.getZoneGradeName()).thenReturn("STANDARD");
@@ -189,7 +221,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("좌석이 선점되면서 최종 주문이 생성된다.")
     public void createOrder() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -199,11 +231,9 @@ public class ReservationServiceTest {
         when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
         when(mockGame.isOnSale()).thenReturn(true);
         when(mockGame.getMaxTicketPerUser()).thenReturn(2);
-        when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds())).thenReturn(List.of(mockGameSeat));
+        when(gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(anyLong(), anyList())).thenReturn(List.of(mockGameSeat));
 
-        when(pricePolicyService.getPriceMap(any(Game.class), anyList()))
-                .thenReturn(Map.of("STANDARD", 10000));
-
+        when(mockGameSeat.getPrice()).thenReturn(10000);
         when(mockGameSeat.getZoneGradeName()).thenReturn("STANDARD");
 
         reservationService.reserveSeat(1L, reqDto);
@@ -220,7 +250,7 @@ public class ReservationServiceTest {
     @Test
     @DisplayName("좌석이 선점되고 주문이 생성된 다음, 응답 Dto를 반환한다.")
     public void returnResponseDto() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L, 3L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L, 2L, 3L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -232,57 +262,36 @@ public class ReservationServiceTest {
         when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
         when(mockGame.isOnSale()).thenReturn(true);
         when(mockGame.getMaxTicketPerUser()).thenReturn(4);
-        when(gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds()))
+        when(mockGame.getId()).thenReturn(1L);
+
+        when(gameSeatRepository.findAllById(List.of(1L, 2L, 3L))).thenReturn(List.of(seat1, seat2, seat3));
+        when(seat1.getGame()).thenReturn(mockGame);
+        when(seat2.getGame()).thenReturn(mockGame);
+        when(seat3.getGame()).thenReturn(mockGame);
+
+        when(gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(anyLong(), anyList()))
                 .thenReturn(List.of(seat1, seat2, seat3));
 
-        when(pricePolicyService.getPriceMap(any(Game.class), anyList()))
-                .thenReturn(Map.of("STANDARD", 10000));
+        when(seat1.getPrice()).thenReturn(10000);
+        when(seat2.getPrice()).thenReturn(20000);
+        when(seat3.getPrice()).thenReturn(30000);
 
         when(seat1.getZoneGradeName()).thenReturn("STANDARD");
         when(seat2.getZoneGradeName()).thenReturn("STANDARD");
         when(seat3.getZoneGradeName()).thenReturn("STANDARD");
 
-        ReservationSeatsResponseDto reservationSeatsResponseDto = reservationService.reserveSeat(1L, reqDto);
+        ReservationSeatsResponseDto response = reservationService.reserveSeat(1L, reqDto);
 
-        assertThat(reservationSeatsResponseDto.gameId()).isEqualTo(1L);
-        assertThat(reservationSeatsResponseDto.seats().size()).isEqualTo(3);
-        assertThat(reservationSeatsResponseDto.status()).isEqualTo(OrderStatus.PENDING);
-
-    }
-
-    @Test
-    @DisplayName("주문이 생성될 때 OrderCreatedEvent를 발행한다.")
-    void createOrder_publishEvent() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
-
-        Member mockMember = mock(Member.class);
-        Game mockGame = mock(Game.class);
-        GameSeat mockGameSeat = mock(GameSeat.class);
-        Order mockOrder = mock(Order.class);
-
-        when(mockGame.isOnSale()).thenReturn(true);
-        when(mockGame.getMaxTicketPerUser()).thenReturn(2);
-        when(mockGameSeat.getZoneGradeName()).thenReturn("STANDARD");
-
-        when(pricePolicyService.getPriceMap(any(Game.class), anyList()))
-                .thenReturn(Map.of("STANDARD", 10000));
-
-        when(memberRepository.findById(1L)).thenReturn(Optional.of(mockMember));
-        when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
-        when(gameSeatRepository.findAllAvailableByIdsWithLock(any())).thenReturn(List.of(mockGameSeat));
-
-        when(orderRepository.save(any(Order.class))).thenReturn(mockOrder);
-
-        reservationService.reserveSeat(1L, reqDto);
-
-        verify(orderEventPublisher, times(1))
-                .publishOrderCreated(nullable(Order.class));
+        assertThat(response.gameId()).isEqualTo(1L);
+        assertThat(response.seats()).hasSize(3);
+        assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
+        assertThat(response.amount()).isEqualTo(60000L);
     }
 
     @Test
     @DisplayName("주문 생성 시 각 좌석에 올바른 가격이 저장된다.")
     void reserveSeat_savesCorrectPriceToOrderSeat() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L, 2L));
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L, 2L));
 
         Member mockMember = mock(Member.class);
         Game mockGame = mock(Game.class);
@@ -291,36 +300,33 @@ public class ReservationServiceTest {
 
         when(mockGame.isOnSale()).thenReturn(true);
         when(mockGame.getMaxTicketPerUser()).thenReturn(4);
+        when(mockGame.getId()).thenReturn(1L);
 
         when(seat1.getZoneGradeName()).thenReturn("STANDARD");
         when(seat2.getZoneGradeName()).thenReturn("STANDARD");
+        when(seat1.getGame()).thenReturn(mockGame);
+        when(seat2.getGame()).thenReturn(mockGame);
+        when(seat1.getPrice()).thenReturn(10000);
+        when(seat2.getPrice()).thenReturn(15000);
 
         when(memberRepository.findById(1L)).thenReturn(Optional.of(mockMember));
         when(gameRepository.findById(1L)).thenReturn(Optional.of(mockGame));
-        when(gameSeatRepository.findAllAvailableByIdsWithLock(anyList()))
+        when(gameSeatRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(seat1, seat2));
+        when(gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(anyLong(), anyList()))
                 .thenReturn(List.of(seat1, seat2));
-
-        when(pricePolicyService.getPriceMap(any(Game.class), anyList()))
-                .thenReturn(Map.of("STANDARD", 10000));
 
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         when(orderRepository.save(orderCaptor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
-        doNothing().when(orderEventPublisher).publishOrderCreated(any());
-
-        reservationService.reserveSeat(1L, reqDto);
+        ReservationSeatsResponseDto response = reservationService.reserveSeat(1L, reqDto);
 
         Order savedOrder = orderCaptor.getValue();
         List<OrderSeat> orderSeats = savedOrder.getOrderSeats();
 
         assertThat(orderSeats).hasSize(2);
         assertThat(orderSeats.get(0).getPrice()).isEqualTo(10000);
-        assertThat(orderSeats.get(1).getPrice()).isEqualTo(10000);
-
-        long totalAmount = orderSeats.stream()
-                .mapToLong(OrderSeat::getPrice)
-                .sum();
-        assertThat(totalAmount).isEqualTo(20000L);
+        assertThat(orderSeats.get(1).getPrice()).isEqualTo(15000);
+        assertThat(response.amount()).isEqualTo(25000L);
     }
 
 }

@@ -53,10 +53,13 @@
         }
 
         try {
-            const response = await fetch("/payments/confirm", {
+            const token = localStorage.getItem("accessToken");
+
+            const response = await fetch("/api/payments/confirm", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
                 },
                 body: JSON.stringify(requestBody)
             });

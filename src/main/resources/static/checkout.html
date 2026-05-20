@@ -7,25 +7,26 @@
 <body>
 <h1>토스 결제 테스트</h1>
 
-<p>orderId: <span id="orderId"></span></p>
-<p>amount: <span id="amount"></span></p>
+
+<div>
+    <label>JWT Token: <input id="tokenInput" placeholder="eyJhbGciOiJ..." style="width:400px" type="text"/></label>
+</div>
+<div>
+    <label>orderId: <input id="orderIdInput" placeholder="ORDER_1_xxxx" type="text"/></label>
+</div>
+<br>
+<div>
+    <label>amount: <input id="amountInput" placeholder="50000" type="number"/></label>
+</div>
 
 <button onclick="requestPayment()">결제하기</button>
 
 <script src="https://js.tosspayments.com/v1/payment"></script>
 <script>
-    const clientKey = "test_ck_0RnYX2w5322llqkbJgRK3NeyqApQ";
+    const clientKey = "test_ck_DnyRpQWGrN6YKg5K0xAlrKwv1M9E";
     const tossPayments = TossPayments(clientKey);
 
-    const params = new URLSearchParams(window.location.search);
-
-    const orderId = params.get("orderId");
-    const rawAmount = params.get("amount");
-    const amount = Number(rawAmount);
     const origin = window.location.origin;
-
-    document.getElementById("orderId").innerText = orderId;
-    document.getElementById("amount").innerText = rawAmount;
 
     function isInvalidAmount(rawAmount, amount) {
         return rawAmount === null
@@ -35,10 +36,22 @@
     }
 
     function requestPayment() {
+        const token = document.getElementById("tokenInput").value.trim();
+        const orderId = document.getElementById("orderIdInput").value.trim();
+        const rawAmount = document.getElementById("amountInput").value.trim();
+        const amount = Number(rawAmount);
+
+        if (!token) {
+            alert("JWT 토큰을 입력해주세요.");
+            return;
+        }
+
         if (!orderId || isInvalidAmount(rawAmount, amount)) {
             alert("orderId 또는 amount가 없거나 올바르지 않습니다.");
             return;
         }
+
+        localStorage.setItem("accessToken", token);
 
         tossPayments.requestPayment("카드", {
             amount: amount,

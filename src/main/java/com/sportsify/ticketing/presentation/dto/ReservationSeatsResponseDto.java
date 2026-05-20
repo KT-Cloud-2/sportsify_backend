@@ -14,6 +14,7 @@ public record ReservationSeatsResponseDto(
         Long memberId,
         OrderStatus status,
         LocalDateTime reservedAt,
+        Long amount,
         List<ReservationSeatDto> seats,
         LocalDateTime expiresAt
 ) {
@@ -22,12 +23,15 @@ public record ReservationSeatsResponseDto(
                 .map(ReservationSeatDto::from)
                 .toList();
 
+        Long amount = order.getOrderSeats().stream().mapToLong(OrderSeat::getPrice).sum();
+
         return new ReservationSeatsResponseDto(
                 order.getId(),
                 gameId,
                 order.getMember().getId(),
                 order.getStatus(),
                 order.getCreatedAt(),
+                amount,
                 seats,
                 order.getExpiresAt()
         );
@@ -45,7 +49,7 @@ public record ReservationSeatsResponseDto(
                     orderSeat.getSeatId(),
                     orderSeat.getSeatGradeName(),
                     orderSeat.getSectionName(),
-                    orderSeat.getSeatPrice()
+                    orderSeat.getPrice()
             );
         }
     }

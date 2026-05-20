@@ -514,21 +514,53 @@ CREATE INDEX idx_nh_notification ON notification_history (notification_id);
 물리 좌석(`seats`)과 경기별 좌석 상태/가격(`game_seats`)을 분리.  
 같은 물리 좌석이 경기마다 다른 가격·상태를 가질 수 있음.
 
-### D-2. tickets 테이블
+### D-2. seats 테이블에 zone_grade_id FK 추가
+`seats` 테이블이 `section_id`와 별도로 `zone_grade_id`를 직접 참조.  
+`Seat` 엔티티가 `Section`을 통하지 않고 직접 `ZoneGrade`에 접근할 수 있도록 하여 JOIN 횟수를 줄임.  
+`Seat.Builder`에서 `section.getZoneGrade()`로 자동 설정.
+
+### D-3. price_policies 테이블 (동적 가격 정책)
+`game_seats.price`는 경기 생성 시 `price_policies` 테이블에서 조회하여 설정.  
+경기장(stadium) × 요일(day_type) × 구역등급(zone_grade) × 경기등급(game_grade) 조합으로 가격 결정.  
+`PricePolicyService`가 해당 조합의 가격을 조회하고, 누락된 구역이 있으면 `PRICE_POLICY_NOT_FOUND` 예외 발생.
+
+### D-4. game_seats에서 zone_grade_id, team_side 제거
+`game_seats`는 `seat_id`를 통해 `seats → zone_grades`로 등급 정보 접근 가능하므로 중복 FK 제거.  
+`team_side` 컬럼도 현재 구현에서 사용하지 않아 제거. 필요 시 향후 추가.
+
+### D-5. orders.expires_at (주문 레벨 만료)
+선점 만료를 `order_seats`가 아닌 `orders` 레벨에서 관리.  
+주문 생성 시 `LocalDateTime.now().plusMinutes(15)` 설정.  
+`OrderExpirationScheduler`가 매 60초마다 만료 주문을 스캔하여 좌석 해제.
+
+### D-6. orders 상태 확장 (PAYING, EXPIRED)
+기존 `PENDING | CONFIRMED | CANCELLED`에 `PAYING`, `EXPIRED` 추가.
+- `PENDING` → 결제 시작 시 `PAYING` 전환
+- `PAYING` → 결제 성공 시 `CONFIRMED`, 실패 시 `CANCELLED`
+- `PENDING` → 15분 만료 시 `EXPIRED`
+- `PAYING` 상태에서 결제 실패 감지 시 `CANCELLED`
+
+### D-7. tickets 테이블
 
 `order_seats`에서 결제 완료 시 `tickets`를 발급. tickets는 사용자에게 전달되는 "실제 입장권"이며, UUID 기반 고유 번호를 가짐.
 
-### D-3. notification_events 영속화
+### D-8. games 상태 자동 전환 (TaskScheduler)
+- 서버 시작 시 `GameScheduleInitializer`가 보정 처리:
+    - `saleStartAt` 경과 + SCHEDULED → 즉시 ON_SALE 전환
+    - `saleEndAt` 경과 + ON_SALE → 즉시 SALE_CLOSED 전환
+    - 미래 `saleStartAt`/`saleEndAt` → TaskScheduler 등록
+- `GameStatusUpdater`가 상태 전환 시 비관적 락(`findByIdForUpdate`) 사용
+
+### D-9. notification_events 영속화
 
 Redis Streams 발행 전에 반드시 DB에 저장 (source of truth).  
 Redis 장애 시 DB를 기반으로 재처리 가능.
 
-### D-4. chat_participants last_read_message_id
-
-오프라인 메시지 읽음 처리는 DB의 `last_read_message_id`로 관리.  
-온라인 중 실시간 읽음 처리는 Redis(`chat:last_read:{roomId}:{memberId}`)로 관리 → 주기적 또는 연결 종료 시 DB 동기화.
-
-### D-5. Soft Delete
+### D-10. Soft Delete
 
 `games.deleted_at` — 논리 삭제. 예매 내역이 있는 경기는 물리 삭제 금지.  
 조회 쿼리에는 `WHERE deleted_at IS NULL` 조건 항상 포함.
+
+### D-11. Partial Index 최적화
+- `idx_order_seats_expires`: `status = 'PENDING'` 조건으로 만료 스캔 최적화
+- `idx_orders_status_paying`: `status = 'PAYING'` 조건으로 결제 실패 주문 스캔 최적화
