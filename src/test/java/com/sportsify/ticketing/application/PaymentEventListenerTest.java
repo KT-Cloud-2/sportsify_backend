@@ -3,7 +3,6 @@ package com.sportsify.ticketing.application;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
-import com.sportsify.game.domain.repository.GameSeatRepository;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.ticketing.application.service.ReservationService;
@@ -47,9 +46,6 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
 
     @Autowired
     private TicketJpaRepository ticketRepository;
-
-    @Autowired
-    private GameSeatRepository gameSeatRepository;
 
     @Autowired
     private ReservationService reservationService;
