@@ -73,7 +73,7 @@
 
 - **동시성 제어 3종 비교**: 비관적 락 vs 낙관적 락 vs Redis 분산 락
 - **대기열 시스템**: Redis Sorted Set 기반 SSE 스트리밍 대기열
-- **실시간 채팅**: WebSocket STOMP + Redis Pub/Sub
+- **실시간 채팅**: WebSocket STOMP + Message Broker + Redis
 - **이벤트 드리븐 알림**: Redis Streams 기반 비동기 멀티채널 알림 파이프라인
 - **캐싱 3단 구조**: Caffeine(L1) → Redis(L2) → DB(L3)
 
