@@ -54,7 +54,7 @@ class ChatRoomMemberControllerApiTest extends WebMvcTestSupport {
         ChatRoomMemberResponse response = new ChatRoomMemberResponse(ROOM_ID, MEMBER_ID, "LEFT", NOW);
         given(chatRoomMemberService.leave(eq(ROOM_ID), eq(MEMBER_ID))).willReturn(response);
 
-        mockMvc.perform(delete("/api/chat/rooms/{roomId}/invite", ROOM_ID)
+        mockMvc.perform(delete("/api/chat/rooms/{roomId}/leave", ROOM_ID)
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").value(ROOM_ID))

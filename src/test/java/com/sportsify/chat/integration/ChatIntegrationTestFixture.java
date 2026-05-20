@@ -85,12 +85,11 @@ public class ChatIntegrationTestFixture {
 
     @Transactional
     public void deleteAll() {
-        // FK 의존 순서: chat_room_members(→chat_messages, →chat_rooms, →members)
-        //              → chat_messages(→chat_rooms) → chat_rooms(→members) → members
-        memberJpaRepo.deleteAll();
-        messageJpaRepo.deleteAll();
-        roomJpaRepo.deleteAll();
-        // members 테이블의 테스트용 레코드 정리 (id >= 1000은 테스트 전용 범위)
+        // TRUNCATE를 하나의 구문에 묶어 AccessExclusiveLock을 동시에 획득.
+        // 비동기 ChatEventHandler(AFTER_COMMIT + REQUIRES_NEW)가 chat_messages에
+        // INSERT 중이어도 TRUNCATE가 해당 트랜잭션 완료를 기다린 뒤 일괄 제거하므로
+        // "DELETE 후 INSERT"로 인한 FK 위반 레이스 컨디션이 발생하지 않는다.
+        em.createNativeQuery("TRUNCATE TABLE chat_room_members, chat_messages, chat_rooms").executeUpdate();
         em.createNativeQuery("DELETE FROM members WHERE id >= 1000").executeUpdate();
     }
 }

@@ -199,11 +199,7 @@ public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
      * 초대 거부
      */
     public void rejectInvite(LocalDateTime now) {
-        if (this.status == MemberStatus.BANNED ||
-                this.status == MemberStatus.LEFT ||
-                this.status == MemberStatus.DELETED) {
-            throw new IllegalStateException("this user cannot reject invite");
-        }
+        validateRejectInvite(this.status);
         if (this.status == MemberStatus.JOINED) {
             throw new IllegalStateException("Already joined member");
         }
@@ -221,6 +217,14 @@ public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
     @DomainEvents
     public Collection<Object> getEvents() {
         return super.domainEvents();
+    }
+
+    private void validateRejectInvite(MemberStatus status) {
+        if (status == MemberStatus.BANNED ||
+                status == MemberStatus.LEFT ||
+                status == MemberStatus.DELETED) {
+            throw new IllegalStateException("this user cannot reject invite");
+        }
     }
 
     /* -------------------- 상태값 체크 -------------------- */
