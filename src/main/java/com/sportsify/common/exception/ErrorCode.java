@@ -14,6 +14,7 @@ public enum ErrorCode {
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS", "요청 한도를 초과했습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다."),
     REQUEST_INVALID(HttpStatus.BAD_REQUEST, "REQUEST_INVALID", "Request Body가 필요합니다."),
+    REQUEST_BODY_MALFORMED(HttpStatus.BAD_REQUEST, "REQUEST_BODY_MALFORMED", "요청 본문의 JSON 형식이 올바르지 않습니다."),
 
     // 회원 / 인증
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "존재하지 않는 회원입니다."),
