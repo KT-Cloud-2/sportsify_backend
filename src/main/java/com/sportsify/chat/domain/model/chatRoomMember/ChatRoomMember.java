@@ -4,10 +4,7 @@ import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.event.EventType;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberInvitePayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberJoinPayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberLeftPayload;
+import com.sportsify.chat.domain.model.event.chatRoomMember.*;
 import com.sportsify.chat.domain.model.message.MessageId;
 import lombok.Getter;
 import org.springframework.data.domain.AbstractAggregateRoot;
@@ -196,6 +193,29 @@ public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
         if (this.status == MemberStatus.INVITED) return;
         this.status = MemberStatus.INVITED;
         this.updatedAt = now;
+    }
+
+    /**
+     * 초대 거부
+     */
+    public void rejectInvite(LocalDateTime now) {
+        if (this.status == MemberStatus.BANNED ||
+                this.status == MemberStatus.LEFT ||
+                this.status == MemberStatus.DELETED) {
+            throw new IllegalStateException("this user cannot reject invite");
+        }
+        if (this.status == MemberStatus.JOINED) {
+            throw new IllegalStateException("Already joined member");
+        }
+        if (this.status == MemberStatus.REJECT) return;
+        this.status = MemberStatus.REJECT;
+        this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(
+                EventType.MEMBER_REJECTED,
+                this.roomId,
+                now.toInstant(ZoneOffset.UTC),
+                new MemberRejectedPayload(this.memberId.value()))
+        );
     }
 
     @DomainEvents

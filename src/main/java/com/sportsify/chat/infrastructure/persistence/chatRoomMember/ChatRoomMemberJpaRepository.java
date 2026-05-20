@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -65,6 +66,11 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
             "WHERE m.roomId = :roomId " +
             "AND m.status IN ('JOINED', 'INVITED')")
     long countActiveByRoomId(@Param("roomId") Long roomId);
+
+    @Query("SELECT m FROM ChatRoomMemberJpaEntity m " +
+            "WHERE m.memberId = :memberId " +
+            "AND m.status = 'INVITED'")
+    List<ChatRoomMemberJpaEntity> findInvitedByMemberId(@Param("memberId") Long memberId);
 
 
     boolean existsByRoomIdAndMemberIdAndStatus(Long roomId, Long memberId, String status);

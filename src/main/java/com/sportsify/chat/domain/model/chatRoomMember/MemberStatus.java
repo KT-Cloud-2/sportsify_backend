@@ -1,7 +1,7 @@
 package com.sportsify.chat.domain.model.chatRoomMember;
 
 public enum MemberStatus {
-    INVITED, JOINED, LEFT, BANNED, DELETED;
+    INVITED, JOINED, LEFT, BANNED, DELETED, REJECT;
 
     public boolean isJoined() {
         return this == JOINED;

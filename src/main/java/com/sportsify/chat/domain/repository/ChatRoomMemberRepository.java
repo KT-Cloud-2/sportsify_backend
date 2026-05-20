@@ -46,4 +46,6 @@ public interface ChatRoomMemberRepository {
     boolean updateLastReadMessageIfGreater(ChatRoomId roomId, MemberId memberId, MessageId messageId, Instant now);
 
     Map<MemberId, MessageId> findLastMessageIdsAndMemberIdsByRoomId(ChatRoomId roomId);
+
+    List<ChatRoomMember> findInvitedByMemberId(MemberId memberId);
 }
