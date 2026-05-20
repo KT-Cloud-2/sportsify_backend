@@ -70,22 +70,26 @@
 
 ### 경기 / 좌석 (담당: 손하영)
 
-- [ ] 경기 목록 조회 (`GET /api/games`) — 필터 + 커서 페이지네이션
-- [ ] 경기 상세 조회 (`GET /api/games/{gameId}`) — seatGradeSummary 포함
-- [ ] 좌석 목록 조회 (`GET /api/games/{gameId}/seats`) — teamSide, grade 필터
-- [ ] 관리자 경기 등록 (`POST /api/admin/games`)
+- [x] 경기 목록 조회 (`GET /api/games`) — 필터 (sportType, teamId, status, from, to)
+- [x] 경기 상세 조회 (`GET /api/games/{gameId}`) — seatGradeSummary 포함
+- [x] 좌석 목록 조회 (`GET /api/games/{gameId}/seats`) — grade, status 필터
+- [x] 경기 등록 (`POST /api/games`) — saleStartAt/saleEndAt 기반 자동 판매 전환 예약
+- [x] 경기 상태 자동 전환 — TaskScheduler + 서버 시작 시 보정 (`GameScheduleInitializer`)
+- [x] 가격 정책 조회 (`PricePolicyService`) — 경기장×요일×등급×경기등급 조합
 - [ ] 관리자 경기 수정 (`PUT /api/admin/games/{gameId}`)
-- [ ] 관리자 경기 상태 변경 (`PATCH /api/admin/games/{gameId}/status`) — 상태 전이 규칙 포함
+- [ ] 관리자 경기 상태 수동 변경 (`PATCH /api/admin/games/{gameId}/status`) — 상태 전이 규칙 포함
 - [ ] 관리자 경기 삭제 soft delete (`DELETE /api/admin/games/{gameId}`)
 - [ ] 관리자 좌석 일괄 생성 Bulk Insert (`POST /api/admin/games/{gameId}/seats/bulk`)
 
 ### 예매 (담당: 손하영)
 
-- [ ] 좌석 선점 — Redis `SETNX` + DB 비관적 락 (`POST /api/tickets/reserve`)
-- [ ] 내 예매 내역 조회 (`GET /api/tickets`) — status 필터
+- [x] 좌석 선점 + 주문 생성 (`POST /api/seats/reservations`) — DB 비관적 락, 다중 좌석 All-or-Nothing
+- [x] 내 예매 내역 조회 (`GET /api/tickets`) — Offset 페이지네이션 (page, size)
+- [x] 티켓 발급 — 결제 완료 이벤트(`PaymentCompletedEvent`) 수신 시 자동 생성
+- [x] 주문 만료 자동 해제 — `@Scheduled(fixedRate=60s)` 스캔 (`OrderExpirationScheduler`)
+- [x] 결제 연동 이벤트 처리 — `PaymentStartedEvent` / `PaymentCompletedEvent` / `PaymentCancelledEvent`
 - [ ] 예매 상세 조회 (`GET /api/tickets/{ticketId}`)
 - [ ] 티켓 취소 + 결제 도메인에 취소 신호 전달 (`POST /api/tickets/{ticketId}/cancel`)
-- [ ] 선점 자동 해제 — Redis TTL Keyspace Notification + @Scheduled 백업
 
 ### 결제 (담당: 유창민)
 

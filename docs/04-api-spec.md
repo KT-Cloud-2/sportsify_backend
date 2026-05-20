@@ -64,13 +64,18 @@
 
 ### 공통 에러 코드
 
-| 에러 코드            | HTTP Status | 설명              |
-|------------------|-------------|-----------------|
-| `UNAUTHORIZED`   | 401         | 토큰 없음 또는 만료     |
-| `FORBIDDEN`      | 403         | 해당 리소스 접근 권한 없음 |
-| `NOT_FOUND`      | 404         | 리소스를 찾을 수 없음    |
-| `INVALID_INPUT`  | 400         | 입력값 형식 오류       |
-| `INTERNAL_ERROR` | 500         | 서버 내부 오류        |
+| 에러 코드                     | HTTP Status | 설명              |
+|---------------------------|-------------|-----------------|
+| `INVALID_INPUT`           | 400         | 입력값 오류          |
+| `UNAUTHORIZED`            | 401         | 인증 필요           |
+| `FORBIDDEN`               | 403         | 접근 권한 없음        |
+| `NOT_FOUND`               | 404         | 리소스 없음          |
+| `CONFLICT`                | 409         | 리소스 충돌 (중복)     |
+| `BUSINESS_RULE_VIOLATION` | 422         | 비즈니스 규칙 위반      |
+| `TOO_MANY_REQUESTS`       | 429         | 요청 한도 초과        |
+| `INTERNAL_ERROR`          | 500         | 서버 내부 오류        |
+| `REQUEST_INVALID`         | 400         | Request Body 누락 |
+| `REQUEST_BODY_MALFORMED`  | 400         | JSON 형식 오류      |
 
 ---
 
@@ -610,19 +615,20 @@ GET /api/teams/{teamId}
 
 ### 엔드포인트 목록
 
-| method | path                           | auth required | 설명              |
-|--------|--------------------------------|---------------|-----------------|
-| GET    | /api/games                     | N             | 경기 목록 조회        |
-| GET    | /api/games/{gameId}            | N             | 경기 상세 조회        |
-| GET    | /api/games/{gameId}/seats      | N             | 좌석 목록 조회        |
-| GET    | /api/tickets                   | O             | 내 예매 내역 조회      |
-| GET    | /api/tickets/{ticketId}        | O             | 예매 상세 조회        |
-| POST   | /api/tickets/reserve           | O             | 티켓 예매 (좌석 선점)   |
-| POST   | /api/tickets/queue/enter       | O             | 대기열 입장          |
-| GET    | /api/tickets/queue/position    | O             | 대기열 순번 조회 (폴링)  |
-| GET    | /api/tickets/queue/sse         | O             | 대기열 순번 SSE 스트리밍 |
-| DELETE | /api/tickets/queue/leave       | O             | 대기열 명시적 이탈      |
-| POST   | /api/tickets/{ticketId}/cancel | O             | 티켓 취소           |
+| method | path                           | auth required | 설명              | 상태      |
+|--------|--------------------------------|---------------|-----------------|---------|
+| GET    | /api/games                     | N             | 경기 목록 조회        | ✅ 구현 완료 |
+| GET    | /api/games/{gameId}            | N             | 경기 상세 조회        | ✅ 구현 완료 |
+| GET    | /api/games/{gameId}/seats      | N             | 좌석 목록 조회        | ✅ 구현 완료 |
+| POST   | /api/games                     | O (ADMIN)     | 경기 등록           | ✅ 구현 완료 |
+| POST   | /api/seats/reservations        | O             | 좌석 선점 (주문 생성)   | ✅ 구현 완료 |
+| GET    | /api/tickets                   | O             | 내 예매 내역 조회      | ✅ 구현 완료 |
+| GET    | /api/tickets/{ticketId}        | O             | 예매 상세 조회        | (구현 예정) |
+| POST   | /api/tickets/{ticketId}/cancel | O             | 티켓 취소           | (구현 예정) |
+| POST   | /api/tickets/queue/enter       | O             | 대기열 입장          | (구현 예정) |
+| GET    | /api/tickets/queue/position    | O             | 대기열 순번 조회 (폴링)  | (구현 예정) |
+| GET    | /api/tickets/queue/sse         | O             | 대기열 순번 SSE 스트리밍 | (구현 예정) |
+| DELETE | /api/tickets/queue/leave       | O             | 대기열 명시적 이탈      | (구현 예정) |
 
 ---
 
@@ -651,21 +657,21 @@ GET /api/games
   "gameId": 101,
   "sportType": "BASEBALL",
   "teams": [
-    {
-      "teamId": 1,
-      "name": "KIA 타이거즈",
-      "shortName": "KIA",
-      "side": "HOME"
-    },
-    {
-      "teamId": 2,
-      "name": "삼성 라이온즈",
-      "shortName": "삼성",
-      "side": "AWAY"
-    }
+      {
+        "teamId": 1,
+        "name": "KIA 타이거즈",
+        "shortName": "KIA",
+        "side": "HOME"
+      },
+      {
+        "teamId": 2,
+        "name": "삼성 라이온즈",
+        "shortName": "삼성",
+        "side": "AWAY"
+      }
   ],
-  "gameTime": "2025-04-21T14:00:00Z",
-  "venue": "광주-기아 챔피언스 필드",
+  "gameTime": "2025-04-21T14:00:00",
+  "stadium": "광주-기아 챔피언스 필드",
   "status": "ON_SALE",
   "totalSeats": 20000,
   "availableSeats": 1500,
@@ -678,21 +684,21 @@ GET /api/games
 
 #### Response Field
 
-| 필드                 | 타입               | 설명                        |
-|--------------------|------------------|---------------------------|
-| `gameId`           | Long             | 경기 ID                     |
-| `sportType`        | String           | 종목                        |
-| `teams`            | Array            | 팀 정보 리스트                  |
-| `teams[].teamId`   | Long             | 팀 ID                      |
-| `teams[].teamName` | String           | 팀 이름                      |
-| `teams[].teamLogo` | String           | 팀 로고 URL                  |
-| `teams[].side`     | String           | 홈/어웨이 구분 (`HOME`, `AWAY`) |
-| `gameTime`         | String (ISO8601) | 경기 시작 시각                  |
-| `stadium`          | String           | 경기장                       |
-| `status`           | String           | 경기 상태                     |
-| `totalSeats`       | Integer          | 전체 좌석 수                   |
-| `availableSeats`   | Integer          | 남은 좌석 수                   |
-| `isRivalMatch`     | Boolean          | 라이벌전 여부                   |
+| 필드                  | 타입               | 설명                                 |
+|---------------------|------------------|------------------------------------|
+| `gameId`            | Long             | 경기 ID                              |
+| `sportType`         | String           | 종목                                 |
+| `teams`             | Array            | 팀 정보 리스트                           |
+| `teams[].teamId`    | Long             | 팀 ID                               |
+| `teams[].name`      | String           | 팀 이름                               |
+| `teams[].shortName` | String           | 팀 약칭                               |
+| `teams[].side`      | String           | `HOME` \| `AWAY`                   |
+| `gameTime`          | String (ISO8601) | 경기 시작 시각                           |
+| `stadium`           | String           | 경기장 이름                             |
+| `status`            | String           | 경기 상태                              |
+| `totalSeats`        | Integer          | 전체 좌석 수 (경기장 기준)                   |
+| `availableSeats`    | Integer          | 남은 좌석 수 (game_seats AVAILABLE 카운트) |
+| `isRivalMatch`      | Boolean          | 라이벌전 여부 (game_grade == RIVAL)      |
 
 ---
 
@@ -739,7 +745,8 @@ GET /api/games/{gameId}
     { "grade": "R", "price": 50000, "available": 120 },
     { "grade": "S", "price": 30000, "available": 800 },
     { "grade": "A", "price": 15000, "available": 580 }
-  ]
+  ],
+  "maxTicketPerUser": 4
 }
 ```
 
@@ -751,6 +758,7 @@ GET /api/games/{gameId}
 | `seatGradeSummary[].grade`     | String  | 좌석 등급                |
 | `seatGradeSummary[].price`     | Integer | 해당 등급 가격 (원)         |
 | `seatGradeSummary[].available` | Integer | 잔여 좌석 수              |
+| `maxTicketPerUser`             | Integer | 1인당 최대 예매 가능 매수      |
 
 *(나머지 필드는 3-1과 동일)*
 
@@ -780,28 +788,21 @@ GET /api/games/{gameId}/seats
 |----------|---------|----|--------------------------------------------------|
 | `grade`  | String  | N  | 좌석 등급 (`VIP` \| `R` \| `S` \| `A` \| `OUTFIELD`) |
 | `status` | String  | N  | 좌석 상태 (기본: `AVAILABLE`)                          |
-| `cursor` | String  | N  | 페이지네이션 커서                                        |
-| `limit`  | Integer | N  | 페이지 크기 (기본 50, 최대 200)                           |
 
 #### Response Body
 
 ```json
-{
-  "items": [    {
-      "seatId": 5001,
-      "grade": "S",
-      "section": "1루 내야",
-      "rowNumber": "C",
-      "seatNumber": 22,
-      "price": 30000,
-      "status": "AVAILABLE"
-    }
-  ],
-  "nextCursor": "eyJpZCI6NTAwMX0=",
-  "hasNext": true,
-  "totalCount": 800
-  
-}
+[
+  {  
+     "seatId": 5001,
+     "grade": "S",
+     "section": "1루 내야",
+     "rowNumber": "C",
+     "seatNumber": "22",
+     "price": 30000,
+     "status": "AVAILABLE"
+  }
+]
 ```
 
 #### Response Field
@@ -824,210 +825,168 @@ GET /api/games/{gameId}/seats
 
 ---
 
-### 3-4. 티켓 예매 (좌석 선점)
+### 3-4. 경기 등록 (Admin)
 
 ```
-POST /api/tickets/reserve
+POST /api/games
 ```
 
-좌석 선점 후 티켓 생성 (상태: `PENDING`). 10분 내 결제 미완료 시 자동 취소.
+#### Request Body
+
+```json
+{
+  "stadiumId": 1,
+  "homeTeamId": 1,
+  "awayTeamId": 2,
+  "sportType": "BASEBALL",
+  "startAt": "2025-04-21T14:00:00",
+  "durationMinutes": 180,
+  "status": "SCHEDULED",
+  "dayType": "WEEKDAY",
+  "gameGrade": "NORMAL",
+  "maxTicketPerUser": 4,
+  "saleStartAt": "2025-04-14T10:00:00",
+  "saleEndAt": "2025-04-21T13:00:00"
+}
+```
+
+#### Request Field
+
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `stadiumId` | Long | Y | 경기장 ID |
+| `homeTeamId` | Long | N | 홈팀 ID |
+| `awayTeamId` | Long | N | 원정팀 ID |
+| `sportType` | String | N | 종목 |
+| `startAt` | String (ISO8601) | Y | 경기 시작 시각 |
+| `durationMinutes` | Integer | N | 경기 시간 (분, 기본 180) |
+| `status` | String | Y | 초기 상태 |
+| `dayType` | String | N | `WEEKDAY` \| `WEEKEND` \| `HOLIDAY` |
+| `gameGrade` | String | N | `NORMAL` \| `RIVAL` |
+| `maxTicketPerUser` | Integer | N | 1인 최대 매수 (기본 4) |
+| `saleStartAt` | String (ISO8601) | N | 판매 시작 시각 |
+| `saleEndAt` | String (ISO8601) | N | 판매 종료 시각 |
+
+#### Response Body (201 Created)
+
+```json
+{
+  "id": 101,
+  "stadiumId": 1,
+  "homeTeamId": 1,
+  "awayTeamId": 2,
+  "sportType": "BASEBALL",
+  "startAt": "2025-04-21T14:00:00",
+  "durationMinutes": 180,
+  "status": "SCHEDULED",
+  "dayType": "WEEKDAY",
+  "gameGrade": "NORMAL",
+  "maxTicketPerUser": 4,
+  "saleStartAt": "2025-04-14T10:00:00",
+  "saleEndAt": "2025-04-21T13:00:00",
+  "createdAt": "2025-04-10T09:00:00"
+}
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+|---|---|---|
+| `STADIUM_NOT_FOUND` | 404 | 존재하지 않는 경기장 |
+| `TEAM_NOT_FOUND` | 404 | 존재하지 않는 팀 |
+
+---
+
+### 3-5. 좌석 선점 (주문 생성)
+
+```
+POST /api/seats/reservations
+```
+
+좌석 선점 후 주문(Order) 생성. 상태: `PENDING`. 15분 내 결제 미완료 시 자동 만료.
 
 #### Request Body
 
 ```json
 {
   "gameId": 101,
-  "seatId": 5001,
-  "buyerName": "홍길동",
-  "buyerPhone": "010-1234-5678"
+  "seatIds": [5001, 5002, 5003]
 }
 ```
 
 #### Request Field
 
-| 필드           | 타입     | 필수 | 설명                         |
-|--------------|--------|----|----------------------------|
-| `gameId`     | Long   | Y  | 경기 ID                      |
-| `seatId`     | Long   | Y  | 좌석 ID                      |
-| `buyerName`  | String | Y  | 구매자 이름 (최대 50자)            |
-| `buyerPhone` | String | Y  | 구매자 연락처 (010-XXXX-XXXX 형식) |
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `gameId` | Long | Y | 경기 ID |
+| `seatIds` | Array\<Long\> | Y | 선점할 game_seat ID 목록 (중복 불가) |
 
-#### Response Body
+#### Response Body (200 OK)
 
 ```json
 {
-  "ticketId": 9001,
+  "orderId": 3001,
   "gameId": 101,
-  "seatId": 5001,
-  "seatGrade": "S",
-  "seatSection": "1루 내야",
-  "price": 30000,
+  "memberId": 1,
   "status": "PENDING",
-  "reservedAt": "2025-04-21T10:00:00Z",
-  "expiresAt": "2025-04-21T10:10:00Z"  
+  "reservedAt": "2025-04-21T10:00:00",
+  "amount": 90000,
+  "seats": [
+    {
+      "seatId": 5001,
+      "seatGrade": "S",
+      "seatSection": "1루 내야",
+      "price": 30000
+    },
+    {
+      "seatId": 5002,
+      "seatGrade": "S",
+      "seatSection": "1루 내야",
+      "price": 30000
+    },
+    {
+      "seatId": 5003,
+      "seatGrade": "S",
+      "seatSection": "1루 내야",
+      "price": 30000
+    }
+  ],
+  "expiresAt": "2025-04-21T10:15:00"
 }
 ```
 
 #### Response Field
 
-| 필드           | 타입               | 설명                  |
-|--------------|------------------|---------------------|
-| `ticketId`   | Long             | 생성된 티켓 ID           |
-| `status`     | String           | 티켓 상태 (`PENDING`)   |
-| `reservedAt` | String (ISO8601) | 선점 시각               |
-| `expiresAt`  | String (ISO8601) | 결제 만료 시각 (선점 후 10분) |
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `orderId` | Long | 생성된 주문 ID |
+| `gameId` | Long | 경기 ID |
+| `memberId` | Long | 회원 ID |
+| `status` | String | 주문 상태 (`PENDING`) |
+| `reservedAt` | String (ISO8601) | 선점 시각 |
+| `amount` | Long | 총 결제 금액 |
+| `seats` | Array | 선점된 좌석 목록 |
+| `seats[].seatId` | Long | game_seat ID |
+| `seats[].seatGrade` | String | 좌석 등급 |
+| `seats[].seatSection` | String | 구역명 |
+| `seats[].price` | Integer | 좌석 가격 |
+| `expiresAt` | String (ISO8601) | 선점 만료 시각 (15분 후) |
 
 #### Http Status / Error Code
 
-| 에러 코드                   | HTTP Status | 설명              |
-|-------------------------|-------------|-----------------|
-| `GAME_NOT_FOUND`        | 404         | 존재하지 않는 경기      |
-| `SEAT_NOT_FOUND`        | 404         | 존재하지 않는 좌석      |
-| `SEAT_ALREADY_RESERVED` | 409         | 이미 선점된 좌석       |
-| `GAME_NOT_ON_SALE`      | 422         | 판매 중이 아닌 경기     |
-| `TICKET_LIMIT_EXCEEDED` | 422         | 경기당 1인 최대 4매 초과 |
+| 에러 코드 | HTTP Status | 설명 |
+|---|---|---|
+| `MEMBER_NOT_FOUND` | 404 | 존재하지 않는 회원 |
+| `GAME_NOT_FOUND` | 404 | 존재하지 않는 경기 |
+| `GAME_NOT_ON_SALE` | 422 | 판매 중이 아닌 경기 |
+| `TICKET_LIMIT_EXCEEDED` | 422 | 경기당 1인 최대 매수 초과 |
+| `GAME_MISMATCH` | 400 | seatIds가 해당 게임에 속하지 않음 |
+| `SEAT_ALREADY_RESERVED` | 409 | 이미 선점된 좌석 포함 |
+| `SEAT_DUPLICATED` | 400 | seatIds에 중복 ID 포함 |
 
 ---
 
-### 3-5. 대기열 입장
-
-```
-POST /api/tickets/queue/enter
-```
-
-#### Request Body
-
-```json
-{
-  "gameId": 101
-}
-```
-
-#### Request Field
-
-| 필드       | 타입   | 필수 | 설명    |
-|----------|------|----|-------|
-| `gameId` | Long | Y  | 경기 ID |
-
-#### Response Body
-
-```json
-{
-  "gameId": 101,
-  "position": 1523,
-  "estimatedWaitSeconds": 456  
-}
-```
-
-#### Response Field
-
-| 필드                     | 타입      | 설명           |
-|------------------------|---------|--------------|
-| `position`             | Integer | 현재 대기 순번     |
-| `estimatedWaitSeconds` | Integer | 예상 대기 시간 (초) |
-
-#### Http Status / Error Code
-
-| 에러 코드                  | HTTP Status | 설명           |
-|------------------------|-------------|--------------|
-| `GAME_NOT_FOUND`       | 404         | 존재하지 않는 경기   |
-| `QUEUE_ALREADY_JOINED` | 409         | 이미 대기열 입장 상태 |
-
----
-
-### 3-6. 대기열 순번 조회
-
-```
-GET /api/tickets/queue/position?gameId={gameId}
-```
-
-#### Query Parameter
-
-| 파라미터     | 타입   | 필수 | 설명    |
-|----------|------|----|-------|
-| `gameId` | Long | Y  | 경기 ID |
-
-#### Response Body
-
-```json
-{
-  "gameId": 101,
-  "position": 802,
-  "estimatedWaitSeconds": 240
-}
-```
-
-#### Http Status / Error Code
-
-| 에러 코드              | HTTP Status | 설명              |
-|--------------------|-------------|-----------------|
-| `QUEUE_NOT_JOINED` | 404         | 대기열에 입장하지 않은 상태 |
-
----
-
-### 3-7. 대기열 이탈
-
-```
-DELETE /api/tickets/queue/leave?gameId={gameId}
-```
-
-#### Query Parameter
-
-| 파라미터     | 타입   | 필수 | 설명    |
-|----------|------|----|-------|
-| `gameId` | Long | Y  | 경기 ID |
-
-#### Response
-
-```
-HTTP 204 No Content
-```
-
----
-
-### 3-8. 티켓 취소
-
-```
-POST /api/tickets/{ticketId}/cancel
-```
-
-#### Path Variable
-
-| 변수         | 타입   | 설명    |
-|------------|------|-------|
-| `ticketId` | Long | 티켓 ID |
-
-#### Response Body
-
-```json
-{
-  "ticketId": 9001,
-  "status": "CANCELLED",
-  "cancelledAt": "2025-04-21T11:00:00Z",
-  "refundAmount": 30000
-}
-```
-
-#### Response Field
-
-| 필드             | 타입               | 설명                   |
-|----------------|------------------|----------------------|
-| `ticketId`     | Long             | 티켓 ID                |
-| `status`       | String           | 변경된 상태 (`CANCELLED`) |
-| `cancelledAt`  | String (ISO8601) | 취소 시각                |
-| `refundAmount` | Integer          | 환불 예정 금액 (원)         |
-
-#### Http Status / Error Code
-
-| 에러 코드                    | HTTP Status | 설명         |
-|--------------------------|-------------|------------|
-| `TICKET_NOT_FOUND`       | 404         | 존재하지 않는 티켓 |
-| `FORBIDDEN`              | 403         | 본인 티켓이 아님  |
-| `TICKET_NOT_CANCELLABLE` | 422         | 취소 불가 상태   |
-
----
-
-### 3-9. 내 예매 내역 조회
+### 3-6. 내 예매 내역 조회
 
 ```
 GET /api/tickets
@@ -1035,11 +994,10 @@ GET /api/tickets
 
 #### Query Parameter
 
-| 파라미터     | 타입      | 필수 | 설명                                   |
-|----------|---------|----|--------------------------------------|
-| `status` | String  | N  | `CONFIRMED` \| `USED` \| `CANCELLED` |
-| `cursor` | String  | N  | 페이지네이션 커서                            |
-| `limit`  | Integer | N  | 페이지 크기 (기본 20)                       |
+| 파라미터 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `page` | Integer | N | 페이지 번호 (기본 0) |
+| `size` | Integer | N | 페이지 크기 (기본 10, 최대 100) |
 
 #### Response Body
 
@@ -1053,34 +1011,45 @@ GET /api/tickets
       "sportType": "BASEBALL",
       "team1Name": "KIA 타이거즈",
       "team2Name": "삼성 라이온즈",
-      "gameTime": "2025-04-21T14:00:00Z",
+      "gameTime": "2025-04-21T14:00:00",
       "venue": "광주-기아 챔피언스 필드",
       "seatGrade": "S",
       "seatSection": "1루 내야",
       "seatNumber": "C-22",
       "price": 30000,
       "status": "CONFIRMED",
-      "issuedAt": "2025-04-21T10:05:00Z"
+      "issuedAt": "2025-04-21T10:05:00"
     }
   ],
-  "nextCursor": "eyJpZCI6OTAwMH0=",
-  "hasNext": false,
-  "totalCount": 3
+  "currentPage": 0,
+  "totalPages": 1,
+  "totalCount": 3,
+  "hasNext": false
 }
 ```
 
 #### Response Field
 
-| 필드             | 타입               | 설명                                   |
-|----------------|------------------|--------------------------------------|
-| `ticketId`     | Long             | 티켓 ID                                |
-| `ticketNumber` | String           | 고유 티켓 번호 (UUID)                      |
-| `status`       | String           | `CONFIRMED` \| `USED` \| `CANCELLED` |
-| `issuedAt`     | String (ISO8601) | 발급 시각                                |
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `ticketId` | Long | 티켓 ID |
+| `ticketNumber` | String | 고유 티켓 번호 (UUID) |
+| `gameId` | Long | 경기 ID |
+| `sportType` | String | 종목 |
+| `team1Name` | String | 홈팀 이름 |
+| `team2Name` | String | 원정팀 이름 |
+| `gameTime` | String (ISO8601) | 경기 시작 시각 |
+| `venue` | String | 경기장 |
+| `seatGrade` | String | 좌석 등급 |
+| `seatSection` | String | 좌석 구역 |
+| `seatNumber` | String | 좌석 번호 |
+| `price` | Integer | 티켓 가격 |
+| `status` | String | `CONFIRMED` \| `USED` \| `CANCELLED` |
+| `issuedAt` | String (ISO8601) | 발급 시각 |
 
 ---
 
-### 3-10. 예매 상세 조회
+### 3-7. 예매 상세 조회 (구현 예정)
 
 ```
 GET /api/tickets/{ticketId}
@@ -1088,61 +1057,159 @@ GET /api/tickets/{ticketId}
 
 #### Path Variable
 
-| 변수         | 타입   | 설명    |
-|------------|------|-------|
+| 변수 | 타입 | 설명 |
+|---|---|---|
 | `ticketId` | Long | 티켓 ID |
 
 #### Response Body
 
-`3-9` 목록 응답의 단건 항목과 동일 + 결제 정보 포함.
+`3-6` 목록 응답의 단건 항목과 동일 + 결제 정보 포함.
 
-```json "ticketId": 9001,
+```json
+{
+  "ticketId": 9001,
   "ticketNumber": "550e8400-e29b-41d4-a716-446655440000",
   "gameId": 101,
   "sportType": "BASEBALL",
   "team1Name": "KIA 타이거즈",
   "team2Name": "삼성 라이온즈",
-  "gameTime": "2025-04-21T14:00:00Z",
+  "gameTime": "2025-04-21T14:00:00",
   "venue": "광주-기아 챔피언스 필드",
   "seatGrade": "S",
   "seatSection": "1루 내야",
   "seatNumber": "C-22",
-  "teamSide": "TEAM1",
   "price": 30000,
   "status": "CONFIRMED",
-  "issuedAt": "2025-04-21T10:05:00Z",
+  "issuedAt": "2025-04-21T10:05:00",
   "payment": {
     "paymentId": 7001,
     "method": "TOSS_PAY",
     "finalAmount": 30000,
-    "paidAt": "2025-04-21T10:05:00Z"
+    "paidAt": "2025-04-21T10:05:00"
   }
 }
 ```
 
 #### Http Status / Error Code
 
-| 에러 코드              | HTTP Status | 설명         |
-|--------------------|-------------|------------|
-| `TICKET_NOT_FOUND` | 404         | 존재하지 않는 티켓 |
-| `FORBIDDEN`        | 403         | 본인 티켓이 아님  |
+| 에러 코드 | HTTP Status | 설명 |
+|---|---|---|
+| `TICKET_NOT_FOUND` | 404 | 존재하지 않는 티켓 |
+| `FORBIDDEN` | 403 | 본인 티켓이 아님 |
 
 ---
 
-### 3-11. 대기열 SSE 스트리밍
+### 3-8. 티켓 취소
+
+```
+POST /api/tickets/{ticketId}/cancel
+```
+
+#### Path Variable
+
+| 변수 | 타입 | 설명 |
+|---|---|---|
+| `ticketId` | Long | 티켓 ID |
+
+#### Response Body
+
+```json
+{
+  "ticketId": 9001,
+  "status": "CANCELLED",
+  "cancelledAt": "2025-04-21T11:00:00",
+  "refundAmount": 30000
+}
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+|---|---|---|
+| `TICKET_NOT_FOUND` | 404 | 존재하지 않는 티켓 |
+| `FORBIDDEN` | 403 | 본인 티켓이 아님 |
+| `TICKET_NOT_CANCELLABLE` | 422 | 취소 불가 상태 |
+
+---
+
+### 3-9. 대기열 입장
+
+```
+POST /api/tickets/queue/enter
+```
+
+#### Request Body
+
+```json
+{
+  "gameId": 101
+}
+```
+
+#### Response Body
+
+```json
+{
+  "gameId": 101,
+  "position": 1523,
+  "estimatedWaitSeconds": 456
+}
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+|---|---|---|
+| `GAME_NOT_FOUND` | 404 | 존재하지 않는 경기 |
+| `QUEUE_ALREADY_JOINED` | 409 | 이미 대기열 입장 상태 |
+
+---
+
+### 3-10. 대기열 순번 조회
+
+```
+GET /api/tickets/queue/position?gameId={gameId}
+```
+
+#### Response Body
+
+```json
+{
+  "gameId": 101,
+  "position": 802,
+  "estimatedWaitSeconds": 240
+}
+```
+
+#### Http Status / Error Code
+
+| 에러 코드 | HTTP Status | 설명 |
+|---|---|---|
+| `QUEUE_NOT_JOINED` | 404 | 대기열에 입장하지 않은 상태 |
+
+---
+
+### 3-11. 대기열 이탈
+
+```
+DELETE /api/tickets/queue/leave?gameId={gameId}
+```
+
+#### Response
+
+```
+HTTP 204 No Content
+```
+
+---
+
+### 3-12. 대기열 SSE 스트리밍
 
 ```
 GET /api/tickets/queue/sse?gameId={gameId}&uuid={entryUuid}
 ```
 
-대기열 입장(`3-5`) 후 발급된 UUID로 SSE 연결 수립. 순번 변경 시마다 이벤트 Push.
-
-#### Query Parameter
-
-| 파라미터     | 타입     | 필수 | 설명                   |
-|----------|--------|----|----------------------|
-| `gameId` | Long   | Y  | 경기 ID                |
-| `uuid`   | String | Y  | 대기열 입장 시 발급된 진입 UUID |
+대기열 입장 후 발급된 UUID로 SSE 연결 수립. 순번 변경 시마다 이벤트 Push.
 
 #### SSE 이벤트 구조 (대기 중)
 
@@ -1155,11 +1222,30 @@ data: {"gameId": 101, "position": 523, "estimatedWaitSeconds": 156}
 
 ```
 event: queue-admitted
-data: {"gameId": 101, "reservationUuid": "abc-...", "expireAt": "2025-04-21T10:15:00Z"}
+data: {"gameId": 101, "reservationUuid": "abc-...", "expireAt": "2025-04-21T10:15:00"}
 ```
 
-> `queue-admitted` 이벤트 수신 시 클라이언트는 `reservationUuid`를 보관하고 좌석 선점(`3-4`) 요청에 사용.  
 > 30초 내 SSE 재연결 시 기존 순번 유지. 30초 초과 시 자동 이탈 처리.
+
+---
+
+## 내부 이벤트 처리 (Ticketing ↔ Payment)
+
+### 이벤트 흐름
+
+Ticketing 도메인은 Spring Application Event를 통해 Payment 도메인과 연동합니다.
+
+| 이벤트 | 발행자 | 수신자 | 처리 |
+|---|---|---|---|
+| `PaymentStartedEvent` | Payment | Ticketing (`PaymentEventListener`) | Order 상태 `PENDING` → `PAYING` 전환 |
+| `PaymentCompletedEvent` | Payment | Ticketing (`PaymentEventListener`) | Order `CONFIRMED`, OrderSeat `CONFIRMED`, GameSeat `SOLD`, 티켓 발급 |
+| `PaymentCancelledEvent` | Payment | Ticketing (`PaymentEventListener`) | Order `CANCELLED`, OrderSeat `CANCELLED`, GameSeat `AVAILABLE` (해제) |
+
+### 자동 만료 스케줄러 (`OrderExpirationScheduler`)
+
+- **주기**: 매 60초 (`@Scheduled(fixedRate = 60000)`)
+- **대상 1**: `PENDING` 상태 + `expires_at` 경과 + 결제 기록 없음 → `EXPIRED` 전환 + 좌석 해제
+- **대상 2**: `PAYING` 상태 + 결제 상태 `FAILED/CANCELED/REFUNDED` → `CANCELLED` 전환 + 좌석 해제
 
 ---
 
@@ -3951,9 +4037,9 @@ POST /api/admin/chat/rooms
 | GET    | /api/games                                       | N             | 경기 목록 조회                |
 | GET    | /api/games/{gameId}                              | N             | 경기 상세 조회                |
 | GET    | /api/games/{gameId}/seats                        | N             | 좌석 목록 조회                |
+| POST   | /api/seats/reservations	                         | O             | 	좌석 선점 (주문 생성)          |
 | GET    | /api/tickets                                     | O             | 내 예매 내역 조회              |
 | GET    | /api/tickets/{ticketId}                          | O             | 예매 상세 조회                |
-| POST   | /api/tickets/reserve                             | O             | 티켓 예매 (좌석 선점)           |
 | POST   | /api/tickets/queue/enter                         | O             | 대기열 입장                  |
 | GET    | /api/tickets/queue/position                      | O             | 대기열 순번 조회 (폴링)          |
 | GET    | /api/tickets/queue/sse                           | O             | 대기열 순번 SSE 스트리밍         |
@@ -4004,61 +4090,76 @@ POST /api/admin/chat/rooms
 
 ## 부록 B. 에러 코드 전체 목록
 
-| 에러 코드                            | HTTP Status | 도메인               | 설명                       |
-|----------------------------------|-------------|-------------------|--------------------------|
-| `UNAUTHORIZED`                   | 401         | 공통                | 인증 실패                    |
-| `FORBIDDEN`                      | 403         | 공통                | 권한 없음                    |
-| `NOT_FOUND`                      | 404         | 공통                | 리소스 없음                   |
-| `INVALID_INPUT`                  | 400         | 공통                | 입력값 오류                   |
-| `INTERNAL_ERROR`                 | 500         | 공통                | 서버 오류                    |
-| `INVALID_REFRESH_TOKEN`          | 401         | Auth              | 유효하지 않은 리프레시 토큰          |
-| `TEAM_NOT_FOUND`                 | 404         | Team              | 팀 없음                     |
-| `FAVORITE_TEAM_ALREADY_EXISTS`   | 409         | Member            | 선호 팀 중복                  |
-| `FAVORITE_TEAM_NOT_FOUND`        | 404         | Member            | 선호 팀 미등록                 |
-| `GAME_NOT_FOUND`                 | 404         | Ticketing         | 경기 없음                    |
-| `GAME_NOT_ON_SALE`               | 422         | Ticketing         | 판매 중이 아닌 경기              |
-| `SEAT_NOT_FOUND`                 | 404         | Ticketing         | 좌석 없음                    |
-| `SEAT_ALREADY_RESERVED`          | 409         | Ticketing         | 이미 선점된 좌석                |
-| `SEAT_RESERVATION_EXPIRED`       | 422         | Ticketing/Payment | 좌석 선점 만료                 |
-| `TICKET_NOT_FOUND`               | 404         | Ticketing         | 티켓 없음                    |
-| `TICKET_LIMIT_EXCEEDED`          | 422         | Ticketing         | 경기당 1인 최대 4매 초과          |
-| `TICKET_NOT_CANCELLABLE`         | 422         | Ticketing         | 취소 불가 상태                 |
-| `TICKET_NOT_PAYABLE`             | 422         | Payment           | 결제 불가 티켓 상태              |
-| `TICKET_RESERVATION_EXPIRED`     | 422         | Payment           | 선점 10분 만료                |
-| `QUEUE_NOT_JOINED`               | 404         | Ticketing         | 대기열 미입장                  |
-| `QUEUE_ALREADY_JOINED`           | 409         | Ticketing         | 이미 대기열 입장 상태             |
-| `PAYMENT_NOT_FOUND`              | 404         | Payment           | 결제 없음                    |
-| `PAYMENT_ALREADY_EXISTS`         | 409         | Payment           | idempotencyKey 중복        |
-| `PAYMENT_AMOUNT_MISMATCH`        | 422         | Payment           | 결제 금액 불일치                |
-| `PAYMENT_ALREADY_COMPLETED`      | 409         | Payment           | 이미 검증 완료된 결제             |
-| `PAYMENT_NOT_REFUNDABLE`         | 422         | Payment           | 환불 불가 상태                 |
-| `INVALID_WEBHOOK_SIGNATURE`      | 401         | Payment           | Webhook 서명 검증 실패         |
-| `CHAT_ROOM_NOT_FOUND`            | 404         | Chat              | 채팅방 없음                   |
-| `CHANNEL_ALREADY_EXISTS`         | 409         | Notification      | 채널 중복                    |
-| `CHANNEL_NOT_FOUND`              | 404         | Notification      | 채널 없음                    |
-| `INVALID_CHANNEL_TARGET`         | 400         | Notification      | 채널 대상 형식 오류              |
-| `TEAM_NAME_DUPLICATE`            | 409         | Admin             | 동일 종목 내 팀 이름 중복          |
-| `INVALID_SPORT_TYPE`             | 400         | Admin             | 지원하지 않는 종목 값             |
-| `TEAM_HAS_ACTIVE_GAMES`          | 422         | Admin             | 진행 중인 경기가 있어 팀 비활성화 불가   |
-| `SAME_TEAM_GAME`                 | 400         | Admin             | team1Id와 team2Id가 동일     |
-| `INVALID_GAME_TIME`              | 400         | Admin             | 현재 시각 이전의 경기 시각          |
-| `SPORT_TYPE_MISMATCH`            | 400         | Admin             | 두 팀의 sport_type 불일치      |
-| `GAME_NOT_MODIFIABLE`            | 422         | Admin             | SCHEDULED 상태 아님 — 수정 불가  |
-| `INVALID_STATUS_TRANSITION`      | 422         | Admin             | 허용되지 않는 경기 상태 전이         |
-| `NO_SEATS_REGISTERED`            | 422         | Admin             | 좌석 없는 상태에서 ON_SALE 전환 불가 |
-| `SEATS_ALREADY_EXISTS`           | 409         | Admin             | 이미 좌석이 등록된 경기            |
-| `INVALID_SEAT_DATA`              | 400         | Admin             | 좌석 데이터 형식 오류             |
-| `CHAT_ROOM_ALREADY_EXISTS`       | 409         | Admin             | 해당 game/team 채팅방 이미 존재   |
-| `NICKNAME_DUPLICATE`             | 409         | Member            | 중복 닉네임                   |
-| `INVALID_PRIORITY`               | 400         | Member            | 선호 팀 우선순위 범위/중복 오류       |
-| `MEMBER_ALREADY_WITHDRAWN`       | 422         | Member            | 이미 탈퇴한 회원                |
-| `QUEUE_ENTRY_BEFORE_SALE`        | 422         | Ticketing         | 예매 오픈 전 대기열 진입 시도        |
-| `RESERVATION_SESSION_EXPIRED`    | 422         | Ticketing         | 예매 세션(UUID) 만료           |
-| `RESERVATION_UUID_INVALID`       | 401         | Ticketing         | 유효하지 않은 예매 진입 UUID       |
-| `PURCHASE_LIMIT_EXCEEDED`        | 422         | Ticketing         | 인당 좌석 제한 초과              |
-| `GAME_DELETE_FORBIDDEN`          | 422         | Admin             | 확정 예매가 있어 경기 삭제 불가       |
-| `INVALID_SEAT_STATUS_TRANSITION` | 422         | Admin             | 허용되지 않는 좌석 상태 전이         |
-
+| 에러 코드                                   | HTTP Status | 도메인          | 설명                         |
+|-----------------------------------------|-------------|--------------|----------------------------|
+| `INVALID_INPUT`                         | 400         | 공통           | 입력값 오류                     |
+| `UNAUTHORIZED`                          | 401         | 공통           | 인증 필요                      |
+| `FORBIDDEN`                             | 403         | 공통           | 접근 권한 없음                   |
+| `NOT_FOUND`                             | 404         | 공통           | 리소스 없음                     |
+| `CONFLICT`                              | 409         | 공통           | 리소스 충돌 (중복)                |
+| `BUSINESS_RULE_VIOLATION`               | 422         | 공통           | 비즈니스 규칙 위반                 |
+| `TOO_MANY_REQUESTS`                     | 429         | 공통           | 요청 한도 초과                   |
+| `INTERNAL_ERROR`                        | 500         | 공통           | 서버 내부 오류                   |
+| `REQUEST_INVALID`                       | 400         | 공통           | Request Body 누락            |
+| `REQUEST_BODY_MALFORMED`                | 400         | 공통           | JSON 형식 오류                 |
+| `MEMBER_NOT_FOUND`                      | 404         | Member       | 회원 없음                      |
+| `NICKNAME_DUPLICATE`                    | 409         | Member       | 중복 닉네임                     |
+| `MEMBER_WITHDRAWN`                      | 403         | Member       | 탈퇴한 회원                     |
+| `INVALID_PRIORITY`                      | 400         | Member       | 선호 팀 우선순위 범위 오류            |
+| `FAVORITE_TEAM_ALREADY_EXISTS`          | 409         | Member       | 선호 팀 중복                    |
+| `FAVORITE_TEAM_NOT_FOUND`               | 404         | Member       | 선호 팀 미등록                   |
+| `INVALID_REFRESH_TOKEN`                 | 401         | Auth         | 유효하지 않은 리프레시 토큰            |
+| `TEAM_NOT_FOUND`                        | 404         | Team         | 팀 없음                       |
+| `GAME_NOT_FOUND`                        | 404         | Ticketing    | 경기 없음                      |
+| `GAME_NOT_ON_SALE`                      | 422         | Ticketing    | 판매 중이 아닌 경기                |
+| `GAME_MISMATCH`                         | 400         | Ticketing    | 해당 경기에 속하지 않는 좌석           |
+| `SEAT_NOT_FOUND`                        | 404         | Ticketing    | 좌석 없음                      |
+| `SEAT_ALREADY_RESERVED`                 | 409         | Ticketing    | 이미 선점된 좌석                  |
+| `SEAT_IS_NULL`                          | 404         | Ticketing    | 선택된 좌석 없음                  |
+| `SEAT_DUPLICATED`                       | 400         | Ticketing    | 중복된 좌석 요청                  |
+| `TICKET_LIMIT_EXCEEDED`                 | 422         | Ticketing    | 경기당 1인 최대 4매 초과            |
+| `TICKET_NOT_CANCELLABLE`                | 422         | Ticketing    | 취소 불가 상태                   |
+| `QUEUE_NOT_JOINED`                      | 404         | Ticketing    | 대기열 미입장                    |
+| `QUEUE_ALREADY_JOINED`                  | 409         | Ticketing    | 이미 대기열 입장 상태               |
+| `QUEUE_ENTRY_BEFORE_SALE`               | 422         | Ticketing    | 예매 오픈 전 대기열 진입 시도          |
+| `RESERVATION_SESSION_EXPIRED`           | 422         | Ticketing    | 예매 세션(UUID) 만료             |
+| `RESERVATION_UUID_INVALID`              | 401         | Ticketing    | 유효하지 않은 예매 진입 UUID         |
+| `PURCHASE_LIMIT_EXCEEDED`               | 422         | Ticketing    | 인당 좌석 제한 초과                |
+| `ORDER_NOT_FOUND`                       | 404         | Ticketing    | 주문 없음                      |
+| `ORDER_EXPIRED`                         | 410         | Ticketing    | 예약 시간 만료                   |
+| `ORDER_MEMBER_MISMATCH`                 | 403         | Ticketing    | 요청자와 주문자 불일치               |
+| `PRICE_POLICY_NOT_FOUND`                | 404         | Game         | 가격 정책 없음                   |
+| `STADIUM_NOT_FOUND`                     | 404         | Game         | 경기장 없음                     |
+| `PAYMENT_NOT_FOUND`                     | 404         | Payment      | 결제 없음                      |
+| `PAYMENT_ALREADY_EXISTS`                | 409         | Payment      | idempotencyKey 중복          |
+| `PAYMENT_AMOUNT_MISMATCH`               | 422         | Payment      | 결제 금액 불일치                  |
+| `PAYMENT_ALREADY_COMPLETED`             | 409         | Payment      | 이미 검증 완료된 결제               |
+| `PAYMENT_NOT_REFUNDABLE`                | 422         | Payment      | 환불 불가 상태                   |
+| `INVALID_WEBHOOK_SIGNATURE`             | 401         | Payment      | Webhook 서명 검증 실패           |
+| `TICKET_NOT_PAYABLE`                    | 422         | Payment      | 결제 불가 티켓 상태                |
+| `TICKET_RESERVATION_EXPIRED`            | 422         | Payment      | 선점 시간 만료                   |
+| `NOTIFICATION_NOT_FOUND`                | 404         | Notification | 알림 없음                      |
+| `NOTIFICATION_ALREADY_READ`             | 400         | Notification | 이미 읽은 알림                   |
+| `NOTIFICATION_SETTING_NOT_FOUND`        | 404         | Notification | 알림 설정 없음                   |
+| `NOTIFICATION_CHANNEL_NOT_FOUND`        | 404         | Notification | 알림 채널 없음                   |
+| `NOTIFICATION_CHANNEL_ALREADY_EXISTS`   | 409         | Notification | 알림 채널 중복                   |
+| `NOTIFICATION_CHANNEL_TYPE_UNSUPPORTED` | 400         | Notification | 미지원 알림 채널 타입               |
+| `NOTIFICATION_SEND_FAILED`              | 500         | Notification | 알림 발송 실패                   |
+| `CHAT_ROOM_NOT_FOUND`                   | 404         | Chat         | 채팅방 없음                     |
+| `CHAT_ROOM_ALREADY_EXISTS`              | 409         | Admin        | 해당 game/team 채팅방 이미 존재     |
+| `TEAM_NAME_DUPLICATE`                   | 409         | Admin        | 동일 종목 내 팀 이름 중복            |
+| `INVALID_SPORT_TYPE`                    | 400         | Admin        | 지원하지 않는 종목 값               |
+| `TEAM_HAS_ACTIVE_GAMES`                 | 422         | Admin        | 진행 중인 경기가 있어 팀 비활성화 불가     |
+| `SAME_TEAM_GAME`                        | 400         | Admin        | homeTeamId와 awayTeamId가 동일 |
+| `INVALID_GAME_TIME`                     | 400         | Admin        | 현재 시각 이전의 경기 시각            |
+| `SPORT_TYPE_MISMATCH`                   | 400         | Admin        | 두 팀의 sport_type 불일치        |
+| `GAME_NOT_MODIFIABLE`                   | 422         | Admin        | SCHEDULED 상태 아님 — 수정 불가    |
+| `INVALID_STATUS_TRANSITION`             | 422         | Admin        | 허용되지 않는 경기 상태 전이           |
+| `NO_SEATS_REGISTERED`                   | 422         | Admin        | 좌석 없는 상태에서 ON_SALE 전환 불가   |
+| `SEATS_ALREADY_EXISTS`                  | 409         | Admin        | 이미 좌석이 등록된 경기              |
+| `INVALID_SEAT_DATA`                     | 400         | Admin        | 좌석 데이터 형식 오류               |
+| `GAME_DELETE_FORBIDDEN`                 | 422         | Admin        | 확정 예매가 있어 경기 삭제 불가         |
+| `INVALID_SEAT_STATUS_TRANSITION`        | 422         | Admin        | 허용되지 않는 좌석 상태 전이           |
 ---
 
 ## 부록 C. Redis Streams 이벤트 정의
@@ -4111,4 +4212,12 @@ HTTP 핸드쉐이크 단계에서 JWT 검증 (`ChannelInterceptor`). STOMP CONNE
 팀/경기 등록은 `/api/admin/**` 네임스페이스로 분리한다. Spring Security에서 `ROLE_ADMIN` 권한 체크를 레이어 단에서 일괄 적용하여 개별 서비스 레이어 권한 검증 중복을 제거한다.
 프로덕션에서는 IP 화이트리스트 또는 내부망 전용 포트로 추가 제한을 권장한다.
 
+### D-6. 다중 좌석 예매 — All or Nothing
 
+`POST /api/seats/reservations`에서 `seatIds` 리스트 중 하나라도 AVAILABLE이 아니면 전체 요청을 실패 처리한다. 부분 성공(partial success)은 허용하지 않는다.
+클라이언트는 실패 시 좌석 재선택 후 재요청해야 한다
+
+### D-8. 티켓 목록 — Offset 페이지네이션
+
+`GET /api/tickets`는 Spring Data `Pageable` 기반 Offset 페이지네이션을 사용한다.
+개인 티켓 수가 제한적(수십~수백 건)이므로 Offset 방식의 성능 문제가 발생하지 않는다. `page`, `size` 파라미터로 제어하며 `totalCount`, `hasNext`를 응답에 포함한다.

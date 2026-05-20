@@ -2,6 +2,7 @@ package com.sportsify.game.presentation.controller;
 
 
 import com.sportsify.game.application.service.GameService;
+import com.sportsify.game.presentation.api.GameApi;
 import com.sportsify.game.presentation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/games")
 @RequiredArgsConstructor
-public class GameController {
+public class GameController implements GameApi {
 
     private final GameService gameService;
 
