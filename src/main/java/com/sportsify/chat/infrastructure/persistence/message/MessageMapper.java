@@ -15,7 +15,7 @@ public class MessageMapper {
         return Message.restore(
                 MessageId.of(entity.getId()),
                 ChatRoomId.of(entity.getRoomId()),
-                MemberId.of(entity.getSenderId()),
+                entity.getSenderId() != null ? MemberId.of(entity.getSenderId()) : null,
                 MessageContent.of(entity.getContent()),
                 MessageType.valueOf(entity.getType()),
                 MessageStatus.valueOf(entity.getStatus()),
@@ -30,7 +30,7 @@ public class MessageMapper {
         return new MessageJpaEntity(
                 null,
                 domain.getRoomId().value(),
-                domain.getSenderId().value(),
+                domain.getSenderId() != null ? domain.getSenderId().value() : null,
                 domain.getContent().value(),
                 domain.getType().name(),
                 domain.getStatus().name(),

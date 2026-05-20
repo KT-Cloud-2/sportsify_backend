@@ -23,7 +23,7 @@ public class MessageJpaEntity {
     @Column(name = "room_id", nullable = false)
     private Long roomId;
 
-    @Column(name = "sender_id", nullable = false)
+    @Column(name = "sender_id")
     private Long senderId;
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT", length = 500)

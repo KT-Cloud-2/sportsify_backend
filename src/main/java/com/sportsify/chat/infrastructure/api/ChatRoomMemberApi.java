@@ -1,5 +1,6 @@
 package com.sportsify.chat.infrastructure.api;
 
+import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberInvitesResponse;
 import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberResponse;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.swagger.AuthRequiredApi;
@@ -60,5 +61,18 @@ public interface ChatRoomMemberApi {
             Long memberId,
             @PathVariable Long roomId,
             @RequestParam Long targetId
+    );
+
+    @SwaggerApi(summary = "5-14. 내 초대 목록 조회")
+    ResponseEntity<ChatRoomMemberInvitesResponse> getMyInvites(
+            Long memberId
+    );
+
+    @SwaggerApi(summary = "5-15. 초대 거부")
+    @SwaggerApiError(ErrorCode.NOT_FOUND)
+    @SwaggerApiError(ErrorCode.CONFLICT)
+    ResponseEntity<Void> reject(
+            Long memberId,
+            @PathVariable Long roomId
     );
 }

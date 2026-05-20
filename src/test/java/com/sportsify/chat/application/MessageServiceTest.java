@@ -497,6 +497,17 @@ class MessageServiceTest {
     }
 
     @Test
+    @DisplayName("lastReadMessageId가 0 이하이면 DIRECT 방이어도 Redis 기록을 건너뛴다")
+    void read_lastReadMessageId_0이하_Redis스킵() {
+        messageService.read(10L, 1L, 0L, true);
+        messageService.read(10L, 1L, -1L, true);
+        messageService.read(10L, 1L, null, true);
+
+        verifyNoInteractions(redisTemplate);
+        verifyNoInteractions(chatRoomRepo);
+    }
+
+    @Test
     @DisplayName("needDirectCheck=true이고 GAME 방이면 Redis 기록을 건너뛴다")
     void read_GAME방_Redis스킵() {
         ChatRoom gameRoom = chatRoom(10L, ChatRoomType.GAME);

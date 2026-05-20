@@ -231,6 +231,31 @@ class ChatRoomMemberTest {
         assertThat(member.getUpdatedAt()).isEqualTo(NOW);
     }
 
+    // ──────────────────────── rejectInvite ────────────────────────
+
+    @Test
+    @DisplayName("INVITED 멤버가 초대를 거부하면 REJECT 상태로 변경되고 MEMBER_REJECTED 이벤트가 등록된다")
+    void rejectInvite_INVITED_to_REJECT() {
+        ChatRoomMember member = restored(MemberStatus.INVITED);
+
+        member.rejectInvite(LATER);
+
+        assertThat(member.getStatus()).isEqualTo(MemberStatus.REJECT);
+        assertThat(member.getUpdatedAt()).isEqualTo(LATER);
+        assertThat(member.getEvents()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("이미 REJECT 상태인 멤버가 거부해도 updatedAt이 갱신되지 않는다")
+    void rejectInvite_REJECT_멱등() {
+        ChatRoomMember member = restored(MemberStatus.REJECT);
+
+        member.rejectInvite(LATER);
+
+        assertThat(member.getStatus()).isEqualTo(MemberStatus.REJECT);
+        assertThat(member.getUpdatedAt()).isEqualTo(NOW);
+    }
+
     // ──────────────────────── assignId ────────────────────────
 
     @Test

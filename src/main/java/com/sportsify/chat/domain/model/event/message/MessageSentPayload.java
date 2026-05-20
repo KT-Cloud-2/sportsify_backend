@@ -8,12 +8,13 @@ public record MessageSentPayload(
         Long senderId,
         String type,
         String content
-) {
+) implements MessagePayload {
+
     public static MessageSentPayload from(Message message, String clientMessageId) {
         return new MessageSentPayload(
                 message.getId() != null ? message.getId().value() : null,
                 clientMessageId,
-                message.getSenderId().value(),
+                message.getSenderId() != null ? message.getSenderId().value() : null,
                 message.getType().name(),
                 message.getContent().value()
         );

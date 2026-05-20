@@ -1,5 +1,6 @@
 package com.sportsify.chat.presentation;
 
+import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberInvitesResponse;
 import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberResponse;
 import com.sportsify.chat.application.chatRoomMember.service.ChatRoomMemberService;
 import com.sportsify.chat.presentation.chatRoomMember.controller.ChatRoomMemberController;
@@ -13,6 +14,7 @@ import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -52,7 +54,7 @@ class ChatRoomMemberControllerApiTest extends WebMvcTestSupport {
         ChatRoomMemberResponse response = new ChatRoomMemberResponse(ROOM_ID, MEMBER_ID, "LEFT", NOW);
         given(chatRoomMemberService.leave(eq(ROOM_ID), eq(MEMBER_ID))).willReturn(response);
 
-        mockMvc.perform(delete("/api/chat/rooms/{roomId}/invite", ROOM_ID)
+        mockMvc.perform(delete("/api/chat/rooms/{roomId}/leave", ROOM_ID)
                         .header("Authorization", bearerToken(MEMBER_ID, "USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").value(ROOM_ID))
@@ -102,6 +104,26 @@ class ChatRoomMemberControllerApiTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.roomId").value(ROOM_ID))
                 .andExpect(jsonPath("$.memberId").value(targetId))
                 .andExpect(jsonPath("$.status").value("BANNED"));
+    }
+
+    @Test
+    @DisplayName("GET /api/chat/rooms/getMyInvites — 200 내 초대 목록 조회 성공")
+    void 내_초대목록_조회_성공() throws Exception {
+        ChatRoomMemberInvitesResponse response = new ChatRoomMemberInvitesResponse(List.of());
+        given(chatRoomMemberService.getMyInvites(eq(MEMBER_ID))).willReturn(response);
+
+        mockMvc.perform(get("/api/chat/rooms/getMyInvites")
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invites").isArray());
+    }
+
+    @Test
+    @DisplayName("POST /api/chat/rooms/{roomId}/reject — 204 초대 거부 성공")
+    void 초대_거부_성공() throws Exception {
+        mockMvc.perform(post("/api/chat/rooms/{roomId}/reject", ROOM_ID)
+                        .header("Authorization", bearerToken(MEMBER_ID, "USER")))
+                .andExpect(status().isNoContent());
     }
 
     // ──────────────────────── API 실패 Test ────────────────────────

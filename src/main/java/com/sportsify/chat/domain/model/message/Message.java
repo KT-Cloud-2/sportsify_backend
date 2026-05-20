@@ -39,7 +39,7 @@ public class Message extends AbstractAggregateRoot<Message> {
                     Instant createdAt) {
         this.id = id;
         this.roomId = Objects.requireNonNull(roomId, "roomId");
-        this.senderId = Objects.requireNonNull(senderId, "senderId");
+        this.senderId = senderId; // nullable — system/alert messages have no sender
         this.content = Objects.requireNonNull(content, "content");
         this.type = Objects.requireNonNull(type, "type");
         this.status = Objects.requireNonNull(status, "status");
@@ -58,6 +58,15 @@ public class Message extends AbstractAggregateRoot<Message> {
         Message msg = new Message(null, roomId, senderId, content, type, MessageStatus.ACTIVE, now);
         msg.pendingClientMessageId = clientMessageId; // ID 할당 후 이벤트 등록
         return msg;
+    }
+
+    /**
+     * 알림 메시지 생성
+     */
+    public static Message createAlert(ChatRoomId roomId,
+                                      MessageContent content,
+                                      Instant now) {
+        return new Message(null, roomId, null, content, MessageType.SYSTEM, MessageStatus.ACTIVE, now);
     }
 
     /**
