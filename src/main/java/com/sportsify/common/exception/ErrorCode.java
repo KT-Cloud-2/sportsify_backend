@@ -37,6 +37,7 @@ public enum ErrorCode {
     // 예매
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "GAME_NOT_FOUND", "존재하지 않는 경기입니다."),
     GAME_NOT_ON_SALE(HttpStatus.valueOf(422), "GAME_NOT_ON_SALE", "판매 중이 아닌 경기입니다."),
+    GAME_MISMATCH(HttpStatus.BAD_REQUEST, "GAME_MISMATCH", "동일한 게임의 좌석만 예매할 수 있습니다."),
     SEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "SEAT_NOT_FOUND", "존재하지 않는 좌석입니다."),
     SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "SEAT_ALREADY_RESERVED", "이미 선점된 좌석입니다."),
     SEAT_IS_NULL(HttpStatus.NOT_FOUND, "SEAT_IS_NULL", "선택된 좌석이 없습니다."),

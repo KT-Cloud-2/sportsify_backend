@@ -50,15 +50,10 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     @Autowired
     private TicketingTestFixture fixture;
 
-    @Autowired
-    private TestOrderEventListener testEventListener;
-
-
     @BeforeEach
     void beforeEach() {
         member = fixture.createMember("t1@test.com", "n1");
         game = fixture.createGame();
-        testEventListener.clear();
     }
 
     @AfterEach
