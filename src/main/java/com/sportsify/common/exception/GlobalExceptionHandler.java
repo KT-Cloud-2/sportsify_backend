@@ -1,9 +1,12 @@
 package com.sportsify.common.exception;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.sportsify.common.response.ErrorDetail;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -52,5 +55,25 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.badRequest()
                 .body(ErrorDetail.of(ErrorCode.INVALID_INPUT.getCode(), ErrorCode.INVALID_INPUT.getMessage(), detail));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorDetail> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        Throwable cause = e.getCause();
+
+        if (cause instanceof JsonParseException || cause instanceof JsonMappingException) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorDetail.of(
+                            ErrorCode.REQUEST_BODY_MALFORMED.getCode(),
+                            ErrorCode.REQUEST_BODY_MALFORMED.getMessage(),
+                            cause.getMessage()
+                    ));
+        }
+        return ResponseEntity.badRequest()
+                .body(ErrorDetail.of(
+                        ErrorCode.REQUEST_INVALID.getCode(),
+                        ErrorCode.REQUEST_INVALID.getMessage(),
+                        null
+                ));
     }
 }

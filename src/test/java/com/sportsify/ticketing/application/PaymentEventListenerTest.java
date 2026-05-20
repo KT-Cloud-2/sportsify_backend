@@ -78,7 +78,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @Test
     @DisplayName("결제 도입 이벤트 수신 시, 주문 상태가 PENDING이어야 한다.")
     void onStartedPaymentEvent_isPending(CapturedOutput output) {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         Order order = orderRepository.findById(orderId).orElseThrow();
@@ -95,7 +95,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @Test
     @DisplayName("결제 도입 이벤트 수신 시, 주문 상태가 PAYING으로 변경된다.")
     void onStartedPaymentEvent() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
@@ -110,7 +110,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @EnumSource(value = OrderStatus.class, names = {"PENDING", "CONFIRMED", "CANCELLED"})
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void onSuccessPaymentEvent_isPaying(OrderStatus status, CapturedOutput output) {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
@@ -133,7 +133,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @DisplayName("결제 완료 이벤트 수신 시, 주문과 좌석이 확정된다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void onSuccessPaymentEvent() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
@@ -165,7 +165,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @DisplayName("결제 완료 이벤트 수신 시, 좌석별 티켓이 생성된다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void onSuccessPaymentEvent_createTickets() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
@@ -199,7 +199,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @EnumSource(value = OrderStatus.class, names = {"CONFIRMED", "CANCELLED"})
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void onCancelledPaymentEvent_isPayingOrPending(OrderStatus status, CapturedOutput output) {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
@@ -222,7 +222,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @DisplayName("결제 취소 이벤트 수신 시, 주문이 취소되고 좌석이 반환된다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void onCancelledPaymentEvent() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {

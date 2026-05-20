@@ -12,12 +12,9 @@ public record ReservationSeatsRequestDto(
         @NotNull Long gameId,
         @NotEmpty List<Long> seatIds
 ) {
-    public static ReservationSeatsRequestDto from(Long gameId, List<Long> seatIds) {
-
-        if (seatIds.size() != new HashSet<>(seatIds).size())
+    public ReservationSeatsRequestDto {
+        if (seatIds != null && seatIds.size() != new HashSet<>(seatIds).size()) {
             throw new BusinessException(ErrorCode.SEAT_DUPLICATED);
-
-        return new ReservationSeatsRequestDto(gameId, seatIds);
+        }
     }
-
 }
