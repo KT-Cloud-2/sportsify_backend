@@ -19,7 +19,8 @@ public record GameDetailResponseDto(
         Integer totalSeats,
         Integer availableSeats,
         Boolean isRivalMatch,
-        List<SeatGradeSummary> seatGradeSummary
+        List<SeatGradeSummary> seatGradeSummary,
+        Integer maxTicketPerUser
 ) {
     public static GameDetailResponseDto of(Game game, Integer availableSeats, List<SeatGradeSummary> seatGradeSummary) {
         List<TeamInfo> teams = List.of(
@@ -37,7 +38,8 @@ public record GameDetailResponseDto(
                 game.getStadium().getTotalSeats(),
                 availableSeats,
                 game.getGameGrade() == GameGrade.RIVAL,
-                seatGradeSummary
+                seatGradeSummary,
+                game.getMaxTicketPerUser()
         );
     }
 }

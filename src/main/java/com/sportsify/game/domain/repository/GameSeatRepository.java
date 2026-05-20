@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
+    @Query("SELECT COUNT(gs) FROM GameSeat gs WHERE gs.game.id = :gameId AND gs.seatStatus = :seatStatus ")
     int countByGameIdAndSeatStatus(Long gameId, SeatStatus seatStatus);
 
     @Query("""
@@ -27,5 +28,6 @@ public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<GameSeat> findAllAvailableByIdsWithLock(@Param("ids") List<Long> ids);
 
+    @Query("SELECT gs FROM GameSeat gs WHERE gs.game.id = :gameId")
     List<GameSeat> findByGameId(Long gameId);
 }
