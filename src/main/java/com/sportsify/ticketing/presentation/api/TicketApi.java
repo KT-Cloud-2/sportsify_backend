@@ -6,6 +6,8 @@ import com.sportsify.common.swagger.SwaggerApi;
 import com.sportsify.ticketing.presentation.dto.TicketListResponseDto;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -19,8 +21,8 @@ public interface TicketApi {
     ResponseEntity<TicketListResponseDto> getMyTickets(
             Long memberId,
             @Parameter(description = "페이지 번호 (0부터 시작, 기본 0)")
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
             @Parameter(description = "페이지 크기 (기본 10, 최대 100)")
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
     );
 }
