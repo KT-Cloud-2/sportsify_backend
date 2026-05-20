@@ -1,0 +1,59 @@
+### Step 1. 좌석 예약
+POST http://localhost:8080/api/seats/reservations
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "gameId": 1,
+  "seatIds": [2]
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### Step 2. 결제 생성
+POST http://localhost:8080/api/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "orderId": 1,
+  "matchId": 1,
+  "seatId": 2,
+  "amount": 50000,
+  "paymentMethod": "CARD",
+  "idempotencyKey": "{{$uuid}}"
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### Step 3. 결제 확정 (dev mock — 실제 토스 호출 없음)
+POST http://localhost:8080/dev/payments/confirm-mock
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "paymentKey": "toss_paykey_example",
+  "tossOrderId": "toss_orderid_example",
+  "amount": 50000
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### Step 4. 결제 취소
+POST http://localhost:8080/api/payments/1/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "cancelReason": "단순 변심"
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}

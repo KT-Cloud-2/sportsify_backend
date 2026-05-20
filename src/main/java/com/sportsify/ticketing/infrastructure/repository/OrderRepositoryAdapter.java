@@ -27,6 +27,11 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
+    public Optional<Order> findByIdWithOrderSeats(Long orderId) {
+        return jpaRepository.findByIdWithOrderSeats(orderId);
+    }
+
+    @Override
     public List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now) {
         return jpaRepository.findExpiredPendingOrdersWithoutPayment(now);
     }
@@ -35,7 +40,5 @@ public class OrderRepositoryAdapter implements OrderRepository {
     public List<Order> findPayingOrdersWithFailedPayment() {
         return jpaRepository.findPayingOrdersWithFailedPayment();
     }
-
-    ;
 
 }

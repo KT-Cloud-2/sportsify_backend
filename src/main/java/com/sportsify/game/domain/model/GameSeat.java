@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "game_seats")
 @Getter
@@ -58,6 +60,36 @@ public class GameSeat {
 
     public void release() {
         seatStatus = SeatStatus.AVAILABLE;
+    }
+
+    // === 디미터 법칙 위임 메서드 ===
+
+    public String getSeatNumber() {
+        return seat.getSeatNumber();
+    }
+
+    public Long getGameId() {
+        return game.getId();
+    }
+
+    public String getSportType() {
+        return game.getSportTypeName();
+    }
+
+    public String getHomeTeamName() {
+        return game.getHomeTeamName();
+    }
+
+    public String getAwayTeamName() {
+        return game.getAwayTeamName();
+    }
+
+    public LocalDateTime getStartAt() {
+        return game.getStartAt();
+    }
+
+    public String getStadiumName() {
+        return game.getStadiumName();
     }
 
 }

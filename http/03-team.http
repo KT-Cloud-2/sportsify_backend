@@ -1,0 +1,34 @@
+### 팀 목록 조회 (전체)
+GET http://localhost:8080/api/teams
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 팀 목록 조회 - 야구팀만
+GET http://localhost:8080/api/teams?sportType=BASEBALL
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 팀 목록 조회 - 활성 팀만
+GET http://localhost:8080/api/teams?isActive=true
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 팀 목록 조회 - 활성 야구팀
+GET http://localhost:8080/api/teams?sportType=BASEBALL&isActive=true
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 팀 상세 조회
+GET http://localhost:8080/api/teams/1
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}

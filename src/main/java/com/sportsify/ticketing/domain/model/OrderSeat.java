@@ -83,4 +83,34 @@ public class OrderSeat {
         status = OrderSeatStatus.CANCELLED;
         gameSeat.release();
     }
+
+    // === 디미터 법칙 위임 메서드 ===
+
+    public String getSeatNumber() {
+        return gameSeat.getSeatNumber();
+    }
+
+    public Long getGameId() {
+        return gameSeat.getGameId();
+    }
+
+    public String getSportType() {
+        return gameSeat.getSportType();
+    }
+
+    public String getHomeTeamName() {
+        return gameSeat.getHomeTeamName();
+    }
+
+    public String getAwayTeamName() {
+        return gameSeat.getAwayTeamName();
+    }
+
+    public LocalDateTime getStartAt() {
+        return gameSeat.getStartAt();
+    }
+
+    public String getStadiumName() {
+        return gameSeat.getStadiumName();
+    }
 }

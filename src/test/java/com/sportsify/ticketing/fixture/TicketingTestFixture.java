@@ -10,6 +10,7 @@ import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.infrastructure.repository.TeamJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderSeatJpaRepository;
+import com.sportsify.ticketing.infrastructure.repository.TicketJpaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,8 @@ import java.util.List;
 @Component
 public class TicketingTestFixture {
 
+    @Autowired
+    private TicketJpaRepository ticketRepository;
     @Autowired
     private SeatRepository seatRepository;
     @Autowired
@@ -134,6 +137,7 @@ public class TicketingTestFixture {
     }
 
     public void deleteAll() {
+        ticketRepository.deleteAll();
         orderSeatRepository.deleteAll();
         orderRepository.deleteAll();
         gameSeatRepository.deleteAll();

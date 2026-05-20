@@ -4,6 +4,7 @@ import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.ticketing.application.service.OrderPaymentService;
+import com.sportsify.ticketing.application.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -21,6 +22,7 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 public class PaymentEventListener {
 
     private final OrderPaymentService orderPaymentService;
+    private final TicketService ticketService;
 
     @EventListener
     @Transactional
@@ -34,6 +36,7 @@ public class PaymentEventListener {
     public void onPaymentSuccess(PaymentCompletedEvent event) {
 
         orderPaymentService.completePayment(event);
+        ticketService.createTickets(event.orderId(), event.memberId());
     }
 
     @Retryable(maxRetries = 3, delayString = "1000ms")

@@ -7,8 +7,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderJpaRepository extends JpaRepository<Order, Long> {
+
+    @Query("""
+            SELECT o FROM Order o
+            JOIN FETCH o.orderSeats os
+            WHERE o.id = :orderId
+            """)
+    Optional<Order> findByIdWithOrderSeats(@Param("orderId") Long orderId);
 
     @Query("""
              SELECT DISTINCT o FROM Order o
