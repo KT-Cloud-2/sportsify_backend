@@ -19,7 +19,7 @@ public record MessageResponse(
         boolean deleted = message.getStatus() == MessageStatus.DELETED;
         return new MessageResponse(
                 message.getId().value(),
-                message.getSenderId().value(),
+                message.getSenderId() != null ? message.getSenderId().value() : null,
                 message.getType().name(),
                 message.getStatus().name(),
                 deleted ? DELETED_CONTENT : message.getContent().value(),

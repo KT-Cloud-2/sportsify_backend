@@ -27,6 +27,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -478,6 +479,43 @@ class ChatRoomMemberServiceTest {
                 .willReturn(Optional.of(member(MemberStatus.BANNED, INVITEE_ID)));
 
         assertThatThrownBy(() -> chatRoomMemberService.ban(ROOM_ID, MEMBER_ID, INVITEE_ID))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    // ──────────────────────── getMyInvites ────────────────────────
+
+    @Test
+    @DisplayName("내 초대 목록을 조회한다")
+    void getMyInvites_초대목록조회() {
+        given(chatRoomMemberRepo.findInvitedByMemberId(MemberId.of(MEMBER_ID)))
+                .willReturn(List.of(member(MemberStatus.INVITED, MEMBER_ID)));
+
+        var result = chatRoomMemberService.getMyInvites(MEMBER_ID);
+
+        assertThat(result.invites()).hasSize(1);
+    }
+
+    // ──────────────────────── rejectInvite ────────────────────────
+
+    @Test
+    @DisplayName("INVITED 멤버가 초대를 거부한다")
+    void rejectInvite_초대거부_성공() {
+        given(chatRoomMemberRepo.findByRoomAndMember(any(), any()))
+                .willReturn(Optional.of(member(MemberStatus.INVITED, MEMBER_ID)));
+        given(chatRoomMemberRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        chatRoomMemberService.rejectInvite(MEMBER_ID, ROOM_ID);
+
+        verify(chatRoomMemberRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("이미 JOINED 상태인 멤버가 초대 거부 시 예외가 발생한다")
+    void rejectInvite_이미JOINED_예외() {
+        given(chatRoomMemberRepo.findByRoomAndMember(any(), any()))
+                .willReturn(Optional.of(member(MemberStatus.JOINED, MEMBER_ID)));
+
+        assertThatThrownBy(() -> chatRoomMemberService.rejectInvite(MEMBER_ID, ROOM_ID))
                 .isInstanceOf(BusinessException.class);
     }
 

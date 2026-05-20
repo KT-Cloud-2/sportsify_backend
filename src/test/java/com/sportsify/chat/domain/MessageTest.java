@@ -139,6 +139,21 @@ class MessageTest {
         assertThat(deleted.isDeleted()).isTrue();
     }
 
+    // ──────────────────────── createAlert ────────────────────────
+
+    @Test
+    @DisplayName("createAlert는 senderId가 null인 SYSTEM 타입 ACTIVE 메시지를 생성한다")
+    void createAlert_초기상태_검증() {
+        Message msg = Message.createAlert(ROOM_ID, CONTENT, INSTANT_NOW);
+
+        assertThat(msg.getRoomId()).isEqualTo(ROOM_ID);
+        assertThat(msg.getSenderId()).isNull();
+        assertThat(msg.getType()).isEqualTo(MessageType.SYSTEM);
+        assertThat(msg.getStatus()).isEqualTo(MessageStatus.ACTIVE);
+        assertThat(msg.getId()).isNull();
+        assertThat(msg.getEvents()).isEmpty();
+    }
+
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
 
     private Message restored(MessageStatus status) {

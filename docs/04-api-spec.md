@@ -1480,15 +1480,17 @@ POST /api/payments/{paymentId}/refund
 | POST   | /api/chat/rooms/{roomId}/invite         | O             | 참여자 초대 (5-11)                   |
 | PATCH  | /api/chat/rooms/{roomId}/notification   | O             | 채팅방 알림 설정 변경 (5-12)             |
 | POST   | /api/chat/rooms/{roomId}/ban            | O             | 멤버 BAN (5-13)                   |
-| GET    | /api/chat/messages/history/{roomId}     | O             | 채팅 이력 조회 — 내가 있을 때 메시지 (5-14)   |
-| WS     | /ws/chat                                | O/N           | websocket 연결(5-15-1)            |
-| SUB    | /topic/rooms/{roomId}                   | O/N           | 구독 (5-15-2-1)                   |
-| UNSUB  | id:subscription-id                      | O/N           | 구독 취소 (5-15-2-2)                |
-| PUB    | SEND  /app/chat.send                    | O             | 메시지 전송 (5-15-3-1)               |
-| PUB    | SEND  /app/chat.read                    | O             | 읽음 상태 갱신 (5-15-3-2)             |
-| PUB    | SEND  /app/chat.typing                  | O             | 타이핑 인디케이터 (5-15-3-3)            |
-| DELETE | /api/chat/messages/{messageId}          | O             | 메시지 삭제 soft delete (5-16)       |
-| GET    | /api/chat/messages/getMessages/{roomId} | O             | 채팅방 메시지 조회 + lastRead 갱신 (5-17) |
+| GET    | /api/chat/rooms/getMyInvites            | O             | 내 초대 목록 조회 (5-14)               |
+| POST   | /api/chat/rooms/{roomId}/reject         | O             | 초대 거부 (5-15)                    |
+| GET    | /api/chat/messages/history/{roomId}     | O             | 채팅 이력 조회 — 내가 있을 때 메시지 (5-16)   |
+| WS     | /ws/chat                                | O/N           | websocket 연결(5-17-1)            |
+| SUB    | /topic/rooms/{roomId}                   | O/N           | 구독 (5-17-2-1)                   |
+| UNSUB  | id:subscription-id                      | O/N           | 구독 취소 (5-17-2-2)                |
+| PUB    | SEND  /app/chat.send                    | O             | 메시지 전송 (5-17-3-1)               |
+| PUB    | SEND  /app/chat.read                    | O             | 읽음 상태 갱신 (5-17-3-2)             |
+| PUB    | SEND  /app/chat.typing                  | O             | 타이핑 인디케이터 (5-17-3-3)            |
+| DELETE | /api/chat/messages/{messageId}          | O             | 메시지 삭제 soft delete (5-18)       |
+| GET    | /api/chat/messages/getMessages/{roomId} | O             | 채팅방 메시지 조회 + lastRead 갱신 (5-19) |
 
 ---
 
@@ -1953,7 +1955,7 @@ Validation / Business Rules
 ### 5-10. 채팅방 나가기
 
 ```
-POST /api/chat/rooms/{roomId}/leave
+DELETE /api/chat/rooms/{roomId}/leave
 ```
 
 Auth Required: **O**
@@ -2135,7 +2137,71 @@ Validation / Business Rules
 
 ---
 
-### 5-14. 채팅 이력 조회
+### 5-14. 내 초대 목록 조회
+
+```
+GET /api/chat/rooms/getMyInvites
+```
+
+Auth Required: **O**
+
+Response Body
+
+```json
+{
+  "invites": [
+    {
+      "roomId": 201,
+      "status": "INVITED",
+      "updatedAt": "2026-04-27T15:20:00Z"
+  }
+  ]
+
+}
+```
+
+Response Field
+
+| 필드          | 타입       | 설명                      |
+|-------------|----------|-------------------------|
+| `roomId`    | Long     | 채팅방 ID                  |
+| `status`    | String   | 사용자의 채팅방에서의 상태          |
+| `updatedAt` | DateTime | 사용자의 채팅방에서의 마지막 업데이트 날짜 |
+
+Validation / Business Rules
+
+- 인증된 사용자만 가능.
+
+---
+
+### 5-15. 초대 거부
+
+```
+POST /api/chat/rooms/{roomId}/reject
+```
+
+Auth Required: **O**
+
+Path Parameter
+
+| 파라미터     | 타입   | 필수 | 설명     |
+|----------|------|----|--------|
+| `roomId` | Long | Y  | 채팅방 ID |
+
+Response Body
+
+```json
+{
+}
+```
+
+Validation / Business Rules
+
+- 인증된 사용자 + 해당 초대 대상만 가능.
+
+---
+
+### 5-16. 채팅 이력 조회
 
 ```
 GET /api/chat/messages/history/{roomId}
@@ -2216,9 +2282,9 @@ Validation / Business Rules
 
 ---
 
-### 5-15. WebSocket (STOMP)
+### 5-17. WebSocket (STOMP)
 
-### 5-15-1. 연결 (CONNECT)
+### 5-17-1. 연결 (CONNECT)
 
 ```
 WS  /ws/chat   (STOMP over WebSocket, SockJS fallback 지원)
@@ -2247,9 +2313,9 @@ CONNECT 헤더
 }
 ```
 
-### 5-15-2. 구독 (SUBSCRIBE)
+### 5-17-2. 구독 (SUBSCRIBE)
 
-#### 5-15-2-1. 구독 destination
+#### 5-17-2-1. 구독 destination
 
 | Destination             | 설명                             |
 |-------------------------|--------------------------------|
@@ -2274,7 +2340,7 @@ lastMessageId:532
 - 구독 시점에 서버가 `roomId` 에 대한 멤버 권한을 검증한다. 비멤버가 비공개 방을 구독하면 `ERROR` 프레임 반환.
 - 재연결시 마지막으로 받은 lastMessageId를 header로 같이 subscribe 한다
 
-#### 5-15-3. 구독 해제 (UNSUBSCRIBE)
+#### 5-17-3. 구독 해제 (UNSUBSCRIBE)
 
 CONNECT 헤더
 
@@ -2293,9 +2359,9 @@ id:sub-room-10
 - 서버는 `sessionId + subscriptionId` 조합으로 구독 정보를 제거한다.
 - 구독 해제 후 해당 subscription 에 대한 이벤트 전달은 중단된다.
 
-### 5-15-3. 발신 destination (SEND)
+### 5-17-3. 발신 destination (SEND)
 
-#### 5-15-3-1. 메시지 전송
+#### 5-17-3-1. 메시지 전송
 
 ```
 SEND  /app/chat.send
@@ -2328,6 +2394,7 @@ Server → Client (성공)
   "event": "MESSAGE_SENT",
   "roomId": 201,
   "occurredAt": "2026-04-27T14:22:30Z",
+  "messageId": null,
   "payload": {
     "messageId": 9982,
     "clientMessageId": "cm-9b2f-...",
@@ -2360,7 +2427,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-15-3-2. 읽음 상태 갱신
+#### 5-17-3-2. 읽음 상태 갱신
 
 ```
 SEND  /app/chat.read
@@ -2393,6 +2460,7 @@ Server → Other Members
 {
   "event": "READ_UPDATED",
   "roomId": 201,
+  "messageId": null,
   "occurredAt": "2026-04-27T14:22:35Z",
   "payload" : {
     "memberId": 9,
@@ -2409,7 +2477,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-15-3-3. 타이핑 인디케이터
+#### 5-17-3-3. 타이핑 인디케이터
 
 ```
 SEND  /app/chat.typing
@@ -2448,7 +2516,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-13-3-4. 서버 발신 이벤트 종류 (`/topic/rooms/{roomId}` 구독자에게 푸시)
+#### 5-17-3-4. 서버 발신 이벤트 종류 (`/topic/rooms/{roomId}` 구독자에게 푸시)
 
 | event             | 발생 시점       | 페이로드 핵심 필드                                                    |
 |-------------------|-------------|---------------------------------------------------------------|
@@ -2471,6 +2539,7 @@ Validation / Business Rules
 {
   "event": "MESSAGE_SENT",
   "roomId": 201,
+  "messageId": null,
   "occurredAt": "2026-04-27T14:22:30Z",
   "payload": { ... 이벤트별 필드 ... }
 }
@@ -2478,7 +2547,7 @@ Validation / Business Rules
 
 ---
 
-#### 5-15-3-5. DISCONNECT
+#### 5-17-3-5. DISCONNECT
 
 - STOMP `DISCONNECT` 또는 TCP 연결 종료 시 서버는 다음을 수행한다:
     - in-memory `userId ↔ session` 매핑에서 해당 sessionId 제거.
@@ -2491,7 +2560,7 @@ Validation / Business Rules
 
 ---
 
-### 5-16. 메시지 삭제
+### 5-18. 메시지 삭제
 
 ```
 DELETE /api/chat/messages/{messageId}
@@ -2525,7 +2594,7 @@ Validation / Business Rules
 
 ---
 
-### 5-17. 채팅방 메시지 조회
+### 5-19. 채팅방 메시지 조회
 
 ```
 GET /api/chat/messages/getMessages/{roomId}
@@ -2599,7 +2668,7 @@ Validation / Business Rules
 
 ---
 
-### 5-18. 메시지 첨부 파일 업로드
+### 5-20. 메시지 첨부 파일 업로드
 
 ```
 POST /api/chat/messages/upload

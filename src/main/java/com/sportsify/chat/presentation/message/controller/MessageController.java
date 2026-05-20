@@ -15,11 +15,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/chat/messages")
 @RequiredArgsConstructor
 public class MessageController implements MessageApi {
-    
+
     private final MessageService messageService;
 
     /**
-     * 5-14. 채팅 이력 조회
+     * 5-16. 채팅 이력 조회
      *
      * @param memberId
      * @param roomId
@@ -36,7 +36,7 @@ public class MessageController implements MessageApi {
     }
 
     /**
-     * 5-16. 메시지 삭제
+     * 5-18. 메시지 삭제
      *
      * @param memberId
      * @param messageId
@@ -50,7 +50,7 @@ public class MessageController implements MessageApi {
     }
 
     /**
-     * 5-17. 채팅방 메시지 조회
+     * 5-19. 채팅방 메시지 조회
      *
      * @param memberId
      * @param roomId

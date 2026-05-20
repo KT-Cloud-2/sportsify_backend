@@ -1,5 +1,6 @@
 package com.sportsify.chat.application.chatRoomMember.service;
 
+import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberInvitesResponse;
 import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberResponse;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
@@ -24,7 +25,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class ChatRoomMemberService {
-    
+
     private final ChatRoomRepository chatRoomRepo;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
@@ -201,6 +202,33 @@ public class ChatRoomMemberService {
         member.changeNotification(enabled, now);
         return ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member), enabled);
     }
+
+    /**
+     * 초대 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatRoomMemberInvitesResponse getMyInvites(Long memberId) {
+        MemberId id = MemberId.of(memberId);
+        return ChatRoomMemberInvitesResponse.from(chatRoomMemberRepo.findInvitedByMemberId(id));
+    }
+
+    /**
+     * 초대 거부
+     */
+    @Transactional
+    public void rejectInvite(Long memberId, Long roomId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        MemberId id = MemberId.of(memberId);
+        ChatRoomId chatRoomId = ChatRoomId.of(roomId);
+        ChatRoomMember chatRoomMember = chatRoomMemberRepo.findByRoomAndMember(chatRoomId, id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find this member: " + memberId));
+        if (chatRoomMember.getStatus() == MemberStatus.JOINED) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Cannot cancel invite member: " + memberId);
+        }
+        chatRoomMember.rejectInvite(now);
+        chatRoomMemberRepo.save(chatRoomMember).getEvents().forEach(eventPublisher::publishEvent);
+    }
+
 
     /* -------------------- private functions -------------------- */
 

@@ -162,5 +162,10 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
                 ));
     }
 
+    @Override
+    public List<ChatRoomMember> findInvitedByMemberId(MemberId memberId) {
+        return jpaRepo.findInvitedByMemberId(memberId.value()).stream().map(mapper::toDomain).collect(Collectors.toList());
+    }
+
 
 }

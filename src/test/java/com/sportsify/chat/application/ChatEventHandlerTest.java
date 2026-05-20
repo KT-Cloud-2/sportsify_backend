@@ -8,17 +8,23 @@ import com.sportsify.chat.domain.model.event.chatRoom.RoomArchivedPayload;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomDeletePayload;
 import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
+import com.sportsify.chat.domain.model.message.*;
+import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 /**
@@ -26,15 +32,8 @@ import static org.mockito.Mockito.*;
  *
  * 검증 목표:
  * - 도메인 이벤트 수신 후 WebSocket 브로드캐스트가 수행되는지 확인
+ * - 비 메시지 이벤트 발생 시 알림 메시지가 DB에 저장되고 alertMessageId가 포함되는지 확인
  * - 이벤트 유형별 추가 동작(구독 취소)이 올바르게 트리거되는지 확인
- *
- * Mocking 이유:
- * - ChatEventPublisher: SimpMessagingTemplate → 실제 WebSocket 브로커 불필요
- * - WebSocketSessionRegistry: 세션 저장소 → 실제 WebSocket 세션 없이 구독 취소 동작 검증
- *
- * 실패 포인트:
- * - switch 패턴 매칭에서 payload 타입이 누락되면 구독 취소가 발생하지 않음
- * - publishToRoom 미호출 시 클라이언트가 이벤트를 수신하지 못함
  */
 @ExtendWith(MockitoExtension.class)
 class ChatEventHandlerTest {
@@ -51,48 +50,56 @@ class ChatEventHandlerTest {
     @Mock
     private WebSocketSessionRegistry webSocketSessionRegistry;
 
-    // ──────────────────────── 일반 이벤트 ────────────────────────
+    @Mock
+    private MessageRepository messageRepo;
+
+    // ──────────────────────── 메시지 이벤트 ────────────────────────
 
     /**
-     * 메시지 전송과 같은 일반 이벤트는 방 전체에 브로드캐스트되어야 하며,
-     * 세션 구독 취소 동작은 발생하지 않아야 한다.
-     *
-     * 실패 포인트: publishToRoom이 호출되지 않으면 클라이언트가 실시간 메시지를 수신하지 못함
+     * MessagePayload 이벤트(MESSAGE_SENT 등)는 알림 저장 없이 즉시 브로드캐스트되어야 한다.
+     * messageRepo 호출이 발생하면 불필요한 SYSTEM 메시지가 쌓인다.
      */
     @Test
-    @DisplayName("일반 이벤트 수신 시 방에 브로드캐스트하고 구독 취소는 발생하지 않는다")
-    void sendEvent_일반이벤트_방브로드캐스트() {
+    @DisplayName("MESSAGE_SENT 이벤트는 알림 저장 없이 원본 이벤트를 그대로 발행한다")
+    void sendEvent_메시지이벤트_알림저장없이_방브로드캐스트() {
         EventEnvelope<MessageSentPayload> event = new EventEnvelope<>(
                 EventType.MESSAGE_SENT.name(), ROOM_ID, NOW,
-                new MessageSentPayload(1L, null, 2L, "TEXT", "안녕하세요")
+                new MessageSentPayload(1L, null, 2L, "TEXT", "안녕하세요"), null
         );
 
         chatEventHandler.sendEvent(event);
 
         verify(publisher).publishToRoom(ROOM_ID, event);
         verifyNoInteractions(webSocketSessionRegistry);
+        verifyNoInteractions(messageRepo);
     }
 
     // ──────────────────────── BAN 이벤트 ────────────────────────
 
     /**
-     * MEMBER_BANNED 이벤트 수신 시 BAN된 멤버의 해당 방 구독을 강제 취소해야 한다.
-     * 구독 취소 없이 BAN만 처리하면 BAN된 사용자가 계속 실시간 메시지를 수신하는 보안 취약점이 생김.
+     * MEMBER_BANNED 이벤트 수신 시:
+     * 1. 알림 메시지가 저장되어야 한다
+     * 2. alertMessageId가 포함된 이벤트가 발행되어야 한다
+     * 3. BAN된 멤버의 방 구독이 취소되어야 한다
      *
-     * 실패 포인트: revokeRoomSubscriptionByMember 미호출 시 BAN된 사용자가 메시지를 계속 수신
+     * 실패 포인트: alertMessageId 누락 시 클라이언트가 SYSTEM 메시지를 연결하지 못함
      */
     @Test
-    @DisplayName("MEMBER_BANNED 이벤트 수신 시 해당 멤버의 방 구독이 취소된다")
-    void sendEvent_BAN이벤트_멤버구독취소() {
+    @DisplayName("MEMBER_BANNED 이벤트 수신 시 알림 저장 후 alertMessageId 포함 이벤트를 발행하고 멤버 구독을 취소한다")
+    void sendEvent_BAN이벤트_알림저장_alertMessageId포함_멤버구독취소() {
         Long bannedMemberId = 42L;
         EventEnvelope<MemberBannedPayload> event = new EventEnvelope<>(
                 EventType.MEMBER_BANNED.name(), ROOM_ID, NOW,
-                new MemberBannedPayload(bannedMemberId)
+                new MemberBannedPayload(bannedMemberId), null
         );
+        given(messageRepo.save(any())).willReturn(alertMessage(99L));
 
         chatEventHandler.sendEvent(event);
 
-        verify(publisher).publishToRoom(ROOM_ID, event);
+        verify(messageRepo).save(any());
+        ArgumentCaptor<EventEnvelope> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(publisher).publishToRoom(eq(ROOM_ID), captor.capture());
+        assertThat(captor.getValue().alertMessageId()).isEqualTo(99L);
         verify(webSocketSessionRegistry).revokeRoomSubscriptionByMember(bannedMemberId, ROOM_ID);
         verify(webSocketSessionRegistry, never()).revokeAllRoomSubscriptions(any());
     }
@@ -100,22 +107,25 @@ class ChatEventHandlerTest {
     // ──────────────────────── 방 삭제 이벤트 ────────────────────────
 
     /**
-     * ROOM_DELETED 이벤트 수신 시 해당 방의 모든 멤버 구독을 일괄 취소해야 한다.
-     * 삭제된 방에 구독이 남아 있으면 클라이언트가 방이 삭제된 줄 모르고 메시지를 보낼 수 있음.
+     * ROOM_DELETED 이벤트 수신 시 alertMessageId 포함 이벤트 발행 + 전체 구독 취소.
      *
      * 실패 포인트: revokeAllRoomSubscriptions 미호출 시 삭제된 방 구독이 남아있음
      */
     @Test
-    @DisplayName("ROOM_DELETED 이벤트 수신 시 방의 전체 구독이 취소된다")
-    void sendEvent_방삭제이벤트_전체구독취소() {
+    @DisplayName("ROOM_DELETED 이벤트 수신 시 알림 저장 후 alertMessageId 포함 이벤트를 발행하고 전체 구독을 취소한다")
+    void sendEvent_방삭제이벤트_알림저장_전체구독취소() {
         EventEnvelope<RoomDeletePayload> event = new EventEnvelope<>(
                 EventType.ROOM_DELETED.name(), ROOM_ID, NOW,
-                new RoomDeletePayload()
+                new RoomDeletePayload(), null
         );
+        given(messageRepo.save(any())).willReturn(alertMessage(101L));
 
         chatEventHandler.sendEvent(event);
 
-        verify(publisher).publishToRoom(ROOM_ID, event);
+        verify(messageRepo).save(any());
+        ArgumentCaptor<EventEnvelope> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(publisher).publishToRoom(eq(ROOM_ID), captor.capture());
+        assertThat(captor.getValue().alertMessageId()).isEqualTo(101L);
         verify(webSocketSessionRegistry).revokeAllRoomSubscriptions(ROOM_ID);
         verify(webSocketSessionRegistry, never()).revokeRoomSubscriptionByMember(any(), any());
     }
@@ -123,22 +133,39 @@ class ChatEventHandlerTest {
     // ──────────────────────── 방 아카이브 이벤트 ────────────────────────
 
     /**
-     * ROOM_ARCHIVED 이벤트 수신 시에도 방 구독 전체 취소가 발생해야 한다.
-     * 아카이브된 방은 메시지 수신을 중단해야 하므로 WebSocket 구독도 함께 해제.
+     * ROOM_ARCHIVED 이벤트 수신 시에도 alertMessageId 포함 이벤트 발행 + 전체 구독 취소.
      *
      * 실패 포인트: RoomArchivedPayload가 switch case에서 누락되면 구독이 남아 있음
      */
     @Test
-    @DisplayName("ROOM_ARCHIVED 이벤트 수신 시 방의 전체 구독이 취소된다")
-    void sendEvent_방아카이브이벤트_전체구독취소() {
+    @DisplayName("ROOM_ARCHIVED 이벤트 수신 시 알림 저장 후 alertMessageId 포함 이벤트를 발행하고 전체 구독을 취소한다")
+    void sendEvent_방아카이브이벤트_알림저장_전체구독취소() {
         EventEnvelope<RoomArchivedPayload> event = new EventEnvelope<>(
                 EventType.ROOM_ARCHIVED.name(), ROOM_ID, NOW,
-                new RoomArchivedPayload()
+                new RoomArchivedPayload(), null
         );
+        given(messageRepo.save(any())).willReturn(alertMessage(102L));
 
         chatEventHandler.sendEvent(event);
 
-        verify(publisher).publishToRoom(ROOM_ID, event);
+        verify(messageRepo).save(any());
+        ArgumentCaptor<EventEnvelope> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(publisher).publishToRoom(eq(ROOM_ID), captor.capture());
+        assertThat(captor.getValue().alertMessageId()).isEqualTo(102L);
         verify(webSocketSessionRegistry).revokeAllRoomSubscriptions(ROOM_ID);
+    }
+
+    // ──────────────────────── 픽스처 헬퍼 ────────────────────────
+
+    private Message alertMessage(Long id) {
+        return Message.restore(
+                MessageId.of(id),
+                ChatRoomId.of(ROOM_ID),
+                null,
+                MessageContent.of("테스트 알림"),
+                MessageType.SYSTEM,
+                MessageStatus.ACTIVE,
+                NOW
+        );
     }
 }

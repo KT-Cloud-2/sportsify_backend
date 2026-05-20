@@ -12,7 +12,8 @@ public record MessageTypingEvent(
         Long userId,
         boolean typing,
         Instant occurredAt
-) implements DomainEvent {
+) implements DomainEvent, MessagePayload {
+
     public static MessageTypingEvent from(ChatTypingPayload payload, Long memberId, boolean isTyping, Instant now) {
         return new MessageTypingEvent(
                 EventType.TYPING.name(),
