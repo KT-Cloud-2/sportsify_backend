@@ -11,15 +11,15 @@ import java.time.LocalDateTime;
 @Component
 public class PaymentEventListenerTestFixture {
 
-    public PaymentStartedEvent createStartedEventByOrderId(Long orderId) {
-        return new PaymentStartedEvent(orderId, 1L, 1L, 1L, "paykey", PaymentStatus.PENDING, LocalDateTime.now());
+    public PaymentStartedEvent createStartedEventByOrderId(Long orderId, Long memberId) {
+        return new PaymentStartedEvent(orderId, memberId, 1L, 1L, "paykey", PaymentStatus.PENDING, LocalDateTime.now());
     }
 
-    public PaymentCompletedEvent createCompletedEventByOrderId(Long orderId) {
-        return new PaymentCompletedEvent(orderId, 1L, 1L, 1L, "paykey", PaymentStatus.PENDING, LocalDateTime.now());
+    public PaymentCompletedEvent createCompletedEventByOrderId(Long orderId, Long memberId) {
+        return new PaymentCompletedEvent(orderId, memberId, 1L, 1L, "paykey", PaymentStatus.PENDING, LocalDateTime.now());
     }
 
-    public PaymentCancelledEvent createCancelledEventByOrderId(Long orderId) {
-        return new PaymentCancelledEvent(orderId, 1L, 1L, 1L, "paykey", PaymentStatus.PENDING, "test", LocalDateTime.now());
+    public PaymentCancelledEvent createCancelledEventByOrderId(Long orderId, Long memberId) {
+        return new PaymentCancelledEvent(orderId, memberId, 1L, 1L, "paykey", PaymentStatus.PENDING, "test", LocalDateTime.now());
     }
 }

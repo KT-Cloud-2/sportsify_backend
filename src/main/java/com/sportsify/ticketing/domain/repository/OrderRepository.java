@@ -11,6 +11,8 @@ public interface OrderRepository {
 
     Optional<Order> findById(Long id);
 
+    Optional<Order> findByIdWithOrderSeats(Long orderId);
+
     List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now);
 
     List<Order> findPayingOrdersWithFailedPayment();

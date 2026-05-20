@@ -6,13 +6,11 @@ import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.ticketing.application.service.ReservationService;
-import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeat;
-import com.sportsify.ticketing.domain.model.OrderSeatStatus;
-import com.sportsify.ticketing.domain.model.OrderStatus;
+import com.sportsify.ticketing.domain.model.*;
 import com.sportsify.ticketing.fixture.PaymentEventListenerTestFixture;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
+import com.sportsify.ticketing.infrastructure.repository.TicketJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +43,9 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
 
     @Autowired
     private OrderJpaRepository orderRepository;
+
+    @Autowired
+    private TicketJpaRepository ticketRepository;
 
     @Autowired
     private ReservationService reservationService;
@@ -83,7 +84,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.updateStatus(OrderStatus.CONFIRMED);
 
-        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
+        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
 
         Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
 
@@ -97,7 +98,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
+        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
 
         Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
 
@@ -116,7 +117,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
             Order order = orderRepository.findById(orderId).orElseThrow();
             order.updateStatus(status);
 
-            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -136,8 +137,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
-            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
+            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -159,6 +160,40 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
                 });
     }
 
+
+    @Test
+    @DisplayName("결제 완료 이벤트 수신 시, 좌석별 티켓이 생성된다.")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void onSuccessPaymentEvent_createTickets() {
+        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
+
+        transactionTemplate.executeWithoutResult(s -> {
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
+            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
+        });
+
+
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    transactionTemplate.executeWithoutResult(status -> {
+                        List<Ticket> tickets = ticketRepository.findAll();
+                        Order order = orderRepository.findByIdWithOrderSeats(orderId).orElseThrow();
+                        List<Long> orderSeatIds = order.getOrderSeats().stream().map(OrderSeat::getId).toList();
+                        assertThat(tickets).hasSize(gameSeatIds.size());
+                        assertThat(tickets)
+                                .extracting(ticket -> ticket.getOrderSeat().getId())
+                                .containsExactlyInAnyOrderElementsOf(orderSeatIds);
+
+                        assertThat(tickets)
+                                .extracting(ticket -> ticket.getStatus())
+                                .containsOnly(TicketStatus.CONFIRMED);
+
+                    });
+                });
+
+    }
+
     @ParameterizedTest
     @DisplayName("결제 취소 이벤트 수신 시, 주문 상태가 PAYING이나 PENDING이어야 한다.")
     @EnumSource(value = OrderStatus.class, names = {"CONFIRMED", "CANCELLED"})
@@ -171,7 +206,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
             Order order = orderRepository.findById(orderId).orElseThrow();
             order.updateStatus(status);
 
-            eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId, member.getId()));
         });
 
         await().atMost(5, TimeUnit.SECONDS)
@@ -191,8 +226,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId));
-            eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId));
+            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
+            eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId, member.getId()));
         });
 
         await().atMost(5, TimeUnit.SECONDS)

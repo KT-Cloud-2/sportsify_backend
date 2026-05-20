@@ -122,11 +122,21 @@ public class Game {
         this.status = status;
     }
 
+    // === 디미터 법칙 위임 메서드 ===
+
     public String getHomeTeamName() {
         return homeTeam != null ? homeTeam.getName() : null;
     }
 
     public String getAwayTeamName() {
         return awayTeam != null ? awayTeam.getName() : null;
+    }
+
+    public String getStadiumName() {
+        return stadium.getName();
+    }
+
+    public String getSportTypeName() {
+        return sportType != null ? sportType.name() : null;
     }
 }
