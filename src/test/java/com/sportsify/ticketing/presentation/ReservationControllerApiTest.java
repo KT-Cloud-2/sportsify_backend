@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReservationControllerApiTest extends WebMvcTestSupport {
 
     private static final Long TEST_MEMBER_ID = 1L;
-    private static final ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(1L, List.of(1L));
+    private static final ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(1L, List.of(1L));
 
     @MockitoBean
     private ReservationService reservationService;

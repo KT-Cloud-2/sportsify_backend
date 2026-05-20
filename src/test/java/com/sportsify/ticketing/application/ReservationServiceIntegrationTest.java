@@ -61,7 +61,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     void createOrder() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
 
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
 
@@ -83,7 +83,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     void createOrder_amountEqualsSum() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 3);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
 
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
 
@@ -118,7 +118,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         Random random = new Random();
 
         for (int i = 0; i < threadCount; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), gameSeatIds));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), gameSeatIds));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -174,7 +174,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         }
 
         for (int i = 0; i < threadCount; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i))));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), List.of(gameSeatIds.get(i))));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -233,8 +233,8 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         Random random = new Random();
 
         for (int i = 0; i < threadCount / 2; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2), gameSeatIds.get(i * 2 + 1))));
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2))));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), List.of(gameSeatIds.get(i * 2), gameSeatIds.get(i * 2 + 1))));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), List.of(gameSeatIds.get(i * 2))));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
