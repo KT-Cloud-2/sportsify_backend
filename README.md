@@ -331,3 +331,11 @@ git commit -m "feat: 기능 설명"
 | [API 명세서](docs/04-api-spec.md) | 전 도메인 REST API 및 WebSocket 명세 (요청/응답/에러 포함) |
 | [ERD Cloud DDL](docs/erd-cloud.sql) | ERD Cloud Import용 MySQL DDL (도메인 설명 포함) |
 | [로컬 Docker 가이드](docs/docker-local-guide.md) | 인프라 컨테이너 상세 실행 가이드 |
+
+
+---
+
+## License
+
+This project is for educational purposes.  
+© 2025 Sportsify Team (강정훈, 손하영, 유창민, 주병규). All rights reserved.
