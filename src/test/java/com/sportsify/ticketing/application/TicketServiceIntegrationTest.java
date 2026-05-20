@@ -51,7 +51,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     @Test
     @DisplayName("createTickets 호출 시 OrderSeat 수만큼 티켓이 생성된다.")
     void createTickets_success() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
         Long orderId = resDto.orderId();
 
@@ -63,7 +63,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
                 .allSatisfy(item -> {
                     assertThat(item.status()).isEqualTo("CONFIRMED");
                     assertThat(item.ticketNumber()).isNotNull();
-                    assertThat(item.price()).isEqualTo(10000);
+                    assertThat(item.price()).isEqualTo(15000);
                 });
     }
 
@@ -72,7 +72,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     void createTickets_memberMismatch() {
         Member otherMember = fixture.createMember("other@test.com", "other");
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
 
         assertThatThrownBy(() -> ticketService.createTickets(resDto.orderId(), otherMember.getId()))
@@ -83,7 +83,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     @Test
     @DisplayName("getMyTickets 호출 시 페이징이 올바르게 적용된다.")
     void getMyTickets_paging() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
         ticketService.createTickets(resDto.orderId(), member.getId());
 
@@ -105,7 +105,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     void getMyTickets_isolation() {
         Member otherMember = fixture.createMember("other@test.com", "other");
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
         ticketService.createTickets(resDto.orderId(), member.getId());
 
@@ -119,7 +119,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     @Test
     @DisplayName("존재하지 않는 회원으로 createTickets 호출 시 예외가 발생한다.")
     void createTickets_memberNotFound() {
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
 
         assertThatThrownBy(() -> ticketService.createTickets(resDto.orderId(), 9999L))

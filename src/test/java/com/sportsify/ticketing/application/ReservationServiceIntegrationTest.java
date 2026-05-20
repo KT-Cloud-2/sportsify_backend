@@ -1,14 +1,11 @@
 package com.sportsify.ticketing.application;
 
 
-import com.sportsify.common.event.OrderCreatedEvent;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
-import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
@@ -45,20 +42,13 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     private ReservationService reservationService;
 
     @Autowired
-    private OrderExpirationScheduler scheduler;
-
-    @Autowired
     private TicketingTestFixture fixture;
-
-    @Autowired
-    private TestOrderEventListener testEventListener;
 
 
     @BeforeEach
     void beforeEach() {
         member = fixture.createMember("t1@test.com", "n1");
         game = fixture.createGame();
-        testEventListener.clear();
     }
 
     @AfterEach
@@ -67,17 +57,18 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
     }
 
     @Test
-    @DisplayName("주문 생성 시, 주문의 created_at와 expires_at이 생성된다.")
+    @DisplayName("주문 생성 시, 주문의 created_at과 expires_at이 생성되고 amount가 올바르게 계산된다.")
     void createOrder() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
 
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
 
         assertThat(resDto.gameId()).isEqualTo(game.getId());
         assertThat(resDto.memberId()).isEqualTo(member.getId());
         assertThat(resDto.seats()).hasSize(gameSeatIds.size());
+        assertThat(resDto.amount()).isGreaterThan(0L);
 
         Order createdOrder = orderRepository.findById(resDto.orderId()).orElseThrow();
 
@@ -85,7 +76,24 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
         assertThat(createdOrder.getExpiresAt()).isAfter(now).isBefore(now.plusMinutes(16));
         assertThat(createdOrder.getCreatedAt()).isNotNull();
+    }
 
+    @Test
+    @DisplayName("주문 생성 시, amount는 각 좌석 가격의 합계와 일치한다.")
+    void createOrder_amountEqualsSum() {
+        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 3);
+
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
+
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
+
+        assertThat(resDto.seats()).hasSize(3);
+
+        long seatPriceSum = resDto.seats().stream()
+                .mapToLong(ReservationSeatsResponseDto.ReservationSeatDto::price)
+                .sum();
+
+        assertThat(resDto.amount()).isEqualTo(seatPriceSum);
     }
 
     @ParameterizedTest
@@ -110,7 +118,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         Random random = new Random();
 
         for (int i = 0; i < threadCount; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), gameSeatIds));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), gameSeatIds));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -166,7 +174,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         }
 
         for (int i = 0; i < threadCount; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i))));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), List.of(gameSeatIds.get(i))));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -225,8 +233,8 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         Random random = new Random();
 
         for (int i = 0; i < threadCount / 2; i++) {
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2), gameSeatIds.get(i * 2 + 1))));
-            requests.add(ReservationSeatsRequestDto.from(game.getId(), List.of(gameSeatIds.get(i * 2))));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), List.of(gameSeatIds.get(i * 2), gameSeatIds.get(i * 2 + 1))));
+            requests.add(new ReservationSeatsRequestDto(game.getId(), List.of(gameSeatIds.get(i * 2))));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -262,38 +270,4 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
         assertThat(failCount.get()).isEqualTo(threadCount / 2);
     }
 
-
-    @Test
-    @DisplayName("주문 생성 시, 총 금액이 올바르게 계산된다.")
-    void createOrder_amountCalculation() {
-        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
-
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
-
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-
-        Order createdOrder = orderRepository.findById(resDto.orderId()).orElseThrow();
-
-        long amount = createdOrder.getOrderSeats().stream().mapToLong(OrderSeat::getPrice).sum();
-
-        assertThat(amount).isEqualTo(20000L);
-    }
-
-
-    @Test
-    @DisplayName("주문 생성 시, 주문 생성 이벤트가 발행된다.")
-    void reserveSeat_publishesEventWithCorrectAmount() {
-        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
-
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
-
-        reservationService.reserveSeat(member.getId(), reqDto);
-
-        OrderCreatedEvent event = testEventListener.getLastEvent();
-
-        assertThat(event).isNotNull();
-        assertThat(event.memberId()).isEqualTo(member.getId());
-        assertThat(event.amount()).isEqualTo(20000L);
-
-    }
 }

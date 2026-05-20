@@ -50,15 +50,10 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     @Autowired
     private TicketingTestFixture fixture;
 
-    @Autowired
-    private TestOrderEventListener testEventListener;
-
-
     @BeforeEach
     void beforeEach() {
         member = fixture.createMember("t1@test.com", "n1");
         game = fixture.createGame();
-        testEventListener.clear();
     }
 
     @AfterEach
@@ -72,7 +67,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     void expiredOrder_seatBecomesAvailable() {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
         Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
@@ -100,7 +95,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     void payingOrderWithFailedPayment_seatBecomesAvailable(PaymentStatus status) {
         List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-        ReservationSeatsRequestDto reqDto = ReservationSeatsRequestDto.from(game.getId(), gameSeatIds);
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
         Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 

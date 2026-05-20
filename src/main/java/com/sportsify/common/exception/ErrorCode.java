@@ -13,6 +13,8 @@ public enum ErrorCode {
     BUSINESS_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_VIOLATION", "비즈니스 규칙을 위반했습니다."),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS", "요청 한도를 초과했습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다."),
+    REQUEST_INVALID(HttpStatus.BAD_REQUEST, "REQUEST_INVALID", "Request Body가 필요합니다."),
+    REQUEST_BODY_MALFORMED(HttpStatus.BAD_REQUEST, "REQUEST_BODY_MALFORMED", "요청 본문의 JSON 형식이 올바르지 않습니다."),
 
     // 회원 / 인증
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "존재하지 않는 회원입니다."),
@@ -36,6 +38,7 @@ public enum ErrorCode {
     // 예매
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "GAME_NOT_FOUND", "존재하지 않는 경기입니다."),
     GAME_NOT_ON_SALE(HttpStatus.valueOf(422), "GAME_NOT_ON_SALE", "판매 중이 아닌 경기입니다."),
+    GAME_MISMATCH(HttpStatus.BAD_REQUEST, "GAME_MISMATCH", "동일한 게임의 좌석만 예매할 수 있습니다."),
     SEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "SEAT_NOT_FOUND", "존재하지 않는 좌석입니다."),
     SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "SEAT_ALREADY_RESERVED", "이미 선점된 좌석입니다."),
     SEAT_IS_NULL(HttpStatus.NOT_FOUND, "SEAT_IS_NULL", "선택된 좌석이 없습니다."),
