@@ -98,7 +98,7 @@ public class MessageService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Message not found " + messageId);
         }
         MemberId id = MemberId.of(memberId);
-        if (!message.getSenderId().equals(id)) {
+        if (message.getSenderId() == null || !message.getSenderId().equals(id)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot delete other user's message");
         }
         Instant now = Instant.now(clock);
@@ -157,6 +157,9 @@ public class MessageService {
 
 
     public void read(Long roomId, Long memberId, Long lastReadMessageId, boolean needDirectCheck) {
+        if (lastReadMessageId == null || lastReadMessageId <= 0) {
+            return;
+        }
         if (needDirectCheck) {
             boolean isDirect = chatRoomRepo.findById(ChatRoomId.of(roomId))
                     .map(r -> r.getType() == ChatRoomType.DIRECT)
