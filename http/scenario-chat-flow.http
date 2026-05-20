@@ -1,0 +1,78 @@
+# E2E 시나리오: 채팅 전체 흐름
+# 사용자 A(memberId=1) 가 방 생성 → 사용자 B(memberId=2) 입장 → 메시지 이력 조회
+# 시드 데이터 기준: ON_SALE 야구 경기 game_id=1
+
+### [1] 사용자 A 토큰 발급 → accessToken 저장
+GET http://localhost:8080/dev/token?memberId=1&role=USER
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+  client.global.set("accessToken", response.body.token);
+%}
+
+### [2] 사용자 B 토큰 발급 → accessToken2 저장
+GET http://localhost:8080/dev/token?memberId=2&role=USER
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+  client.global.set("accessToken2", response.body.token);
+%}
+
+### [3] 채팅방 생성 (사용자 A, game_id=1) → roomId 저장
+POST http://localhost:8080/api/chat/rooms
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "GAME",
+  "name": "KIA vs LG 응원방",
+  "gameId": 1,
+  "inviteeIds": []
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+  if (response.status === 200) {
+    client.global.set("roomId", response.body.roomId);
+  }
+%}
+
+### [4] 채팅방 상세 조회 (생성 확인)
+GET http://localhost:8080/api/chat/rooms/{{roomId}}
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### [5] 채팅방 입장 (사용자 B)
+POST http://localhost:8080/api/chat/rooms/{{roomId}}/join
+Authorization: Bearer {{accessToken2}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### [6] 채팅 이력 조회
+GET http://localhost:8080/api/chat/messages/history/{{roomId}}?page=0&size=50
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### [7] 알림 설정 끄기 (사용자 B)
+PATCH http://localhost:8080/api/chat/rooms/{{roomId}}/notification?enabled=false
+Authorization: Bearer {{accessToken2}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### [8] 채팅방 나가기 (사용자 B)
+DELETE http://localhost:8080/api/chat/rooms/{{roomId}}/invite
+Authorization: Bearer {{accessToken2}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
