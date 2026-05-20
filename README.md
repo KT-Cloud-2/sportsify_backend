@@ -7,96 +7,171 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791)
 ![Redis](https://img.shields.io/badge/Redis-8-red)
 
-스포츠 경기 예매 + 팀 응원 채팅 통합 백엔드 시스템
+스포츠 경기 예매와 팀 응원 채팅을 하나로 합친 서비스
 
 ---
 
 ## 프로젝트 소개
 
-티켓 구매부터 실시간 응원까지, 스포츠 관람 경험을 하나의 서비스로 완결합니다.
+**Sportsify**는 스포츠 경기 예매부터 실시간 응원까지 끊김 없는 팬 경험을 제공하는 플랫폼입니다.
 
-- 스포츠 경기 예매 — 좌석 선점, Toss Payments 연동 결제
-- 실시간 응원 채팅 — WebSocket STOMP + Redis Pub/Sub
-- 알림 — Redis Streams 이벤트 버스, SSE 실시간 Push, Email / MQTT 멀티채널
+### 문제 정의
 
-> **목표**: 동시 접속 1,000명 이상 안정 처리 / API P95 응답 200ms 이하 / 채팅 메시지 전달 100ms 이하
+- **시스템 분리**: 예매와 채팅이 서로 다른 앱에서 운영되어 사용자 경험이 단절
+- **거래 중심 설계**: 기존 시스템은 결제 위주 설계, 커뮤니티적 가치 제공에 한계
+- **팬 활동의 파편화**: 경기 일정 확인, 예매, 응원, 팀 커뮤니티가 각각 다른 플랫폼에 흩어져 있어 팬으로서의 연속적인 경험이 불가능
 
----
+### MVP 핵심 기능
 
-## 시스템 아키텍처
+| 기능 | 설명 |
+|---|---|
+| 🎫 티켓 예매 | 경기 및 좌석 선택, 다수 좌석 동시 예약 가능 |
+| 💳 결제 | Toss Payments 기반 결제 시스템, 결제 무결성 확보 |
+| 💬 실시간 채팅 | WebSocket 기반 실시간 메시지 송수신, 응원 활동 지표 |
+| 🔔 스마트 알림 | 예매 완료, 경기 시작 등 주요 이벤트 실시간 알림 (Email, MQTT) |
 
-```
-┌─────────────┐     ┌──────────────────────────────────────────┐
-│   Client    │────▶│              ALB (Load Balancer)          │
-│ (React/앱)  │◀────│                                          │
-└─────────────┘     └──────────┬──────────────┬────────────────┘
-                               │              │
-                    ┌──────────▼──────┐  ┌────▼───────────────┐
-                    │   EC2-1         │  │   EC2-2             │
-                    │  Spring Boot    │  │  PostgreSQL 18      │
-                    │  (Blue/Green)   │  │  Redis 8            │
-                    │  :8081 / :8082  │  │  Mosquitto (MQTT)   │
-                    └──────────┬──────┘  └────────────────────┘
-                               │
-                    ┌──────────▼──────┐
-                    │   Monitoring    │
-                    │  Prometheus     │
-                    │  Grafana :3001  │
-                    └─────────────────┘
-```
+### 기술 목표
 
----
+- **동시 접속**: MVP 1,000명 안정 처리, 목표 5,000명 대응
+- **응답 지연**: 평균 API 200ms, 채팅 메시지 100ms 이하 유지
+- **일관성 보장**: DB 트랜잭션 + 분산락으로 중복 예매 방지
+- **수평 확장**: Stateless API + Redis 기반 세션 관리로 무장애 운영
 
-## ERD
+### 핵심 기술 챌린지
 
-![ERD](docs/sportify_erd_1.png)
-
-> 상세 DDL: [docs/02-erd.md](docs/02-erd.md) | ERD Cloud용 DDL: [docs/erd-cloud.sql](docs/erd-cloud.sql)
+- **좌석 선점 동시성 제어**: FOR UPDATE + ID 오름차순 정렬 락으로 중복 선점 방지 및 데드락 차단
+- **결제 멱등성 및 위변조 검증**: 서버 측 금액 대조 + Idempotency Key 기반 중복 승인 방지
+- **실시간 채팅 읽음 배치 플러시**: 대량 읽음 신호를 Redis 임시 저장 → 스케줄러가 배치로 DB 반영하여 쓰기 부하 분산
+- **웹소켓 재연결 메시지 재생**: lastMessageId 이후 미수신 메시지를 청크 단위로 유실 없이 재전송
+- **Redis Streams 이벤트 드리븐 알림**: 도메인 이벤트를 스트림 큐로 느슨 결합 + 유저별 채널 분기(SSE/Email/MQTT) + 장애 복구 스케줄러
+- **대규모 알림 팬아웃**: 수천 명 대상 알림을 청크 분할 + 멀티 스레드 비동기 분산 처리
 
 ---
 
 ## 기술 스택
 
-| 분류 | 기술 |
-|------|------|
-| Language | Java 25 |
-| Framework | Spring Boot 4.0.3 |
-| Database | PostgreSQL 18, Redis 8 |
-| Realtime | WebSocket (STOMP), SSE |
-| Event Bus | Redis Streams |
-| MQTT | Mosquitto |
-| Infra | Docker, GitHub Actions |
+| 구분 | 기술 |
+|---|---|
+| Backend | Java 25, Spring Boot 3.4 |
+| Database | PostgreSQL, JPA/QueryDSL |
+| Cache/Pub-Sub | Redis 8 (Streams, Sorted Set, SETNX) |
+| Infra | Docker, AWS (ALB, EC2, NAT) |
+| Monitoring | Prometheus, Grafana |
+| External | Kakao/Google OAuth, Toss Payments |
 
----
+### 아키텍처 특징
 
-## 핵심 기술 챌린지
-
-- **동시성 제어 3종 비교**: 비관적 락 vs 낙관적 락 vs Redis 분산 락
-- **대기열 시스템**: Redis Sorted Set 기반 SSE 스트리밍 대기열
-- **실시간 채팅**: WebSocket STOMP + Message Broker + Redis
-- **이벤트 드리븐 알림**: Redis Streams 기반 비동기 멀티채널 알림 파이프라인
+- **모노리스 JAR 1개** — 도메인별 패키지 분리 (Ticketing, Payment, Chat, Notification, Game, Member, Team)
+- **이벤트 드리븐**: Redis Streams 기반 도메인 간 느슨한 결합
 - **캐싱 3단 구조**: Caffeine(L1) → Redis(L2) → DB(L3)
 
+<img width="1437" height="890" alt="System Architecture" src="https://github.com/user-attachments/assets/b87b3848-38c5-46ef-943f-50fc212a7e3d" />
+
+
 ---
 
-## 테스트
+## ERD 설계
 
-| 구분 | 수량 |
-|------|------|
-| 전체 테스트 | **533개** |
-| 실패 | 0 |
-| 테스트 클래스 | 80개 |
+![ERD](docs/sportify_erd_1.png)
 
-| 도메인 | 클래스 수 |
+> 상세 DDL: [docs/02-erd.md](docs/02-erd.md) | ERD Cloud용 DDL: [docs/erd-cloud.sql](docs/erd-cloud.sql)
+
+
+---
+
+## API
+
+### 보안
+
+- JWT 기반 인증 (Access Token + Refresh Token)
+- OAuth2 소셜 로그인 (Google, Kakao)
+- Redis 기반 토큰 블랙리스트 + Refresh Token 관리
+
+### 예외 처리
+
+통일된 에러 응답 구조:
+
+```json
+{
+  "code": "SEAT_ALREADY_RESERVED",
+  "message": "이미 선점된 좌석입니다.",
+  "detail": null
+}
+```
+
+### API 문서
+
+- **상세 명세**: [docs/04-api-spec.md](docs/04-api-spec.md)
+- **Swagger UI**: 앱 실행 후 `http://localhost:8080/docs.html` 접속
+
+---
+
+## 테스트 및 검증
+
+### 테스트 실행
+
+```bash
+./gradlew test
+```
+
+리포트 위치: `build/reports/jacoco/test/html/index.html`
+
+### 기본 과정 주요 테스트 목록
+
+#### 예매 (Ticketing)
+
+- **동시성 — 동일 좌석**: 같은 좌석에 다수 유저 동시 요청 → 1명만 성공 (스레드풀 10~200)
+- **동시성 — 데드락 방지**: 다중 좌석을 서로 다른 순서로 요청 → ID 정렬 락으로 데드락 없이 처리
+- **다중 좌석 정상 흐름**: 충돌 없는 가용 좌석 동시 선점 → 전부 PENDING
+- **선점 만료 스케줄러**: 15분 경과 → EXPIRED + 좌석 자동 반납
+- **결제 이벤트 연동**: Completed → CONFIRMED + 티켓 발급 / Cancelled → CANCELLED + 좌석 해제
+
+#### 결제 (Payment)
+
+- **금액 위변조 방지**: 클라이언트 금액 ≠ 서버 금액 → 예외 발생
+- **PG 승인 + 상태 전환**: Toss API 성공 → DONE + PaymentCompletedEvent 발행
+- **외부 API 실패 보상**: PG 호출 실패 → FAIL + 주문/좌석 롤백 이벤트
+- **중복 승인 방지**: 동일 결제 건 재요청 → 멱등성 보장 또는 에러 반환
+- **결제 취소**: 취소 요청 → Toss 환불 API + CANCELLED 전환
+
+#### 채팅 (Chat)
+
+- **STOMP 권한 검증**: JWT 유효성 + 채팅방 접근 권한 차단/허용
+- **메시지 브로드캐스팅**: 전송 → DB 저장 + 구독자 전원 실시간 수신
+- **읽음 배치 플러시**: 대량 읽음 신호 → Redis 임시 저장 → 스케줄러 배치 DB 반영
+- **미수신 메시지 재생**: 재연결 시 lastMessageId 이후 배치 재전송
+- **동시성 — 멤버 관리**: 동시 입장/퇴장/추방 → Advisory Lock 정합성 보장
+
+#### 알림 (Notification)
+
+- **Redis Streams 발행**: 도메인 이벤트 → 알림 스트림 안전 적재
+- **대량 팬아웃**: 수천 명 대상 → 청크 분할 + 멀티 스레드 분산 처리
+- **채널 분기 필터링**: 유저 설정 조회 → 비활성 제외, 활성 채널(SSE/Email/MQTT) 라우팅
+- **SSE 재연결 유실 방지**: Last-Event-ID 기반 미수신 알림 재전송
+- **장애 복구 스케줄러**: PROCESSING stuck 감지 → 재시도 또는 FAILED 처리
+
+
+### 테스트 현황
+
+**전체 533개 테스트 / 실패 0 / 80개 테스트 클래스**
+
+| 지표 | 값 |
+|---|---|
+| Instruction Coverage | 71% |
+| Line Coverage | 61% |
+| Branch Coverage | 53% |
+
+| 도메인 | 테스트 클래스 |
 |---|---|
 | 채팅 | 23 |
 | 알림 | 17 |
-| 경기 | 12 |
+| 경기/좌석 | 12 |
 | 예매 | 11 |
 | 회원 | 7 |
-| 결제·팀 | 4 |
+| 결제 · 팀 | 4 |
 
-단위 테스트(application/domain) · 통합 테스트(TestContainers) · API 테스트(MockMvc)를 GIVEN-WHEN-THEN 패턴으로 작성했습니다.
+> 단위(Service/Domain) · 통합(TestContainers) · API(MockMvc) 테스트를 GIVEN-WHEN-THEN 패턴으로 작성
+
 
 ---
 
@@ -218,6 +293,14 @@ git commit -m "feat: 기능 설명"
 
 ## 팀 구성
 
+| 이름 | GitHub | 도메인 |
+|---|---|---|
+| 강정훈 | [@JHKoder](https://github.com/JHKoder) | 회원, 팀, 알림, 인프라 |
+| 손하영 | [@glosona](https://github.com/glosona) | 경기/좌석, 예매 |
+| 유창민 | [@changmin-yoo](https://github.com/changmin-yoo) | 결제 |
+| 주병규 | [@jnj3j3](https://github.com/jnj3j3) | 채팅 |
+
+
 ### 강정훈 — 회원 · 팀 · 알림 · 인프라
 
 | 구분 | 내용 |
@@ -331,6 +414,7 @@ git commit -m "feat: 기능 설명"
 | [API 명세서](docs/04-api-spec.md) | 전 도메인 REST API 및 WebSocket 명세 (요청/응답/에러 포함) |
 | [ERD Cloud DDL](docs/erd-cloud.sql) | ERD Cloud Import용 MySQL DDL (도메인 설명 포함) |
 | [로컬 Docker 가이드](docs/docker-local-guide.md) | 인프라 컨테이너 상세 실행 가이드 |
+| [프로젝트 계획](plan.md) | 기능 구현 현황, 스프린트 계획 |
 
 
 ---
