@@ -30,7 +30,7 @@ public class ChatStompController {
     private final Clock clock;
 
     /**
-     * 5-15-3-1. 메시지 전송
+     * 5-17-3-1. 메시지 전송
      *
      * @param payload
      * @param principal
@@ -51,7 +51,7 @@ public class ChatStompController {
 
 
     /**
-     * 5-15-3-2. 읽음 상태 갱신
+     * 5-17-3-2. 읽음 상태 갱신
      *
      * @param payload
      * @param principal
@@ -63,7 +63,7 @@ public class ChatStompController {
     }
 
     /**
-     * 5-15-3-3. 타이핑 인디케이터
+     * 5-17-3-3. 타이핑 인디케이터
      *
      * @param payload
      * @param principal
@@ -72,7 +72,7 @@ public class ChatStompController {
     public void typing(@Payload ChatTypingPayload payload, Principal principal) {
         long memberId = Long.parseLong(principal.getName());
         chatEventPublisher.publishToRoomTyping(payload.roomId(), MessageTypingEvent.from(
-                payload, memberId, true, Instant.now(clock)
+                payload, memberId, payload.typing(), Instant.now(clock)
         ));
     }
 
