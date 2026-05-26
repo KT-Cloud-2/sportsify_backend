@@ -112,6 +112,7 @@ public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
             return;
         }
         this.status = MemberStatus.JOINED;
+        this.notificationEnabled = true;
         this.updatedAt = now;
         this.registerEvent(EventEnvelope.of(EventType.MEMBER_JOINED, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberJoinPayload(this.memberId.value())));
     }

@@ -3,6 +3,7 @@ package com.sportsify.chat.application.chatRoom.service;
 import com.sportsify.chat.application.chatRoom.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
@@ -65,7 +66,11 @@ public class ChatRoomService {
                         .map(id -> ChatRoomMember.newInvited(room.getId(), creatorId, id, now))
         ).toList();
         chatRoomMemberRepo.saveAll(members);
-        members.forEach(m -> m.getEvents().forEach(eventPublisher::publishEvent));
+        ChatRoomType roomType = room.getType();
+        members.forEach(m -> m.getEvents().forEach(e -> {
+            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomType(roomType));
+            else eventPublisher.publishEvent(e);
+        }));
         return ChatRoomResponse.from(room);
     }
 
@@ -110,7 +115,7 @@ public class ChatRoomService {
         }
         room.archive(now);
         ChatRoom saved = chatRoomRepo.save(room);
-        saved.getEvents().forEach(eventPublisher::publishEvent);
+        publishWithRoomType(saved);
         return ChatRoomArchiveResponse.from(saved);
     }
 
@@ -144,7 +149,7 @@ public class ChatRoomService {
         }
         room.delete(now, requesterId);
         ChatRoom saved = chatRoomRepo.save(room);
-        saved.getEvents().forEach(eventPublisher::publishEvent);
+        publishWithRoomType(saved);
         chatRoomMemberRepo.leaveAllMembersByRoom(room.getId(), now);
     }
 
@@ -325,5 +330,12 @@ public class ChatRoomService {
     private Map<ChatRoomId, Long> getParticipantCounts(List<ChatRoom> rooms) {
         List<ChatRoomId> roomIds = rooms.stream().map(ChatRoom::getId).toList();
         return chatRoomMemberRepo.countActiveByRooms(roomIds); // IN 절을 사용하는 쿼리로 구현
+    }
+
+    private void publishWithRoomType(ChatRoom room) {
+        room.getEvents().forEach(e -> {
+            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomType(room.getType()));
+            else eventPublisher.publishEvent(e);
+        });
     }
 }

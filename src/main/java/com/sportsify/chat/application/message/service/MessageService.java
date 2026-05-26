@@ -3,6 +3,8 @@ package com.sportsify.chat.application.message.service;
 import com.sportsify.chat.application.message.config.RedisKeySchema;
 import com.sportsify.chat.application.message.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
+import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.model.message.MessageContent;
@@ -63,7 +65,8 @@ public class MessageService {
         MemberId id = MemberId.of(memberId);
         MessageContent content = MessageContent.of(request.content());
 
-        ChatRoomStatus chatRoomStatus = chatRoomRepo.findByIdForUpdateWrite(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value())).getStatus();
+        ChatRoom chatRoom = chatRoomRepo.findByIdForUpdateWrite(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value()));
+        ChatRoomStatus chatRoomStatus = chatRoom.getStatus();
 
         switch (chatRoomStatus) {
             case DELETED -> throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value());
@@ -83,7 +86,16 @@ public class MessageService {
             default -> throw new IllegalStateException("Unhandled status " + memberStatus);
         }
         Message savedMessage = messageRepo.save(Message.send(chatRoomId, id, content, parseType(request.type()), Instant.now(clock), request.clientMessageId()));
-        savedMessage.getEvents().forEach(eventPublisher::publishEvent);
+        ChatRoomType roomType = chatRoom.getType();
+        savedMessage.getEvents().forEach(rawEvent -> {
+            if (rawEvent instanceof EventEnvelope<?> envelope && envelope.payload() instanceof MessageSentPayload p) {
+                eventPublisher.publishEvent(new EventEnvelope<>(
+                        envelope.event(), envelope.roomId(), envelope.occurredAt(),
+                        p.withRoomType(roomType), envelope.alertMessageId(), roomType));
+            } else {
+                eventPublisher.publishEvent(rawEvent);
+            }
+        });
         return MessageCreateResponse.from(savedMessage);
     }
 

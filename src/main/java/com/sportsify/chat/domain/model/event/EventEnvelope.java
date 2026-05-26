@@ -2,6 +2,7 @@ package com.sportsify.chat.domain.model.event;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
+import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.ResolvableTypeProvider;
 
@@ -12,15 +13,20 @@ public record EventEnvelope<T>(
         Long roomId,
         Instant occurredAt,
         T payload,
-        Long alertMessageId
+        Long alertMessageId,
+        ChatRoomType roomType
 ) implements DomainEvent, ResolvableTypeProvider {
 
     public static <T> EventEnvelope<T> of(EventType event, ChatRoomId roomId, Instant now, T payload) {
-        return new EventEnvelope<>(event.name(), roomId.value(), now, payload, null);
+        return new EventEnvelope<>(event.name(), roomId.value(), now, payload, null, null);
     }
 
     public EventEnvelope<T> withAlertMessageId(Long id) {
-        return new EventEnvelope<>(event, roomId, occurredAt, payload, id);
+        return new EventEnvelope<>(event, roomId, occurredAt, payload, id, roomType);
+    }
+
+    public EventEnvelope<T> withRoomType(ChatRoomType type) {
+        return new EventEnvelope<>(event, roomId, occurredAt, payload, alertMessageId, type);
     }
 
     @Override
