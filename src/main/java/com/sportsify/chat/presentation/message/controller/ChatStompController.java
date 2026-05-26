@@ -46,6 +46,12 @@ public class ChatStompController {
                     ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, e, payload.clientMessageId()),
                     "/queue/errors"
             );
+        } catch (Exception e) {
+            chatEventPublisher.publishToUser(
+                    id,
+                    ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, "메시지 전송에 실패했습니다.", payload.clientMessageId()),
+                    "/queue/errors"
+            );
         }
     }
 
