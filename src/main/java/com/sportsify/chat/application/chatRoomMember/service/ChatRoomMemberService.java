@@ -136,7 +136,7 @@ public class ChatRoomMemberService {
         }
 
         Optional<ChatRoomMember> inviteeOpt = findMemberWithStatus(room.getId(), inviteeId,
-                List.of(MemberStatus.JOINED, MemberStatus.INVITED, MemberStatus.BANNED, MemberStatus.LEFT));
+                List.of(MemberStatus.JOINED, MemberStatus.INVITED, MemberStatus.BANNED, MemberStatus.LEFT, MemberStatus.REJECT));
 
         if (inviteeOpt.isPresent()) {
             ChatRoomMember member = inviteeOpt.get();
