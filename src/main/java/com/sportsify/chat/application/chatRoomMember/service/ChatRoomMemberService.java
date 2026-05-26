@@ -58,7 +58,7 @@ public class ChatRoomMemberService {
             ChatRoomMember newMember = ChatRoomMember.newJoin(room.getId(), id, now);
             try {
                 savedMember = chatRoomMemberRepo.saveAndFlush(newMember);
-                publishWithRoomType(savedMember, room.getType());
+                publishWithRoomContext(savedMember, room.getType(), room.getName().value());
             } catch (DataIntegrityViolationException e) {
                 throw new BusinessException(ErrorCode.CONFLICT, "Already exists in this room: " + roomId + " member: " + memberId);
             }
@@ -70,7 +70,7 @@ public class ChatRoomMemberService {
                 default -> {
                     member.accept(now);
                     ChatRoomMember saved = chatRoomMemberRepo.save(member);
-                    publishWithRoomType(saved, room.getType());
+                    publishWithRoomContext(saved, room.getType(), room.getName().value());
                     yield saved;
                 }
             };
@@ -105,7 +105,7 @@ public class ChatRoomMemberService {
             default -> {
                 member.leave(now);
                 ChatRoomMember saved = chatRoomMemberRepo.saveAndFlush(member);
-                publishWithRoomType(saved, room.getType());
+                publishWithRoomContext(saved, room.getType(), room.getName().value());
 
                 if (chatRoomMemberRepo.countActiveByRoom(chatRoomId) == 0) {
                     room.markEmpty(now);
@@ -147,7 +147,7 @@ public class ChatRoomMemberService {
                 default -> {
                     member.changeStatusToInvite(now);
                     ChatRoomMember saved = chatRoomMemberRepo.save(member);
-                    publishWithRoomType(saved, room.getType());
+                    publishWithRoomContext(saved, room.getType(), room.getName().value());
                     yield ChatRoomMemberResponse.from(saved);
                 }
             };
@@ -156,7 +156,7 @@ public class ChatRoomMemberService {
         ChatRoomMember newMember = ChatRoomMember.newInvited(room.getId(), MemberId.of(requesterId), MemberId.of(inviteeId), now);
         try {
             ChatRoomMember saved = chatRoomMemberRepo.saveAndFlush(newMember);
-            publishWithRoomType(saved, room.getType());
+            publishWithRoomContext(saved, room.getType(), room.getName().value());
             return ChatRoomMemberResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(ErrorCode.CONFLICT, "Already exists in this room: " + roomId);
@@ -189,7 +189,7 @@ public class ChatRoomMemberService {
 
         target.ban(now);
         ChatRoomMember saved = chatRoomMemberRepo.save(target);
-        publishWithRoomType(saved, room.getType());
+        publishWithRoomContext(saved, room.getType(), room.getName().value());
         return ChatRoomMemberResponse.from(saved);
     }
 
@@ -237,10 +237,10 @@ public class ChatRoomMemberService {
 
     /* -------------------- private functions -------------------- */
 
-    private void publishWithRoomType(ChatRoomMember member, ChatRoomType roomType) {
+    private void publishWithRoomContext(ChatRoomMember member, ChatRoomType roomType, String roomName) {
         member.getEvents().forEach(e -> {
             if (e instanceof EventEnvelope<?> env) {
-                eventPublisher.publishEvent(env.withRoomType(roomType));
+                eventPublisher.publishEvent(env.withRoomContext(roomType, roomName));
             } else {
                 eventPublisher.publishEvent(e);
             }

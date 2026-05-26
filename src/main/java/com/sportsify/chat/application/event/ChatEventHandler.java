@@ -18,7 +18,6 @@ import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.model.message.MessageContent;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
-import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
@@ -50,7 +49,6 @@ public class ChatEventHandler {
     private final RoomMemberNotifyCache roomMemberNotifyCache;
     private final NotificationEventPublisher notificationEventPublisher;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
-    private final ChatRoomRepository chatRoomRepo;
     private final MemberRepository memberRepo;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -63,7 +61,7 @@ public class ChatEventHandler {
         if (payload instanceof MessagePayload) {
             publisher.publishToRoom(event.roomId(), event);
             if (payload instanceof MessageSentPayload sentPayload && isDirect) {
-                sendMessageNotification(event.roomId(), sentPayload);
+                sendMessageNotification(event.roomId(), event.roomName(), sentPayload);
             }
             return;
         }
@@ -103,19 +101,17 @@ public class ChatEventHandler {
             }
             case MemberJoinPayload p -> { if (isDirect) roomMemberNotifyCache.put(event.roomId(), p.memberId(), true); }
             case MemberLeftPayload p -> { if (isDirect) roomMemberNotifyCache.remove(event.roomId(), p.memberId()); }
-            case MemberInvitePayload p -> { if (isDirect) sendInviteNotification(event.roomId(), p); }
+            case MemberInvitePayload p -> { if (isDirect) sendInviteNotification(event.roomId(), event.roomName(), p); }
             default -> {}
         }
     }
 
-    private void sendMessageNotification(Long roomId, MessageSentPayload payload) {
+    private void sendMessageNotification(Long roomId, String roomName, MessageSentPayload payload) {
         try {
             Set<Long> notifiableIds = resolveNotifiableMemberIds(roomId);
             if (notifiableIds.isEmpty()) return;
 
-            String roomName = chatRoomRepo.findById(ChatRoomId.of(roomId))
-                    .map(r -> r.getName().value())
-                    .orElse("채팅방");
+            String resolvedRoomName = roomName != null ? roomName : "채팅방";
             String senderName = memberRepo.findById(payload.senderId())
                     .map(m -> m.getNickname() != null ? m.getNickname() : "사용자")
                     .orElse("사용자");
@@ -127,7 +123,7 @@ public class ChatEventHandler {
                     .filter(memberId -> !activeSubscribers.contains(memberId))
                     .forEach(memberId -> {
                         ChatMentionPayload notifyPayload = buildMentionPayload(
-                                memberId, roomId, roomName, payload.senderId(), senderName, payload
+                                memberId, roomId, resolvedRoomName, payload.senderId(), senderName, payload
                         );
                         notificationEventPublisher.publish(NotificationEventType.CHAT_MENTION, notifyPayload);
                     });
@@ -136,11 +132,9 @@ public class ChatEventHandler {
         }
     }
 
-    private void sendInviteNotification(Long roomId, MemberInvitePayload payload) {
+    private void sendInviteNotification(Long roomId, String roomName, MemberInvitePayload payload) {
         try {
-            String roomName = chatRoomRepo.findById(ChatRoomId.of(roomId))
-                    .map(r -> r.getName().value())
-                    .orElse("채팅방");
+            String resolvedRoomName = roomName != null ? roomName : "채팅방";
             String inviterName = memberRepo.findById(payload.inviterId())
                     .map(m -> m.getNickname() != null ? m.getNickname() : "사용자")
                     .orElse("사용자");
@@ -148,7 +142,7 @@ public class ChatEventHandler {
             notificationEventPublisher.publish(
                     NotificationEventType.CHAT_INVITED,
                     ChatMentionPayload.ofText(
-                            payload.invitedId(), roomId, roomName,
+                            payload.invitedId(), roomId, resolvedRoomName,
                             payload.inviterId(), inviterName,
                             "채팅방에 초대되었습니다."
                     )

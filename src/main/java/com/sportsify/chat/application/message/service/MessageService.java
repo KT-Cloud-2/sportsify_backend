@@ -3,9 +3,9 @@ package com.sportsify.chat.application.message.service;
 import com.sportsify.chat.application.message.config.RedisKeySchema;
 import com.sportsify.chat.application.message.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
+import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
-import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.model.message.MessageContent;
 import com.sportsify.chat.domain.model.message.MessageId;
@@ -32,7 +32,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MessageService {
-    
+
     private static final DefaultRedisScript<Long> CAS_SCRIPT =
             new DefaultRedisScript<>(
                     """
@@ -87,11 +87,12 @@ public class MessageService {
         }
         Message savedMessage = messageRepo.save(Message.send(chatRoomId, id, content, parseType(request.type()), Instant.now(clock), request.clientMessageId()));
         ChatRoomType roomType = chatRoom.getType();
+        String roomName = chatRoom.getName().value();
         savedMessage.getEvents().forEach(rawEvent -> {
             if (rawEvent instanceof EventEnvelope<?> envelope && envelope.payload() instanceof MessageSentPayload p) {
                 eventPublisher.publishEvent(new EventEnvelope<>(
                         envelope.event(), envelope.roomId(), envelope.occurredAt(),
-                        p.withRoomType(roomType), envelope.alertMessageId(), roomType));
+                        p.withRoomType(roomType), envelope.alertMessageId(), roomType, roomName));
             } else {
                 eventPublisher.publishEvent(rawEvent);
             }
@@ -157,7 +158,7 @@ public class MessageService {
         Map<MemberId, MessageId> chatRoomMembersInfo = isDirectRoom ? chatRoomMemberRepo.findLastMessageIdsAndMemberIdsByRoomId(chatRoomId) : null;
 
         if (!page.items().isEmpty() && roomStatus == ChatRoomStatus.ACTIVE && isMember && isDirectRoom) {
-            read(chatRoomId.value(), id.value(), page.items().getLast().getId().value(), false);
+            read(chatRoomId.value(), id.value(), page.items().getFirst().getId().value(), false);
         }
         return new MessageListResponse(
                 page.items().stream().map(MessageResponse::from).toList(),

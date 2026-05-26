@@ -14,19 +14,24 @@ public record EventEnvelope<T>(
         Instant occurredAt,
         T payload,
         Long alertMessageId,
-        ChatRoomType roomType
+        ChatRoomType roomType,
+        String roomName
 ) implements DomainEvent, ResolvableTypeProvider {
 
     public static <T> EventEnvelope<T> of(EventType event, ChatRoomId roomId, Instant now, T payload) {
-        return new EventEnvelope<>(event.name(), roomId.value(), now, payload, null, null);
+        return new EventEnvelope<>(event.name(), roomId.value(), now, payload, null, null, null);
     }
 
     public EventEnvelope<T> withAlertMessageId(Long id) {
-        return new EventEnvelope<>(event, roomId, occurredAt, payload, id, roomType);
+        return new EventEnvelope<>(event, roomId, occurredAt, payload, id, roomType, roomName);
     }
 
     public EventEnvelope<T> withRoomType(ChatRoomType type) {
-        return new EventEnvelope<>(event, roomId, occurredAt, payload, alertMessageId, type);
+        return new EventEnvelope<>(event, roomId, occurredAt, payload, alertMessageId, type, roomName);
+    }
+
+    public EventEnvelope<T> withRoomContext(ChatRoomType type, String name) {
+        return new EventEnvelope<>(event, roomId, occurredAt, payload, alertMessageId, type, name);
     }
 
     @Override

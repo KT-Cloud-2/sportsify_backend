@@ -67,8 +67,9 @@ public class ChatRoomService {
         ).toList();
         chatRoomMemberRepo.saveAll(members);
         ChatRoomType roomType = room.getType();
+        String roomName = room.getName().value();
         members.forEach(m -> m.getEvents().forEach(e -> {
-            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomType(roomType));
+            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomContext(roomType, roomName));
             else eventPublisher.publishEvent(e);
         }));
         return ChatRoomResponse.from(room);
@@ -115,7 +116,7 @@ public class ChatRoomService {
         }
         room.archive(now);
         ChatRoom saved = chatRoomRepo.save(room);
-        publishWithRoomType(saved);
+        publishWithRoomContext(saved);
         return ChatRoomArchiveResponse.from(saved);
     }
 
@@ -149,7 +150,7 @@ public class ChatRoomService {
         }
         room.delete(now, requesterId);
         ChatRoom saved = chatRoomRepo.save(room);
-        publishWithRoomType(saved);
+        publishWithRoomContext(saved);
         chatRoomMemberRepo.leaveAllMembersByRoom(room.getId(), now);
     }
 
@@ -332,9 +333,11 @@ public class ChatRoomService {
         return chatRoomMemberRepo.countActiveByRooms(roomIds); // IN 절을 사용하는 쿼리로 구현
     }
 
-    private void publishWithRoomType(ChatRoom room) {
+    private void publishWithRoomContext(ChatRoom room) {
+        String roomName = room.getName().value();
+        ChatRoomType roomType = room.getType();
         room.getEvents().forEach(e -> {
-            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomType(room.getType()));
+            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomContext(roomType, roomName));
             else eventPublisher.publishEvent(e);
         });
     }
