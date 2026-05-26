@@ -10,7 +10,6 @@ import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.*;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
-import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
@@ -71,9 +70,6 @@ class ChatEventHandlerTest {
     private ChatRoomMemberRepository chatRoomMemberRepo;
 
     @Mock
-    private ChatRoomRepository chatRoomRepo;
-
-    @Mock
     private MemberRepository memberRepo;
 
     @BeforeEach
@@ -92,7 +88,7 @@ class ChatEventHandlerTest {
     void sendEvent_메시지이벤트_알림저장없이_방브로드캐스트() {
         EventEnvelope<MessageSentPayload> event = new EventEnvelope<>(
                 EventType.MESSAGE_SENT.name(), ROOM_ID, NOW,
-                new MessageSentPayload(1L, null, 2L, "TEXT", "안녕하세요"), null
+                new MessageSentPayload(1L, null, 2L, "TEXT", "안녕하세요", null), null, null, null
         );
 
         chatEventHandler.sendEvent(event);
@@ -118,7 +114,7 @@ class ChatEventHandlerTest {
         Long bannedMemberId = 42L;
         EventEnvelope<MemberBannedPayload> event = new EventEnvelope<>(
                 EventType.MEMBER_BANNED.name(), ROOM_ID, NOW,
-                new MemberBannedPayload(bannedMemberId), null
+                new MemberBannedPayload(bannedMemberId), null, null, null
         );
         given(messageRepo.save(any())).willReturn(alertMessage(99L));
 
@@ -144,7 +140,7 @@ class ChatEventHandlerTest {
     void sendEvent_방삭제이벤트_알림저장_전체구독취소() {
         EventEnvelope<RoomDeletePayload> event = new EventEnvelope<>(
                 EventType.ROOM_DELETED.name(), ROOM_ID, NOW,
-                new RoomDeletePayload(), null
+                new RoomDeletePayload(), null, null, null
         );
         given(messageRepo.save(any())).willReturn(alertMessage(101L));
 
@@ -170,7 +166,7 @@ class ChatEventHandlerTest {
     void sendEvent_방아카이브이벤트_알림저장_전체구독취소() {
         EventEnvelope<RoomArchivedPayload> event = new EventEnvelope<>(
                 EventType.ROOM_ARCHIVED.name(), ROOM_ID, NOW,
-                new RoomArchivedPayload(), null
+                new RoomArchivedPayload(), null, null, null
         );
         given(messageRepo.save(any())).willReturn(alertMessage(102L));
 
