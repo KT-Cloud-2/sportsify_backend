@@ -15,9 +15,9 @@ public interface OrderRepository {
 
     Optional<Order> findByIdWithOrderSeats(Long orderId);
 
-    List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now);
+    List<Long> findExpiredPendingOrderIdsWithoutPayment(LocalDateTime now);
 
-    List<Order> findPayingOrdersWithFailedPayment();
+    List<Long> findPayingOrderIdsWithFailedPayment();
 
     void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 }

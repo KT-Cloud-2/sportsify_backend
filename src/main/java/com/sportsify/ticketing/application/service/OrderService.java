@@ -1,7 +1,6 @@
 package com.sportsify.ticketing.application.service;
 
 import com.sportsify.game.domain.repository.GameSeatRepository;
-import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeatStatus;
 import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
@@ -27,29 +26,27 @@ public class OrderService {
     @Transactional
     public void expireUnpaidOrdersBulk() {
         LocalDateTime now = LocalDateTime.now();
-        List<Order> orders = orderRepository.findExpiredPendingOrdersWithoutPayment(now);
-        if (orders.isEmpty()) return;
+        List<Long> orderIds = orderRepository.findExpiredPendingOrderIdsWithoutPayment(now);
+        if (orderIds.isEmpty()) return;
 
-        log.info("[ORDER_SCHEDULER] Unpaid Bulk size: {}", orders.size());
+        log.info("[ORDER_SCHEDULER] Unpaid Bulk size: {}", orderIds.size());
 
-        releaseSeatsBulk(orders, now, OrderSeatStatus.EXPIRED, OrderStatus.EXPIRED);
+        releaseSeatsBulk(orderIds, now, OrderSeatStatus.EXPIRED, OrderStatus.EXPIRED);
     }
 
     @Transactional
     public void cancelFailedPaymentOrdersBulk() {
         LocalDateTime now = LocalDateTime.now();
-        List<Order> orders = orderRepository.findPayingOrdersWithFailedPayment();
+        List<Long> orderIds = orderRepository.findPayingOrderIdsWithFailedPayment();
 
-        if (orders.isEmpty()) return;
+        if (orderIds.isEmpty()) return;
 
-        log.info("[ORDER_SCHEDULER] Failed Bulk size: {}", orders.size());
+        log.info("[ORDER_SCHEDULER] Failed Bulk size: {}", orderIds.size());
 
-        releaseSeatsBulk(orders, now, OrderSeatStatus.CANCELLED, OrderStatus.CANCELLED);
+        releaseSeatsBulk(orderIds, now, OrderSeatStatus.CANCELLED, OrderStatus.CANCELLED);
     }
 
-    public void releaseSeatsBulk(List<Order> orders, LocalDateTime now, OrderSeatStatus orderSeatstatus, OrderStatus orderStatus) {
-        List<Long> orderIds = orders.stream().map(Order::getId).toList();
-
+    public void releaseSeatsBulk(List<Long> orderIds, LocalDateTime now, OrderSeatStatus orderSeatstatus, OrderStatus orderStatus) {
         gameSeatRepository.bulkReleaseGameSeatsByOrderIds(orderIds);
         orderSeatRepository.bulkUpdateOrderSeats(orderIds, orderSeatstatus);
         orderRepository.bulkUpdateOrders(orderIds, orderStatus, now);

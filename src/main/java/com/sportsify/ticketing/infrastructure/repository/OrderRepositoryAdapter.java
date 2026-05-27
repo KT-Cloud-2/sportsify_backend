@@ -33,13 +33,13 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
-    public List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now) {
-        return jpaRepository.findExpiredPendingOrdersWithoutPayment(now);
+    public List<Long> findExpiredPendingOrderIdsWithoutPayment(LocalDateTime now) {
+        return jpaRepository.findExpiredPendingOrderIdsWithoutPayment(now);
     }
 
     @Override
-    public List<Order> findPayingOrdersWithFailedPayment() {
-        return jpaRepository.findPayingOrdersWithFailedPayment();
+    public List<Long> findPayingOrderIdsWithFailedPayment() {
+        return jpaRepository.findPayingOrderIdsWithFailedPayment();
     }
 
     @Override

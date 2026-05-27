@@ -21,20 +21,16 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdWithOrderSeats(@Param("orderId") Long orderId);
 
     @Query("""
-             SELECT DISTINCT o FROM Order o
-             JOIN FETCH o.orderSeats os
-             JOIN FETCH os.gameSeat
+             SELECT DISTINCT o.id FROM Order o
              WHERE o.status = 'PENDING'
              AND o.expiresAt < :now
              AND NOT EXISTS(SELECT p FROM Payment p WHERE p.orderId = o.id)
             """
     )
-    List<Order> findExpiredPendingOrdersWithoutPayment(@Param("now") LocalDateTime now);
+    List<Long> findExpiredPendingOrderIdsWithoutPayment(@Param("now") LocalDateTime now);
 
     @Query("""
-             SELECT DISTINCT o FROM Order o
-             JOIN FETCH o.orderSeats os
-             JOIN FETCH os.gameSeat
+             SELECT DISTINCT o.id FROM Order o
              WHERE o.status = 'PAYING'
              AND EXISTS (
                      SELECT p FROM Payment p
@@ -43,7 +39,7 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
              )
             """
     )
-    List<Order> findPayingOrdersWithFailedPayment();
+    List<Long> findPayingOrderIdsWithFailedPayment();
 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Order o SET o.status = :status, o.updatedAt = :now WHERE o.id IN :ids")
