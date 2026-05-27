@@ -5,6 +5,7 @@ import com.sportsify.game.domain.model.SeatStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -35,4 +36,13 @@ public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
 
     @Query("SELECT gs FROM GameSeat gs WHERE gs.game.id = :gameId")
     List<GameSeat> findByGameId(Long gameId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+                UPDATE GameSeat gs SET gs.seatStatus = 'AVAILABLE'
+                WHERE gs.id IN (
+                    SELECT os.gameSeat.id FROM OrderSeat os WHERE os.order.id IN :orderIds
+                )
+            """)
+    void bulkReleaseGameSeatsByOrderIds(@Param("orderIds") List<Long> orderIds);
 }

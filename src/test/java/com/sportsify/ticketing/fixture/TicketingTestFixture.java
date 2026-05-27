@@ -5,6 +5,7 @@ import com.sportsify.game.domain.repository.*;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
+import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.infrastructure.repository.TeamJpaRepository;
@@ -45,6 +46,8 @@ public class TicketingTestFixture {
     private OrderJpaRepository orderRepository;
     @Autowired
     private OrderSeatJpaRepository orderSeatRepository;
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     public Game createGame() {
         Stadium stadium = stadiumRepository.save(
@@ -139,6 +142,7 @@ public class TicketingTestFixture {
     public void deleteAll() {
         ticketRepository.deleteAll();
         orderSeatRepository.deleteAll();
+        paymentRepository.deleteAll();
         orderRepository.deleteAll();
         gameSeatRepository.deleteAll();
         pricePolicyRepository.deleteAll();

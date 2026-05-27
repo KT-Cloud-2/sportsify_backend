@@ -20,9 +20,9 @@ class OrderTest {
     void createOrderWithPendingStatus() {
         Member member = Member.create("test@test.com", "닉네임", OAuthProvider.GOOGLE, "g-1");
 
-        LocalDateTime before = LocalDateTime.now().plusMinutes(15).minusSeconds(1);
+        LocalDateTime before = LocalDateTime.now().plusMinutes(10).minusSeconds(1);
         Order order = Order.create(member);
-        LocalDateTime after = LocalDateTime.now().plusMinutes(15).plusSeconds(1);
+        LocalDateTime after = LocalDateTime.now().plusMinutes(10).plusSeconds(1);
 
         assertThat(order.getMember()).isEqualTo(member);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);

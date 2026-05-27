@@ -51,7 +51,7 @@ class ReservationControllerApiTest extends WebMvcTestSupport {
                 LocalDateTime.now(),
                 50000L,
                 List.of(mock(ReservationSeatsResponseDto.ReservationSeatDto.class)),
-                LocalDateTime.now().plusMinutes(15)
+                LocalDateTime.now().plusMinutes(10)
         );
 
         when(reservationService.reserveSeat(any(), any())).thenReturn(resDto);

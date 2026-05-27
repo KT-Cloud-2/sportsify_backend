@@ -2,6 +2,7 @@ package com.sportsify.ticketing.infrastructure.repository;
 
 
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderStatus;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -41,4 +42,8 @@ public class OrderRepositoryAdapter implements OrderRepository {
         return jpaRepository.findPayingOrdersWithFailedPayment();
     }
 
+    @Override
+    public void bulkUpdateOrders(List<Long> ids, OrderStatus status, LocalDateTime now) {
+        jpaRepository.bulkUpdateOrders(ids, status, now);
+    }
 }

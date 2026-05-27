@@ -1,7 +1,9 @@
 package com.sportsify.ticketing.infrastructure.repository;
 
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,4 +44,8 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             """
     )
     List<Order> findPayingOrdersWithFailedPayment();
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Order o SET o.status = :status, o.updatedAt = :now WHERE o.id IN :ids")
+    void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 }
