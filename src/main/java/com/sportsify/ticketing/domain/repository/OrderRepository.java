@@ -1,6 +1,8 @@
 package com.sportsify.ticketing.domain.repository;
 
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderStatus;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,7 +15,9 @@ public interface OrderRepository {
 
     Optional<Order> findByIdWithOrderSeats(Long orderId);
 
-    List<Order> findExpiredPendingOrdersWithoutPayment(LocalDateTime now);
+    List<Long> findExpiredPendingOrderIdsWithoutPayment(LocalDateTime now);
 
-    List<Order> findPayingOrdersWithFailedPayment();
+    List<Long> findPayingOrderIdsWithFailedPayment();
+
+    void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 }

@@ -45,7 +45,8 @@ public class SecurityConfig {
             "/docs.html",
             "/api/chat/rooms/**",
             "/api/chat/messages/getMessages/**",
-            "/ws/chat/**"
+            "/ws/chat/**",
+            "/actuator/prometheus"
     );
 
     private static final List<String> LOCAL_ONLY_PATHS = List.of(

@@ -1,7 +1,9 @@
 package com.sportsify.ticketing.infrastructure.repository;
 
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,20 +21,16 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdWithOrderSeats(@Param("orderId") Long orderId);
 
     @Query("""
-             SELECT DISTINCT o FROM Order o
-             JOIN FETCH o.orderSeats os
-             JOIN FETCH os.gameSeat
+             SELECT DISTINCT o.id FROM Order o
              WHERE o.status = 'PENDING'
              AND o.expiresAt < :now
              AND NOT EXISTS(SELECT p FROM Payment p WHERE p.orderId = o.id)
             """
     )
-    List<Order> findExpiredPendingOrdersWithoutPayment(@Param("now") LocalDateTime now);
+    List<Long> findExpiredPendingOrderIdsWithoutPayment(@Param("now") LocalDateTime now);
 
     @Query("""
-             SELECT DISTINCT o FROM Order o
-             JOIN FETCH o.orderSeats os
-             JOIN FETCH os.gameSeat
+             SELECT DISTINCT o.id FROM Order o
              WHERE o.status = 'PAYING'
              AND EXISTS (
                      SELECT p FROM Payment p
@@ -41,5 +39,9 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
              )
             """
     )
-    List<Order> findPayingOrdersWithFailedPayment();
+    List<Long> findPayingOrderIdsWithFailedPayment();
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Order o SET o.status = :status, o.updatedAt = :now WHERE o.id IN :ids")
+    void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 }
