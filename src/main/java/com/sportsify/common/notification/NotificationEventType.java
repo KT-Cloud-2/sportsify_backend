@@ -13,7 +13,8 @@ public enum NotificationEventType {
     TICKET_OPEN("ticket.opened", true, false),
     GAME_START("game.starting", true, false),
     PAYMENT_COMPLETED("payment.completed", false, true),
-    CHAT_MENTION("chat.mentioned", false, true);
+    CHAT_MENTION("chat.mentioned", false, true),
+    CHAT_INVITED("chat.invited", false, true);
 
     private final String streamKey;
     private final boolean scheduled;

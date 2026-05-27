@@ -7,6 +7,7 @@ import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.member.domain.model.Member;
@@ -57,6 +58,8 @@ class ChatRoomMemberServiceTest {
     private AdvisoryLockAdaptor advisoryLockAdaptor;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private RoomMemberNotifyCache roomMemberNotifyCache;
 
     private Long ROOM_ID;
     private Long MEMBER_ID;

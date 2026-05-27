@@ -2,6 +2,7 @@ package com.sportsify.chat.domain.model.message;
 
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
+import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.event.EventType;

@@ -9,9 +9,14 @@ import com.sportsify.chat.domain.model.event.chatRoom.RoomDeletePayload;
 import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.*;
+import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
+import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
+import com.sportsify.common.notification.NotificationEventPublisher;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +26,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,7 +36,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * ChatEventHandler 단위 테스트
- *
+ * <p>
  * 검증 목표:
  * - 도메인 이벤트 수신 후 WebSocket 브로드캐스트가 수행되는지 확인
  * - 비 메시지 이벤트 발생 시 알림 메시지가 DB에 저장되고 alertMessageId가 포함되는지 확인
@@ -53,6 +60,20 @@ class ChatEventHandlerTest {
     @Mock
     private MessageRepository messageRepo;
 
+    @Mock
+    private RoomMemberNotifyCache roomMemberNotifyCache;
+
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
+
+    @Mock
+    private ChatRoomMemberRepository chatRoomMemberRepo;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(roomMemberNotifyCache.getNotifiableMemberIds(any())).thenReturn(Optional.of(Set.of()));
+    }
+
     // ──────────────────────── 메시지 이벤트 ────────────────────────
 
     /**
@@ -64,7 +85,7 @@ class ChatEventHandlerTest {
     void sendEvent_메시지이벤트_알림저장없이_방브로드캐스트() {
         EventEnvelope<MessageSentPayload> event = new EventEnvelope<>(
                 EventType.MESSAGE_SENT.name(), ROOM_ID, NOW,
-                new MessageSentPayload(1L, null, 2L, "TEXT", "안녕하세요"), null
+                new MessageSentPayload(1L, null, 2L, "TEXT", "안녕하세요", null), null, null, null
         );
 
         chatEventHandler.sendEvent(event);
@@ -81,7 +102,7 @@ class ChatEventHandlerTest {
      * 1. 알림 메시지가 저장되어야 한다
      * 2. alertMessageId가 포함된 이벤트가 발행되어야 한다
      * 3. BAN된 멤버의 방 구독이 취소되어야 한다
-     *
+     * <p>
      * 실패 포인트: alertMessageId 누락 시 클라이언트가 SYSTEM 메시지를 연결하지 못함
      */
     @Test
@@ -90,7 +111,7 @@ class ChatEventHandlerTest {
         Long bannedMemberId = 42L;
         EventEnvelope<MemberBannedPayload> event = new EventEnvelope<>(
                 EventType.MEMBER_BANNED.name(), ROOM_ID, NOW,
-                new MemberBannedPayload(bannedMemberId), null
+                new MemberBannedPayload(bannedMemberId), null, null, null
         );
         given(messageRepo.save(any())).willReturn(alertMessage(99L));
 
@@ -108,7 +129,7 @@ class ChatEventHandlerTest {
 
     /**
      * ROOM_DELETED 이벤트 수신 시 alertMessageId 포함 이벤트 발행 + 전체 구독 취소.
-     *
+     * <p>
      * 실패 포인트: revokeAllRoomSubscriptions 미호출 시 삭제된 방 구독이 남아있음
      */
     @Test
@@ -116,7 +137,7 @@ class ChatEventHandlerTest {
     void sendEvent_방삭제이벤트_알림저장_전체구독취소() {
         EventEnvelope<RoomDeletePayload> event = new EventEnvelope<>(
                 EventType.ROOM_DELETED.name(), ROOM_ID, NOW,
-                new RoomDeletePayload(), null
+                new RoomDeletePayload(), null, null, null
         );
         given(messageRepo.save(any())).willReturn(alertMessage(101L));
 
@@ -134,7 +155,7 @@ class ChatEventHandlerTest {
 
     /**
      * ROOM_ARCHIVED 이벤트 수신 시에도 alertMessageId 포함 이벤트 발행 + 전체 구독 취소.
-     *
+     * <p>
      * 실패 포인트: RoomArchivedPayload가 switch case에서 누락되면 구독이 남아 있음
      */
     @Test
@@ -142,7 +163,7 @@ class ChatEventHandlerTest {
     void sendEvent_방아카이브이벤트_알림저장_전체구독취소() {
         EventEnvelope<RoomArchivedPayload> event = new EventEnvelope<>(
                 EventType.ROOM_ARCHIVED.name(), ROOM_ID, NOW,
-                new RoomArchivedPayload(), null
+                new RoomArchivedPayload(), null, null, null
         );
         given(messageRepo.save(any())).willReturn(alertMessage(102L));
 

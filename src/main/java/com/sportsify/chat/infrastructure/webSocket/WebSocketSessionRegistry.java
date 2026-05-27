@@ -128,6 +128,14 @@ public class WebSocketSessionRegistry {
         return Optional.ofNullable(sessions.get(sid));
     }
 
+    public Set<Long> getSubscribedMemberIds(Long roomId) {
+        return roomSessions.getOrDefault(roomId, Set.of()).stream()
+                .map(sessions::get)
+                .filter(Objects::nonNull)
+                .map(SessionInfo::memberId)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
     public void enterGracePeriod(String sid) {
         sessions.computeIfPresent(sid, (_, old) ->
                 old.graceDeadline() != null ? old : old.withGraceDeadline(Instant.now(clock).plus(GRACE_PERIOD)));

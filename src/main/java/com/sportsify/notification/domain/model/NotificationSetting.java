@@ -62,7 +62,7 @@ public class NotificationSetting {
             case TICKET_OPEN -> ticketOpenAlert;
             case GAME_START -> gameStartAlert;
             case PAYMENT_COMPLETED -> paymentAlert;
-            case CHAT_MENTION -> chatMentionAlert;
+            case CHAT_MENTION, CHAT_INVITED -> chatMentionAlert;
         };
     }
 }

@@ -1,5 +1,6 @@
 package com.sportsify.chat.domain.model.event.message;
 
+import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import com.sportsify.chat.domain.model.message.Message;
 
 public record MessageSentPayload(
@@ -7,7 +8,8 @@ public record MessageSentPayload(
         String clientMessageId,
         Long senderId,
         String type,
-        String content
+        String content,
+        ChatRoomType roomType
 ) implements MessagePayload {
 
     public static MessageSentPayload from(Message message, String clientMessageId) {
@@ -16,7 +18,12 @@ public record MessageSentPayload(
                 clientMessageId,
                 message.getSenderId() != null ? message.getSenderId().value() : null,
                 message.getType().name(),
-                message.getContent().value()
+                message.getContent().value(),
+                null
         );
+    }
+
+    public MessageSentPayload withRoomType(ChatRoomType type) {
+        return new MessageSentPayload(messageId, clientMessageId, senderId, this.type, content, type);
     }
 }
