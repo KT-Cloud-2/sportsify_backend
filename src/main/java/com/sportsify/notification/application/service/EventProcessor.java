@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationEventProcessor {
+public class EventProcessor {
 
-    private final NotificationEventStatusService statusService;
-    private final NotificationFanoutService fanoutService;
+    private final EventStatusService statusService;
+    private final FanoutService fanoutService;
 
     public void process(NotificationEventType eventType, String payload) {
         NotificationEvent event = statusService.saveEvent(eventType, payload);

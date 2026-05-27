@@ -1,9 +1,9 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationEventProcessor;
-import com.sportsify.notification.application.service.NotificationEventStatusService;
-import com.sportsify.notification.application.service.NotificationFanoutService;
+import com.sportsify.notification.application.service.EventProcessor;
+import com.sportsify.notification.application.service.EventStatusService;
+import com.sportsify.notification.application.service.FanoutService;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,16 +21,16 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationEventProcessorTest {
+class EventProcessorTest {
 
-    @Mock private NotificationEventStatusService statusService;
-    @Mock private NotificationFanoutService fanoutService;
+    @Mock private EventStatusService statusService;
+    @Mock private FanoutService fanoutService;
 
-    private NotificationEventProcessor processor;
+    private EventProcessor processor;
 
     @BeforeEach
     void setUp() {
-        processor = new NotificationEventProcessor(statusService, fanoutService);
+        processor = new EventProcessor(statusService, fanoutService);
     }
 
     @Test

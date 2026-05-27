@@ -10,9 +10,9 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class NotificationChunkService {
+public class ChunkService {
 
-    private final NotificationDispatcher dispatcher;
+    private final Dispatcher dispatcher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean processChunk(NotificationEvent event, List<Long> memberIds, String payload) {

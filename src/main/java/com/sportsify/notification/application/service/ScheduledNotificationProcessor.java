@@ -14,7 +14,7 @@ import java.util.List;
 public class ScheduledNotificationProcessor {
 
     private final ScheduledEventClaimService claimService;
-    private final NotificationEventProcessor eventProcessor;
+    private final EventProcessor eventProcessor;
 
     // 매 5분 단위 정각 실행 (0, 5, 10, 15 ... 분)
     // saleStartAt이 과거 시각이면 다음 tick에 최대 5분 지연 발송됨 — 의도된 동작

@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class NotificationDispatcher {
+public class Dispatcher {
 
     private final NotificationRepository notificationRepository;
     private final NotificationChannelRepository channelRepository;
@@ -26,7 +26,7 @@ public class NotificationDispatcher {
     private final SseNotificationPort sseNotificationPort;
     private final Map<NotificationChannelType, NotificationSender> senderMap;
 
-    public NotificationDispatcher(
+    public Dispatcher(
             NotificationRepository notificationRepository,
             NotificationChannelRepository channelRepository,
             NotificationHistoryRepository historyRepository,

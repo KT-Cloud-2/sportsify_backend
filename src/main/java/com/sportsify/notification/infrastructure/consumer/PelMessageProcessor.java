@@ -2,8 +2,8 @@ package com.sportsify.notification.infrastructure.consumer;
 
 import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationEventStatusService;
-import com.sportsify.notification.application.service.NotificationFanoutService;
+import com.sportsify.notification.application.service.EventStatusService;
+import com.sportsify.notification.application.service.FanoutService;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.model.NotificationEventStatus;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
@@ -24,16 +24,16 @@ import java.util.List;
 public class PelMessageProcessor {
 
     private final StringRedisTemplate redisTemplate;
-    private final NotificationFanoutService fanoutService;
-    private final NotificationEventStatusService statusService;
+    private final FanoutService fanoutService;
+    private final EventStatusService statusService;
     private final NotificationEventRepository eventRepository;
     private final NotificationProperties properties;
     private final ApplicationEventPublisher eventPublisher;
     private final List<Integer> backoffMinutes;
 
     public PelMessageProcessor(StringRedisTemplate redisTemplate,
-                                NotificationFanoutService fanoutService,
-                                NotificationEventStatusService statusService,
+                                FanoutService fanoutService,
+                                EventStatusService statusService,
                                 NotificationEventRepository eventRepository,
                                 NotificationProperties properties,
                                 ApplicationEventPublisher eventPublisher) {

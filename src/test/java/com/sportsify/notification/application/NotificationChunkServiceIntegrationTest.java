@@ -1,8 +1,8 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationChunkService;
-import com.sportsify.notification.application.service.NotificationDispatcher;
+import com.sportsify.notification.application.service.ChunkService;
+import com.sportsify.notification.application.service.Dispatcher;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.support.RepositoryTestSupport;
@@ -22,13 +22,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 
-class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
+class ChunkServiceIntegrationTest extends RepositoryTestSupport {
 
-    @Autowired private NotificationChunkService chunkService;
+    @Autowired private ChunkService chunkService;
     @Autowired private NotificationEventRepository eventRepository;
     @Autowired private TransactionTemplate transactionTemplate;
 
-    @MockitoBean private NotificationDispatcher dispatcher;
+    @MockitoBean private Dispatcher dispatcher;
 
     @Test
     @DisplayName("processChunk는 REQUIRES_NEW로 호출자 트랜잭션과 다른 독립 트랜잭션에서 실행된다")
@@ -55,10 +55,10 @@ class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
 
         // 트랜잭션이 분리됐으면 이름(또는 참조)이 다르거나 inner가 별도 실행됨
         // REQUIRES_NEW는 외부 트랜잭션을 suspend하고 새 트랜잭션을 여므로
-        // inner는 NotificationChunkService.processChunk의 트랜잭션 이름을 가짐
+        // inner는 ChunkService.processChunk의 트랜잭션 이름을 가짐
         assertThat(innerTxName.get())
-                .as("processChunk는 별도 트랜잭션(NotificationChunkService.processChunk)에서 실행돼야 한다")
-                .contains("NotificationChunkService");
+                .as("processChunk는 별도 트랜잭션(ChunkService.processChunk)에서 실행돼야 한다")
+                .contains("ChunkService");
     }
 
     @Test

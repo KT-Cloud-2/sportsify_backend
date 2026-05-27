@@ -2,8 +2,8 @@ package com.sportsify.notification.infrastructure;
 
 import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationEventStatusService;
-import com.sportsify.notification.application.service.NotificationFanoutService;
+import com.sportsify.notification.application.service.EventStatusService;
+import com.sportsify.notification.application.service.FanoutService;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.notification.infrastructure.config.NotificationProperties;
@@ -37,8 +37,8 @@ import static org.mockito.Mockito.*;
 class PelMessageProcessorTest {
 
     @Mock private StringRedisTemplate redisTemplate;
-    @Mock private NotificationFanoutService fanoutService;
-    @Mock private NotificationEventStatusService statusService;
+    @Mock private FanoutService fanoutService;
+    @Mock private EventStatusService statusService;
     @Mock private NotificationEventRepository eventRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private StreamOperations<String, Object, Object> streamOps;

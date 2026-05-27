@@ -14,13 +14,13 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationFanoutService {
+public class FanoutService {
 
     private static final int CHUNK_SIZE = 500;
 
     private final NotificationSettingRepository settingRepository;
-    private final NotificationChunkService chunkService;
-    private final NotificationPayloadParser payloadParser;
+    private final ChunkService chunkService;
+    private final PayloadParser payloadParser;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
         if (eventType.isSingleTarget()) {

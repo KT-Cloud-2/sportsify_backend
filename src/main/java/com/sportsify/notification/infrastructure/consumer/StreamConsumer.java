@@ -1,8 +1,8 @@
 package com.sportsify.notification.infrastructure.consumer;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationEventStatusService;
-import com.sportsify.notification.application.service.NotificationFanoutService;
+import com.sportsify.notification.application.service.EventStatusService;
+import com.sportsify.notification.application.service.FanoutService;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import jakarta.annotation.PostConstruct;
@@ -29,8 +29,8 @@ public class StreamConsumer {
 
     private final StreamMessageListenerContainer<String, ObjectRecord<String, String>> container;
     private final StringRedisTemplate redisTemplate;
-    private final NotificationEventStatusService statusService;
-    private final NotificationFanoutService fanoutService;
+    private final EventStatusService statusService;
+    private final FanoutService fanoutService;
 
     @Value("${spring.application.name:app}-consumer-${HOSTNAME:local}")
     private String consumerName;

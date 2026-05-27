@@ -2,7 +2,7 @@ package com.sportsify.notification.application;
 
 import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.listener.NotificationFailureEventListener;
+import com.sportsify.notification.application.listener.FailureEventListener;
 import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import com.sportsify.notification.infrastructure.slack.SlackNotifier;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationFailureEventListenerTest {
+class FailureEventListenerTest {
 
     @Mock private SlackNotifier slackNotifier;
     @Mock private StringRedisTemplate redisTemplate;
@@ -41,7 +41,7 @@ class NotificationFailureEventListenerTest {
     @Test
     @DisplayName("webhookUrl이 비어 있으면 Slack 알림을 보내지 않는다")
     void onPermanentlyFailed_슬랙미설정_알림미발송() {
-        NotificationFailureEventListener listener = listenerWithWebhook("");
+        FailureEventListener listener = listenerWithWebhook("");
 
         listener.onPermanentlyFailed(failedEvent);
 
@@ -53,7 +53,7 @@ class NotificationFailureEventListenerTest {
     void onPermanentlyFailed_TTL내중복_알림미발송() {
         given(redisTemplate.opsForValue()).willReturn(valueOps);
         given(valueOps.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(false);
-        NotificationFailureEventListener listener = listenerWithWebhook("https://hooks.slack.com/test");
+        FailureEventListener listener = listenerWithWebhook("https://hooks.slack.com/test");
 
         listener.onPermanentlyFailed(failedEvent);
 
@@ -65,7 +65,7 @@ class NotificationFailureEventListenerTest {
     void onPermanentlyFailed_TTL만료후첫실패_알림발송() {
         given(redisTemplate.opsForValue()).willReturn(valueOps);
         given(valueOps.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(true);
-        NotificationFailureEventListener listener = listenerWithWebhook("https://hooks.slack.com/test");
+        FailureEventListener listener = listenerWithWebhook("https://hooks.slack.com/test");
 
         listener.onPermanentlyFailed(failedEvent);
 
@@ -77,7 +77,7 @@ class NotificationFailureEventListenerTest {
     void onPermanentlyFailed_메시지내용_검증() {
         given(redisTemplate.opsForValue()).willReturn(valueOps);
         given(valueOps.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(true);
-        NotificationFailureEventListener listener = listenerWithWebhook("https://hooks.slack.com/test");
+        FailureEventListener listener = listenerWithWebhook("https://hooks.slack.com/test");
 
         listener.onPermanentlyFailed(failedEvent);
 
@@ -89,7 +89,7 @@ class NotificationFailureEventListenerTest {
         ));
     }
 
-    private NotificationFailureEventListener listenerWithWebhook(String webhookUrl) {
+    private FailureEventListener listenerWithWebhook(String webhookUrl) {
         NotificationProperties properties = new NotificationProperties(
                 new NotificationProperties.Retry(3),
                 new NotificationProperties.Pel(Duration.ofMinutes(10), 100, Duration.ofMinutes(10), List.of(3, 5, 10)),
@@ -97,6 +97,6 @@ class NotificationFailureEventListenerTest {
                 new NotificationProperties.Scheduler("0 0/5 * * * *", "0 0 3 * * *", "0 0/10 * * * *", "0 0/1 * * * *", Duration.ofSeconds(310)),
                 new NotificationProperties.Slack(webhookUrl, "secret", Duration.ofMinutes(10))
         );
-        return new NotificationFailureEventListener(slackNotifier, properties, redisTemplate);
+        return new FailureEventListener(slackNotifier, properties, redisTemplate);
     }
 }

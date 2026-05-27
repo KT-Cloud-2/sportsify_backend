@@ -16,10 +16,10 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationEventStatusService {
+public class EventStatusService {
 
     private final NotificationEventRepository eventRepository;
-    private final NotificationPayloadParser payloadParser;
+    private final PayloadParser payloadParser;
 
     @Transactional
     public NotificationEvent saveEvent(NotificationEventType eventType, String payload) {

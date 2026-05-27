@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class NotificationFailureEventListener {
+public class FailureEventListener {
 
     private static final String SUPPRESS_KEY_PREFIX = "notification:slack:suppress:";
 
@@ -19,7 +19,7 @@ public class NotificationFailureEventListener {
     private final NotificationProperties properties;
     private final StringRedisTemplate redisTemplate;
 
-    public NotificationFailureEventListener(SlackNotifier slackNotifier,
+    public FailureEventListener(SlackNotifier slackNotifier,
                                             NotificationProperties properties,
                                             StringRedisTemplate redisTemplate) {
         this.slackNotifier = slackNotifier;

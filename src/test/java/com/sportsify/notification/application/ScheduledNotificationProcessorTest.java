@@ -1,7 +1,7 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationEventProcessor;
+import com.sportsify.notification.application.service.EventProcessor;
 import com.sportsify.notification.application.service.ScheduledEventClaimService;
 import com.sportsify.notification.application.service.ScheduledNotificationProcessor;
 import com.sportsify.notification.domain.model.NotificationEvent;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 class ScheduledNotificationProcessorTest {
 
     @Mock private ScheduledEventClaimService claimService;
-    @Mock private NotificationEventProcessor eventProcessor;
+    @Mock private EventProcessor eventProcessor;
 
     private ScheduledNotificationProcessor processor;
 

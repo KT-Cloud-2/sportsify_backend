@@ -3,7 +3,7 @@ package com.sportsify.notification.application;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.sender.NotificationSender;
-import com.sportsify.notification.application.service.NotificationDispatcher;
+import com.sportsify.notification.application.service.Dispatcher;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationChannel;
 import com.sportsify.notification.domain.model.NotificationChannelType;
@@ -26,7 +26,7 @@ import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationDispatcherTest {
+class DispatcherTest {
 
     @Mock private NotificationRepository notificationRepository;
     @Mock private NotificationChannelRepository channelRepository;
@@ -34,7 +34,7 @@ class NotificationDispatcherTest {
     @Mock private SseNotificationPort sseNotificationPort;
     @Mock private NotificationSender emailSender;
 
-    private NotificationDispatcher dispatcher;
+    private Dispatcher dispatcher;
 
     private NotificationEvent event;
     private NotificationChannel emailChannel;
@@ -43,7 +43,7 @@ class NotificationDispatcherTest {
     @BeforeEach
     void setUp() {
         given(emailSender.channelType()).willReturn(NotificationChannelType.EMAIL);
-        dispatcher = new NotificationDispatcher(
+        dispatcher = new Dispatcher(
                 notificationRepository, channelRepository, historyRepository,
                 sseNotificationPort, List.of(emailSender)
         );
@@ -130,7 +130,7 @@ class NotificationDispatcherTest {
     void dispatchToMember_복수채널_일부실패_true반환() {
         NotificationSender slackSender = org.mockito.Mockito.mock(NotificationSender.class);
         given(slackSender.channelType()).willReturn(NotificationChannelType.SLACK);
-        dispatcher = new NotificationDispatcher(
+        dispatcher = new Dispatcher(
                 notificationRepository, channelRepository, historyRepository,
                 sseNotificationPort, List.of(emailSender, slackSender)
         );
