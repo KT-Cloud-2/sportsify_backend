@@ -530,7 +530,7 @@ CREATE INDEX idx_nh_notification ON notification_history (notification_id);
 
 ### D-5. orders.expires_at (주문 레벨 만료)
 선점 만료를 `order_seats`가 아닌 `orders` 레벨에서 관리.  
-주문 생성 시 `LocalDateTime.now().plusMinutes(15)` 설정.  
+주문 생성 시 `LocalDateTime.now().plusMinutes(10)` 설정.  
 `OrderExpirationScheduler`가 매 60초마다 만료 주문을 스캔하여 좌석 해제.
 
 ### D-6. orders 상태 확장 (PAYING, EXPIRED)

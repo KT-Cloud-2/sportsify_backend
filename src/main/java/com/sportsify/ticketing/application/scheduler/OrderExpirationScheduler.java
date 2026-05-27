@@ -1,30 +1,30 @@
 package com.sportsify.ticketing.application.scheduler;
 
-import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.repository.OrderRepository;
+import com.sportsify.ticketing.application.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OrderExpirationScheduler {
 
-    private final OrderRepository orderRepository;
+    private final OrderService orderService;
 
-    @Scheduled(fixedRate = 60000)
-    @Transactional
+    @Scheduled(fixedDelay = 1000)
     public void releaseUnpaidOrders() {
-        List<Order> expiredOrders = orderRepository
-                .findExpiredPendingOrdersWithoutPayment(LocalDateTime.now());
+        try {
+            orderService.expireUnpaidOrdersBulk();
+        } catch (RuntimeException e) {
+            log.error("[ORDER_SCHEDULER] 미결제 만료 처리 실패", e);
+        }
 
-        List<Order> failedOrders = orderRepository.findPayingOrdersWithFailedPayment();
-
-        expiredOrders.forEach(Order::expire);
-        failedOrders.forEach(Order::cancel);
+        try {
+            orderService.cancelFailedPaymentOrdersBulk();
+        } catch (RuntimeException e) {
+            log.error("[ORDER_SCHEDULER] 결제 실패 건 취소 처리 실패", e);
+        }
     }
 }
