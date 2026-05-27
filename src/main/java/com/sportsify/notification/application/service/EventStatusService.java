@@ -16,10 +16,10 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationEventStatusService {
+public class EventStatusService {
 
     private final NotificationEventRepository eventRepository;
-    private final NotificationPayloadParser payloadParser;
+    private final PayloadParser payloadParser;
 
     @Transactional
     public NotificationEvent saveEvent(NotificationEventType eventType, String payload) {
@@ -58,6 +58,22 @@ public class NotificationEventStatusService {
             }
         }
         return NotificationEvent.create(eventType, payload);
+    }
+
+    @Transactional
+    public boolean incrementScheduledRetry(Long eventId, int maxRetry) {
+        return eventRepository.findById(eventId)
+                .map(event -> {
+                    boolean exhausted = event.incrementRetryAndCheckExhausted(maxRetry);
+                    if (exhausted) {
+                        event.markPermanentlyFailed();
+                    } else {
+                        event.markFailed();
+                    }
+                    eventRepository.save(event);
+                    return exhausted;
+                })
+                .orElse(false);
     }
 
     private void applyStatus(NotificationEvent event, boolean anyFailed) {

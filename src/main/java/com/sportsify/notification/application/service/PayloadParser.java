@@ -15,7 +15,7 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NotificationPayloadParser {
+public class PayloadParser {
 
     private static final long GAME_START_OFFSET_MINUTES = 30;
 

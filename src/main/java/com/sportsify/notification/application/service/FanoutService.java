@@ -14,13 +14,13 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationFanoutService {
+public class FanoutService {
 
     private static final int CHUNK_SIZE = 500;
 
     private final NotificationSettingRepository settingRepository;
-    private final NotificationChunkService chunkService;
-    private final NotificationPayloadParser payloadParser;
+    private final ChunkService chunkService;
+    private final PayloadParser payloadParser;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
         if (eventType.isSingleTarget()) {
@@ -31,10 +31,10 @@ public class NotificationFanoutService {
 
     private boolean fanoutSingleTarget(NotificationEvent event, NotificationEventType eventType, String payload) {
         try {
-            Long memberId = payloadParser.extractMemberId(payload, eventType.name());
+            Long memberId = payloadParser.extractMemberId(payload, event.getTypeName());
             return chunkService.processChunk(event, List.of(memberId), payload);
         } catch (Exception e) {
-            log.error("{} payload에서 memberId 추출 실패", eventType.name(), e);
+            log.error("{} payload에서 memberId 추출 실패", event.getTypeName(), e);
             return true;
         }
     }

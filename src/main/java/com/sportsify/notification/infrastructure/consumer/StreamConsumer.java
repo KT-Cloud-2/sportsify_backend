@@ -1,13 +1,18 @@
 package com.sportsify.notification.infrastructure.consumer;
 
-import com.sportsify.notification.application.service.NotificationEventProcessor;
 import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.notification.application.service.EventStatusService;
+import com.sportsify.notification.application.service.FanoutService;
+import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.connection.stream.*;
+import org.springframework.data.redis.connection.stream.Consumer;
+import org.springframework.data.redis.connection.stream.ObjectRecord;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.stereotype.Component;
@@ -17,14 +22,15 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NotificationStreamConsumer {
+public class StreamConsumer {
 
     private static final Map<String, NotificationEventType> STREAM_TO_EVENT =
             NotificationEventType.streamKeyMap();
 
     private final StreamMessageListenerContainer<String, ObjectRecord<String, String>> container;
     private final StringRedisTemplate redisTemplate;
-    private final NotificationEventProcessor processor;
+    private final EventStatusService statusService;
+    private final FanoutService fanoutService;
 
     @Value("${spring.application.name:app}-consumer-${HOSTNAME:local}")
     private String consumerName;
@@ -45,12 +51,28 @@ public class NotificationStreamConsumer {
 
     private void handleMessage(String streamKey, NotificationEventType eventType, ObjectRecord<String, String> message) {
         try {
-            processor.process(eventType, message.getValue());
-            // 예약 이벤트도 ACK — DB에 PENDING 상태로 저장됐으므로 Stream 재처리 불필요
-            redisTemplate.opsForStream().acknowledge(streamKey, RedisStreamsConfig.NOTIFICATION_GROUP, message.getId());
-            log.info("Stream ACK streamKey={} id={}", streamKey, message.getId());
+            NotificationEvent event = statusService.saveEventWithStreamMessageId(eventType, message.getValue(), message.getId().getValue());
+
+            if (event.isScheduled()) {
+                acknowledge(streamKey, message);
+                log.info("예약 알림 저장 완료, ACK streamKey={} id={}", streamKey, message.getId());
+                return;
+            }
+
+            boolean failed = fanoutService.fanout(event, eventType, message.getValue());
+            if (failed) {
+                log.warn("즉시 발송 실패, PEL 보류 streamKey={} id={}", streamKey, message.getId());
+                return;
+            }
+
+            acknowledge(streamKey, message);
+            log.info("즉시 발송 완료, ACK streamKey={} id={}", streamKey, message.getId());
         } catch (Exception e) {
-            log.error("Stream processing failed streamKey={} id={} error={}", streamKey, message.getId(), e.getMessage());
+            log.error("Stream 처리 실패 streamKey={} id={} error={}", streamKey, message.getId(), e.getMessage());
         }
+    }
+
+    private void acknowledge(String streamKey, ObjectRecord<String, String> message) {
+        redisTemplate.opsForStream().acknowledge(streamKey, RedisStreamsConfig.NOTIFICATION_GROUP, message.getId());
     }
 }

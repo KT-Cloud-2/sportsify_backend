@@ -1,3 +1,4 @@
+
 spring:
   application:
     name: sportsify
@@ -26,6 +27,27 @@ toss:
     secret-key: ${TOSS_PAYMENTS_SECRET_KEY:test-payment-secret}
     confirm-url: https://api.tosspayments.com/v1/payments/confirm
     cancel-url: https://api.tosspayments.com/v1/payments/{paymentKey}/cancel
+
+notification:
+  retry:
+    max-retry: 3
+  pel:
+    claim-min-idle: 10m
+    batch-size: 100
+    stuck-timeout: 10m
+    backoff-minutes: 3,5,10
+  stream:
+    max-len: 10000
+  scheduler:
+    stream-trim-cron: "0 0 3 * * *"
+    stuck-recovery-cron: "0 0/10 * * * *"
+    pel-reclaim-cron: "0 0/1 * * * *"
+    reserved-dispatch-cron: "0 0/5 * * * *"
+    leader-lock-ttl: 310s
+  slack:
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+    signing-secret: ${SLACK_SIGNING_SECRET:}
+    suppress-ttl: 10m
 
 springdoc:
   api-docs:

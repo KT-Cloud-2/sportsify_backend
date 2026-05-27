@@ -1,8 +1,8 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationChunkService;
-import com.sportsify.notification.application.service.NotificationDispatcher;
+import com.sportsify.notification.application.service.ChunkService;
+import com.sportsify.notification.application.service.Dispatcher;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.support.RepositoryTestSupport;
@@ -19,18 +19,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 
-class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
+class ChunkServiceIntegrationTest extends RepositoryTestSupport {
 
-    @Autowired private NotificationChunkService chunkService;
+    @Autowired private ChunkService chunkService;
     @Autowired private NotificationEventRepository eventRepository;
     @Autowired private TransactionTemplate transactionTemplate;
 
-    @MockitoBean private NotificationDispatcher dispatcher;
+    @MockitoBean private Dispatcher dispatcher;
 
     @Test
     @DisplayName("processChunk는 REQUIRES_NEW로 호출자 트랜잭션과 다른 독립 트랜잭션에서 실행된다")
@@ -42,7 +40,7 @@ class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
         AtomicReference<String> outerTxName = new AtomicReference<>();
         AtomicReference<String> innerTxName = new AtomicReference<>();
 
-        given(dispatcher.dispatchToMember(any(), anyLong(), anyString())).willAnswer(inv -> {
+        given(dispatcher.toMember(any(), anyLong(), anyString())).willAnswer(inv -> {
             // processChunk 내부에서 실행 중인 트랜잭션 이름 캡처
             innerTxName.set(TransactionSynchronizationManager.getCurrentTransactionName());
             return false;
@@ -57,10 +55,10 @@ class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
 
         // 트랜잭션이 분리됐으면 이름(또는 참조)이 다르거나 inner가 별도 실행됨
         // REQUIRES_NEW는 외부 트랜잭션을 suspend하고 새 트랜잭션을 여므로
-        // inner는 NotificationChunkService.processChunk의 트랜잭션 이름을 가짐
+        // inner는 ChunkService.processChunk의 트랜잭션 이름을 가짐
         assertThat(innerTxName.get())
-                .as("processChunk는 별도 트랜잭션(NotificationChunkService.processChunk)에서 실행돼야 한다")
-                .contains("NotificationChunkService");
+                .as("processChunk는 별도 트랜잭션(ChunkService.processChunk)에서 실행돼야 한다")
+                .contains("ChunkService");
     }
 
     @Test
@@ -71,7 +69,7 @@ class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
                 status -> eventRepository.save(NotificationEvent.create(NotificationEventType.TICKET_OPEN, "{}"))
         );
 
-        given(dispatcher.dispatchToMember(any(), anyLong(), anyString()))
+        given(dispatcher.toMember(any(), anyLong(), anyString()))
                 .willThrow(new RuntimeException("청크 처리 중 오류"));
 
         // processChunk 예외 → 해당 청크 트랜잭션 롤백

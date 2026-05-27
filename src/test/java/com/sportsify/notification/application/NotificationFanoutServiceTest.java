@@ -1,9 +1,9 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
-import com.sportsify.notification.application.service.NotificationChunkService;
-import com.sportsify.notification.application.service.NotificationFanoutService;
-import com.sportsify.notification.application.service.NotificationPayloadParser;
+import com.sportsify.notification.application.service.ChunkService;
+import com.sportsify.notification.application.service.FanoutService;
+import com.sportsify.notification.application.service.PayloadParser;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,17 +26,17 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationFanoutServiceTest {
+class FanoutServiceTest {
 
     @Mock private NotificationSettingRepository settingRepository;
-    @Mock private NotificationChunkService chunkService;
-    @Mock private NotificationPayloadParser payloadParser;
+    @Mock private ChunkService chunkService;
+    @Mock private PayloadParser payloadParser;
 
-    private NotificationFanoutService fanoutService;
+    private FanoutService fanoutService;
 
     @BeforeEach
     void setUp() {
-        fanoutService = new NotificationFanoutService(settingRepository, chunkService, payloadParser);
+        fanoutService = new FanoutService(settingRepository, chunkService, payloadParser);
     }
 
     @Test

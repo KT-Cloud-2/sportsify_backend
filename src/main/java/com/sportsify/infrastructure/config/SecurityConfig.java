@@ -28,6 +28,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final List<String> PUBLIC_PATHS = List.of(
+            "/slack/command",
             "/oauth2/**",
             "/login/**",
             "/api/auth/**",

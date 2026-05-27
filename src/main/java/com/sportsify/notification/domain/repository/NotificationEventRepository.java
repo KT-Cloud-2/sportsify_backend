@@ -11,6 +11,6 @@ public interface NotificationEventRepository {
     Optional<NotificationEvent> findById(Long id);
     Optional<NotificationEvent> findByStreamMessageId(String streamMessageId);
     List<NotificationEvent> findAllById(List<Long> ids);
-    List<NotificationEvent> findDueScheduledEventsForUpdate(LocalDateTime now);
+    List<NotificationEvent> findDueScheduledEventsForUpdate(LocalDateTime now, int maxRetry);
     List<NotificationEvent> findStuckProcessingEventsForUpdate(LocalDateTime updatedBefore);
 }
