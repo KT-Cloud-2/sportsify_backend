@@ -15,7 +15,7 @@ import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import com.sportsify.common.notification.NotificationEventPublisher;
-import com.sportsify.member.domain.repository.MemberRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -68,9 +68,6 @@ class ChatEventHandlerTest {
 
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepo;
-
-    @Mock
-    private MemberRepository memberRepo;
 
     @BeforeEach
     void setUp() {

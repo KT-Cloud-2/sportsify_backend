@@ -82,7 +82,7 @@ class RedisStreamNotificationEventPublisherTest {
     @Test
     @DisplayName("CHAT_MENTION 이벤트를 올바른 스트림 키로 발행한다")
     void publish_채팅알림_올바른스트림키() throws Exception {
-        ChatMentionPayload payload = ChatMentionPayload.ofText(7L, 42L, "LG vs 두산", 10L, "홍길동", "야 내일 경기 보러가자");
+        ChatMentionPayload payload = ChatMentionPayload.ofText(7L, 42L, "LG vs 두산", 10L, "야 내일 경기 보러가자");
         given(redisTemplate.opsForStream()).willReturn(streamOperations);
         given(objectMapper.writeValueAsString(payload)).willReturn("{}");
 

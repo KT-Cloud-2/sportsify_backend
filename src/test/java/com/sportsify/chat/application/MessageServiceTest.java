@@ -6,9 +6,12 @@ import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.model.message.*;
+import com.sportsify.chat.domain.model.chatRoom.MemberId;
+import com.sportsify.chat.domain.model.message.MessageId;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
+import com.sportsify.chat.domain.repository.ReadCache;
 import com.sportsify.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,13 +20,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,7 +61,7 @@ class MessageServiceTest {
     private ApplicationEventPublisher applicationEventPublisher;
 
     @Mock
-    private StringRedisTemplate redisTemplate;
+    private ReadCache readCache;
 
     // ──────────────────────── send ────────────────────────
 
@@ -472,7 +473,8 @@ class MessageServiceTest {
 
         messageService.read(10L, 1L, 100L, true);
 
-        org.mockito.Mockito.verify(redisTemplate).execute(any(), Collections.singletonList(any()), any(), any());
+        org.mockito.Mockito.verify(readCache).put(
+                eq(ChatRoomId.of(10L)), eq(MemberId.of(1L)), eq(MessageId.of(100L)));
     }
 
     /**
@@ -483,28 +485,28 @@ class MessageServiceTest {
      * (Lua 내부의 실제 분기는 실제 Redis가 필요한 통합 테스트에서 검증)
      */
     @Test
-    @DisplayName("이전값보다 작은 경우 CAS 스크립트가 갱신을 건너뛰어도(반환값 0) 예외 없이 종료된다")
-    void read_DIRECT방_이전값보다작으면_갱신스킵() {
+    @DisplayName("DIRECT 방이면 readCache.put이 올바른 인자로 호출된다")
+    void read_DIRECT방_readCache_put호출() {
         ChatRoom directRoom = ChatRoom.restore(
                 ChatRoomId.of(10L), ChatRoomName.of("DM"), ChatRoomType.DIRECT, null,
                 null, NOW, NOW, ChatRoomStatus.ACTIVE, MemberId.of(1L));
         given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(directRoom));
-        given(redisTemplate.execute(any(), anyList(), any(), any())).willReturn(0L);
 
         messageService.read(10L, 1L, 50L, true);
 
-        org.mockito.Mockito.verify(redisTemplate).execute(any(), anyList(), eq("50"), any());
+        org.mockito.Mockito.verify(readCache).put(
+                eq(ChatRoomId.of(10L)), eq(MemberId.of(1L)), eq(MessageId.of(50L)));
     }
 
     @Test
-    @DisplayName("lastReadMessageId가 0 이하이면 DIRECT 방이어도 Redis 기록을 건너뛴다")
-    void read_lastReadMessageId_0이하_Redis스킵() {
-        messageService.read(10L, 1L, 0L, true);
-        messageService.read(10L, 1L, -1L, true);
-        messageService.read(10L, 1L, null, true);
-
-        verifyNoInteractions(redisTemplate);
-        verifyNoInteractions(chatRoomRepo);
+    @DisplayName("lastReadMessageId가 0 이하이면 BusinessException이 발생한다")
+    void read_lastReadMessageId_0이하_예외() {
+        assertThatThrownBy(() -> messageService.read(10L, 1L, 0L, true))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> messageService.read(10L, 1L, -1L, true))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> messageService.read(10L, 1L, null, true))
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -515,7 +517,7 @@ class MessageServiceTest {
 
         messageService.read(10L, 1L, 100L, true);
 
-        org.mockito.Mockito.verifyNoInteractions(redisTemplate);
+        verifyNoInteractions(readCache);
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
