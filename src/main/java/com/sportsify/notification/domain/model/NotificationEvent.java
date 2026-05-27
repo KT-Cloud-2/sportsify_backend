@@ -131,4 +131,8 @@ public class NotificationEvent {
     public void markCancelled() {
         this.status = NotificationEventStatus.CANCELLED;
     }
+
+    public String getTypeName(){
+        return this.eventType.name();
+    }
 }

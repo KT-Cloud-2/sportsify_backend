@@ -64,17 +64,19 @@ public class PelMessageProcessor {
                 return;
             }
 
+            boolean failed = fanoutService.fanout(event, eventType, payload);
+            if (!failed) {
+                statusService.markEventStatus(event.getId(), false);
+                acknowledge(streamKey, message);
+                log.info("PEL 재처리 완료 streamKey={} id={}", streamKey, message.getId());
+                return;
+            }
+
             if (isExhausted(event, streamKey, message)) {
                 return;
             }
 
-            if (fanoutService.fanout(event, eventType, payload)) {
-                log.warn("PEL 재처리 발송 실패 streamKey={} id={} retryCount={}", streamKey, message.getId(), event.getRetryCount());
-                return;
-            }
-
-            acknowledge(streamKey, message);
-            log.info("PEL 재처리 완료 streamKey={} id={}", streamKey, message.getId());
+            log.warn("PEL 재처리 발송 실패 streamKey={} id={} retryCount={}", streamKey, message.getId(), event.getRetryCount());
         } catch (Exception e) {
             log.error("PEL 재처리 실패 streamKey={} id={} error={}", streamKey, message.getId(), e.getMessage());
         }

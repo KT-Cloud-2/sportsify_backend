@@ -42,18 +42,14 @@ public class Dispatcher {
     }
 
     public boolean toMember(NotificationEvent event, Long memberId, String payload) {
-        if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) {
-            return false;
-        }
+        if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) return false;
+
         Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
+        scheduleSse(memberId, event.getTypeName());
 
-        String eventTypeName = event.getEventType().name();
-        scheduleSse(memberId, eventTypeName);
-
-        List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
         boolean anyFailed = false;
-        for (NotificationChannel channel : channels) {
-            if (!sendToChannel(notification.getId(), channel, eventTypeName, payload)) {
+        for (NotificationChannel channel : channelRepository.findByMemberIdAndEnabledTrue(memberId)) {
+            if (!sendToChannel(notification.getId(), channel, event.getTypeName(), payload)) {
                 anyFailed = true;
             }
         }

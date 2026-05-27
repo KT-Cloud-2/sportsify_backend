@@ -80,13 +80,13 @@ class PelMessageProcessorTest {
         MapRecord<String, Object, Object> message = record("2-0");
         given(redisTemplate.opsForStream()).willReturn(streamOps);
         given(statusService.saveEventWithStreamMessageId(any(), any(), any())).willReturn(event);
+        given(fanoutService.fanout(any(), any(), any())).willReturn(true);
         given(eventRepository.save(any())).willReturn(event);
 
         processor.process(STREAM_KEY, NotificationEventType.PAYMENT_COMPLETED, message);
 
         verify(eventRepository).save(event);
         verify(streamOps).acknowledge(STREAM_KEY, RedisStreamsConfig.NOTIFICATION_GROUP, RecordId.of("2-0"));
-        verify(fanoutService, never()).fanout(any(), any(), any());
 
         ArgumentCaptor<NotificationPermanentlyFailedEvent> captor = ArgumentCaptor.forClass(NotificationPermanentlyFailedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
@@ -94,32 +94,33 @@ class PelMessageProcessorTest {
     }
 
     @Test
-    @DisplayName("fanout 실패 시 ACK하지 않는다 (PEL에 남겨 재시도)")
+    @DisplayName("fanout 실패 시 retry 증분 후 ACK하지 않는다 (PEL에 남겨 재시도)")
     void process_fanout실패_ACK미처리() {
         NotificationEvent event = eventWithRetry(0);
         MapRecord<String, Object, Object> message = record("3-0");
         given(statusService.saveEventWithStreamMessageId(any(), any(), any())).willReturn(event);
-        given(eventRepository.save(any())).willReturn(event);
         given(fanoutService.fanout(any(), any(), any())).willReturn(true);
+        given(eventRepository.save(any())).willReturn(event);
 
         processor.process(STREAM_KEY, NotificationEventType.PAYMENT_COMPLETED, message);
 
+        verify(eventRepository).save(event);
         verify(redisTemplate, never()).opsForStream();
         verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
-    @DisplayName("fanout 성공 시 ACK한다")
+    @DisplayName("fanout 성공 시 PUBLISHED 마킹 후 ACK한다")
     void process_fanout성공_ACK처리() {
         NotificationEvent event = eventWithRetry(0);
         MapRecord<String, Object, Object> message = record("4-0");
         given(redisTemplate.opsForStream()).willReturn(streamOps);
         given(statusService.saveEventWithStreamMessageId(any(), any(), any())).willReturn(event);
-        given(eventRepository.save(any())).willReturn(event);
         given(fanoutService.fanout(any(), any(), any())).willReturn(false);
 
         processor.process(STREAM_KEY, NotificationEventType.PAYMENT_COMPLETED, message);
 
+        verify(statusService).markEventStatus(event.getId(), false);
         verify(streamOps).acknowledge(STREAM_KEY, RedisStreamsConfig.NOTIFICATION_GROUP, RecordId.of("4-0"));
     }
 
