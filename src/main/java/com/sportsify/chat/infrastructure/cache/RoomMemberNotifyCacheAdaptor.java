@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +37,18 @@ public class RoomMemberNotifyCacheAdaptor implements RoomMemberNotifyCache {
                     """,
             Long.class
     );
+
+    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+            """
+                    if redis.call('GET', KEYS[1]) == ARGV[1] then
+                        return redis.call('DEL', KEYS[1])
+                    end
+                    return 0
+                    """,
+            Long.class
+    );
+
+    private static final ThreadLocal<String> LOCK_OWNER = new ThreadLocal<>();
 
     private final StringRedisTemplate redisTemplate;
 
@@ -114,10 +127,14 @@ public class RoomMemberNotifyCacheAdaptor implements RoomMemberNotifyCache {
     }
 
     private boolean tryAcquireLock(String lockKey) {
+        String owner = UUID.randomUUID().toString();
         for (int i = 0; i < LOCK_MAX_RETRIES; i++) {
             Boolean acquired = redisTemplate.opsForValue()
-                    .setIfAbsent(lockKey, "1", Duration.ofMillis(RedisKeySchema.ROOM_NOTIFY_LOCK_TTL_MS));
-            if (Boolean.TRUE.equals(acquired)) return true;
+                    .setIfAbsent(lockKey, owner, Duration.ofMillis(RedisKeySchema.ROOM_NOTIFY_LOCK_TTL_MS));
+            if (Boolean.TRUE.equals(acquired)) {
+                LOCK_OWNER.set(owner);
+                return true;
+            }
             try {
                 Thread.sleep(LOCK_RETRY_DELAY_MS);
             } catch (InterruptedException e) {
@@ -129,7 +146,14 @@ public class RoomMemberNotifyCacheAdaptor implements RoomMemberNotifyCache {
     }
 
     private void releaseLock(String lockKey) {
-        redisTemplate.delete(lockKey);
+        String owner = LOCK_OWNER.get();
+        if (owner != null) {
+            try {
+                redisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(lockKey), owner);
+            } finally {
+                LOCK_OWNER.remove();
+            }
+        }
     }
 
     private String key(Long roomId) {
