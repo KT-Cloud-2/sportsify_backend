@@ -1,6 +1,5 @@
 package com.sportsify.chat.application.message.service;
 
-import com.sportsify.chat.application.message.config.RedisKeySchema;
 import com.sportsify.chat.application.message.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
@@ -13,13 +12,12 @@ import com.sportsify.chat.domain.model.message.MessageType;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
+import com.sportsify.chat.domain.repository.ReadCache;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,28 +31,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MessageService {
 
-    private static final DefaultRedisScript<Long> CAS_SCRIPT =
-            new DefaultRedisScript<>(
-                    """
-                            local c = redis.call('GET', KEYS[1])
-                            
-                            if c == false or tonumber(ARGV[1]) > tonumber(c) then
-                                redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
-                                return 1
-                            end
-                            
-                            return 0
-                            """,
-                    Long.class
-            );
-
 
     final private MessageRepository messageRepo;
     final private ChatRoomRepository chatRoomRepo;
     final private ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
-    private final StringRedisTemplate redisTemplate;
     private final ApplicationEventPublisher eventPublisher;
+    private final ReadCache readCache;
 
     /**
      * 메시지 전송
@@ -170,20 +153,19 @@ public class MessageService {
 
 
     public void read(Long roomId, Long memberId, Long lastReadMessageId, boolean needDirectCheck) {
-        if (lastReadMessageId == null || lastReadMessageId <= 0) {
-            return;
-        }
+        ChatRoomId chatRoomId = ChatRoomId.of(roomId);
+        MessageId messageId = MessageId.of(lastReadMessageId);
+        MemberId id = MemberId.of(memberId);
+
         if (needDirectCheck) {
-            boolean isDirect = chatRoomRepo.findById(ChatRoomId.of(roomId))
+            boolean isDirect = chatRoomRepo.findById(chatRoomId)
                     .map(r -> r.getType() == ChatRoomType.DIRECT)
                     .orElse(false);
             if (!isDirect) {
                 return;
             }
         }
-        String key = String.format(RedisKeySchema.LAST_READ_KEY_PREFIX, roomId, memberId);
-        redisTemplate.execute(CAS_SCRIPT, List.of(key),
-                String.valueOf(lastReadMessageId), String.valueOf(RedisKeySchema.LAST_READ_TTL_SECONDS));
+        readCache.put(chatRoomId, id, messageId);
     }
 
 

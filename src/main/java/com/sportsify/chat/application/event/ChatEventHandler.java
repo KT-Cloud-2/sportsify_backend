@@ -1,7 +1,6 @@
 package com.sportsify.chat.application.event;
 
 
-import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
@@ -9,10 +8,7 @@ import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.event.EventType;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomArchivedPayload;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomDeletePayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberInvitePayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberJoinPayload;
-import com.sportsify.chat.domain.model.event.chatRoomMember.MemberLeftPayload;
+import com.sportsify.chat.domain.model.event.chatRoomMember.*;
 import com.sportsify.chat.domain.model.event.message.MessagePayload;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.Message;
@@ -25,7 +21,6 @@ import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.ChatMentionPayload;
-import com.sportsify.member.domain.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -37,6 +32,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -49,7 +45,6 @@ public class ChatEventHandler {
     private final RoomMemberNotifyCache roomMemberNotifyCache;
     private final NotificationEventPublisher notificationEventPublisher;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
-    private final MemberRepository memberRepo;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
@@ -66,20 +61,16 @@ public class ChatEventHandler {
             return;
         }
 
-        String alertText = switch (EventType.valueOf(event.event())) {
-            case MEMBER_JOINED -> "새 멤버가 채팅방에 참여했습니다.";
-            case MEMBER_LEFT -> "멤버가 채팅방을 나갔습니다.";
-            case MEMBER_INVITED -> "새 멤버를 초대했습니다.";
-            case MEMBER_BANNED -> "멤버가 강퇴되었습니다.";
-            case MEMBER_REJECTED -> "초대가 거절되었습니다.";
-            case ROOM_UPDATED -> "채팅방 정보가 변경되었습니다.";
-            case ROOM_DELETED -> "채팅방이 삭제되었습니다.";
-            case ROOM_ARCHIVED -> "채팅방이 보관되었습니다.";
-            case ROOM_UNARCHIVED -> "채팅방 보관이 해제되었습니다.";
+        String userId = switch (payload) {
+            case MemberJoinPayload p -> String.valueOf(p.memberId());
+            case MemberLeftPayload p -> String.valueOf(p.memberId());
+            case MemberBannedPayload p -> String.valueOf(p.memberId());
+            case MemberRejectedPayload p -> String.valueOf(p.memberId());
+            case MemberInvitePayload p -> String.valueOf(p.invitedId());
             default -> null;
         };
-
         EventEnvelope<?> toPublish = event;
+        String alertText = EventType.valueOf(event.event()).formatAlert(userId);
         if (alertText != null) {
             Message alert = messageRepo.save(Message.createAlert(
                     ChatRoomId.of(event.roomId()),
@@ -90,6 +81,7 @@ public class ChatEventHandler {
         }
         publisher.publishToRoom(event.roomId(), toPublish);
 
+
         switch (payload) {
             case MemberBannedPayload p -> {
                 webSocketSessionRegistry.revokeRoomSubscriptionByMember(p.memberId(), event.roomId());
@@ -99,10 +91,17 @@ public class ChatEventHandler {
                 webSocketSessionRegistry.revokeAllRoomSubscriptions(event.roomId());
                 if (isDirect) roomMemberNotifyCache.evict(event.roomId());
             }
-            case MemberJoinPayload p -> { if (isDirect) roomMemberNotifyCache.put(event.roomId(), p.memberId(), true); }
-            case MemberLeftPayload p -> { if (isDirect) roomMemberNotifyCache.remove(event.roomId(), p.memberId()); }
-            case MemberInvitePayload p -> { if (isDirect) sendInviteNotification(event.roomId(), event.roomName(), p); }
-            default -> {}
+            case MemberJoinPayload p -> {
+                if (isDirect) roomMemberNotifyCache.put(event.roomId(), p.memberId(), true);
+            }
+            case MemberLeftPayload p -> {
+                if (isDirect) roomMemberNotifyCache.remove(event.roomId(), p.memberId());
+            }
+            case MemberInvitePayload p -> {
+                if (isDirect) sendInviteNotification(event.roomId(), event.roomName(), p);
+            }
+            default -> {
+            }
         }
     }
 
@@ -112,10 +111,6 @@ public class ChatEventHandler {
             if (notifiableIds.isEmpty()) return;
 
             String resolvedRoomName = roomName != null ? roomName : "채팅방";
-            String senderName = memberRepo.findById(payload.senderId())
-                    .map(m -> m.getNickname() != null ? m.getNickname() : "사용자")
-                    .orElse("사용자");
-
             Set<Long> activeSubscribers = webSocketSessionRegistry.getSubscribedMemberIds(roomId);
 
             notifiableIds.stream()
@@ -123,7 +118,7 @@ public class ChatEventHandler {
                     .filter(memberId -> !activeSubscribers.contains(memberId))
                     .forEach(memberId -> {
                         ChatMentionPayload notifyPayload = buildMentionPayload(
-                                memberId, roomId, resolvedRoomName, payload.senderId(), senderName, payload
+                                memberId, roomId, resolvedRoomName, payload.senderId(), payload
                         );
                         notificationEventPublisher.publish(NotificationEventType.CHAT_MENTION, notifyPayload);
                     });
@@ -135,15 +130,11 @@ public class ChatEventHandler {
     private void sendInviteNotification(Long roomId, String roomName, MemberInvitePayload payload) {
         try {
             String resolvedRoomName = roomName != null ? roomName : "채팅방";
-            String inviterName = memberRepo.findById(payload.inviterId())
-                    .map(m -> m.getNickname() != null ? m.getNickname() : "사용자")
-                    .orElse("사용자");
-
             notificationEventPublisher.publish(
                     NotificationEventType.CHAT_INVITED,
                     ChatMentionPayload.ofText(
                             payload.invitedId(), roomId, resolvedRoomName,
-                            payload.inviterId(), inviterName,
+                            payload.inviterId(),
                             "채팅방에 초대되었습니다."
                     )
             );
@@ -160,18 +151,18 @@ public class ChatEventHandler {
                     return members.stream()
                             .filter(ChatRoomMember::isNotificationEnabled)
                             .map(m -> m.getMemberId().value())
-                            .collect(java.util.stream.Collectors.toSet());
+                            .collect(Collectors.toSet());
                 });
     }
 
     private ChatMentionPayload buildMentionPayload(
             Long memberId, Long roomId, String roomName,
-            Long senderId, String senderName, MessageSentPayload payload
+            Long senderId, MessageSentPayload payload
     ) {
         return switch (payload.type()) {
-            case "IMAGE" -> ChatMentionPayload.ofImage(memberId, roomId, roomName, senderId, senderName);
-            case "FILE" -> ChatMentionPayload.ofFile(memberId, roomId, roomName, senderId, senderName);
-            default -> ChatMentionPayload.ofText(memberId, roomId, roomName, senderId, senderName, payload.content());
+            case "IMAGE" -> ChatMentionPayload.ofImage(memberId, roomId, roomName, senderId);
+            case "FILE" -> ChatMentionPayload.ofFile(memberId, roomId, roomName, senderId);
+            default -> ChatMentionPayload.ofText(memberId, roomId, roomName, senderId, payload.content());
         };
     }
 }
