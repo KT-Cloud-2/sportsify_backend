@@ -6,7 +6,6 @@ import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Range;
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.PendingMessage;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -57,19 +57,33 @@ public class StreamMaintenanceScheduler {
                 return;
             }
 
-            for (PendingMessage pendingMessage : pending) {
-                Duration backoff = pelMessageProcessor.resolveBackoff((int) pendingMessage.getTotalDeliveryCount() - 1);
-                RecordId id = RecordId.of(pendingMessage.getIdAsString());
-                List<MapRecord<String, Object, Object>> reclaimed = redisTemplate.opsForStream()
-                        .claim(streamKey, RedisStreamsConfig.NOTIFICATION_GROUP, "maintenance-consumer",
-                                backoff, id);
-                for (MapRecord<String, Object, Object> message : reclaimed) {
-                    pelMessageProcessor.process(streamKey, eventType, message);
+            groupByBackoff(pending).forEach((backoff, recordIds) -> {
+                try {
+                    redisTemplate.opsForStream()
+                            .claim(streamKey,
+                                    RedisStreamsConfig.NOTIFICATION_GROUP,
+                                    "maintenance-consumer",
+                                    backoff,
+                                    recordIds.toArray(new RecordId[0]))
+                            .forEach(message -> pelMessageProcessor.process(streamKey, eventType, message));
+                } catch (Exception e) {
+                    log.error("PEL claim 실패 streamKey={} backoff={} error={}", streamKey, backoff, e.getMessage(), e);
                 }
-            }
+            });
         } catch (Exception e) {
             log.error("PEL 재처리 스케줄러 오류 streamKey={} error={}", streamKey, e.getMessage());
         }
+    }
+
+    private Map<Duration, List<RecordId>> groupByBackoff(List<PendingMessage> pending) {
+        return pending.stream()
+                .collect(Collectors.groupingBy(
+                        msg -> pelMessageProcessor.resolveBackoff((int) msg.getTotalDeliveryCount() - 1),
+                        Collectors.mapping(
+                                msg -> RecordId.of(msg.getIdAsString()),
+                                Collectors.toList()
+                        )
+                ));
     }
 
     private boolean isBackoffElapsed(PendingMessage msg) {
