@@ -21,15 +21,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationDispatcherTest {
@@ -64,7 +58,7 @@ class NotificationDispatcherTest {
     void dispatchToMember_중복알림_스킵() {
         given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(true);
 
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
+        boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isFalse();
         verify(notificationRepository, never()).save(any());
@@ -78,7 +72,7 @@ class NotificationDispatcherTest {
         given(notificationRepository.save(any())).willReturn(notification);
         given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of());
 
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
+        boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isFalse();
         verify(sseNotificationPort).send(eq(10L), eq("PAYMENT_COMPLETED"));
@@ -93,7 +87,7 @@ class NotificationDispatcherTest {
         given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of(emailChannel));
         willDoNothing().given(emailSender).send(any(), any(), any());
 
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
+        boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isFalse();
         verify(emailSender).send(eq("user@example.com"), eq("PAYMENT_COMPLETED"), eq("{}"));
@@ -101,17 +95,17 @@ class NotificationDispatcherTest {
     }
 
     @Test
-    @DisplayName("발송이 3회 실패하면 FAILED 이력을 저장하고 true를 반환한다")
-    void dispatchToMember_3회실패_FAILED이력저장() {
+    @DisplayName("발송 실패 시 FAILED 이력을 저장하고 true를 반환한다")
+    void dispatchToMember_발송실패_FAILED이력저장() {
         given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
         given(notificationRepository.save(any())).willReturn(notification);
         given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of(emailChannel));
         willThrow(new RuntimeException("SMTP 오류")).given(emailSender).send(any(), any(), any());
 
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
+        boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isTrue();
-        verify(emailSender, times(3)).send(any(), any(), any());
+        verify(emailSender, times(1)).send(any(), any(), any());
         verify(historyRepository).save(any());
     }
 
@@ -124,7 +118,7 @@ class NotificationDispatcherTest {
         given(notificationRepository.save(any())).willReturn(notification);
         given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of(slackChannel));
 
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
+        boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isTrue();
         verify(emailSender, never()).send(any(), any(), any());
@@ -148,26 +142,10 @@ class NotificationDispatcherTest {
         willDoNothing().given(emailSender).send(any(), any(), any());
         willThrow(new RuntimeException("Slack 오류")).given(slackSender).send(any(), any(), any());
 
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
+        boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isTrue();
         verify(historyRepository, times(2)).save(any());
     }
 
-    @Test
-    @DisplayName("1회 실패 후 2회 성공하면 SENT 이력을 저장하고 false를 반환한다")
-    void dispatchToMember_1회실패후재시도성공_SENT이력저장() {
-        given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
-        given(notificationRepository.save(any())).willReturn(notification);
-        given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of(emailChannel));
-        willThrow(new RuntimeException("일시 오류"))
-                .willDoNothing()
-                .given(emailSender).send(any(), any(), any());
-
-        boolean result = dispatcher.dispatchToMember(event, 10L, "{}");
-
-        assertThat(result).isFalse();
-        verify(emailSender, times(2)).send(any(), any(), any());
-        verify(historyRepository).save(any());
-    }
 }

@@ -19,9 +19,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 
 class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
@@ -42,7 +40,7 @@ class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
         AtomicReference<String> outerTxName = new AtomicReference<>();
         AtomicReference<String> innerTxName = new AtomicReference<>();
 
-        given(dispatcher.dispatchToMember(any(), anyLong(), anyString())).willAnswer(inv -> {
+        given(dispatcher.toMember(any(), anyLong(), anyString())).willAnswer(inv -> {
             // processChunk 내부에서 실행 중인 트랜잭션 이름 캡처
             innerTxName.set(TransactionSynchronizationManager.getCurrentTransactionName());
             return false;
@@ -71,7 +69,7 @@ class NotificationChunkServiceIntegrationTest extends RepositoryTestSupport {
                 status -> eventRepository.save(NotificationEvent.create(NotificationEventType.TICKET_OPEN, "{}"))
         );
 
-        given(dispatcher.dispatchToMember(any(), anyLong(), anyString()))
+        given(dispatcher.toMember(any(), anyLong(), anyString()))
                 .willThrow(new RuntimeException("청크 처리 중 오류"));
 
         // processChunk 예외 → 해당 청크 트랜잭션 롤백

@@ -18,9 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ScheduledNotificationProcessorTest {
@@ -57,13 +55,12 @@ class ScheduledNotificationProcessorTest {
     }
 
     @Test
-    @DisplayName("하나의 이벤트 fanout 실패 시 나머지 이벤트는 계속 처리된다")
-    void processDue_일부실패_나머지계속처리() {
-        NotificationEvent event1 = NotificationEvent.withId(1L, NotificationEventType.TICKET_OPEN, "{}");
-        NotificationEvent event2 = NotificationEvent.withId(2L, NotificationEventType.GAME_START, "{}");
+    @DisplayName("하나의 이벤트 처리 중 예외 발생 시 나머지 이벤트는 계속 처리된다")
+    void processDue_일부예외발생_나머지계속처리() {
+        NotificationEvent event1 = NotificationEvent.withId(5L, NotificationEventType.TICKET_OPEN, "{}");
+        NotificationEvent event2 = NotificationEvent.withId(6L, NotificationEventType.GAME_START, "{}");
         given(claimService.claimDueEvents()).willReturn(List.of(event1, event2));
-        willThrow(new RuntimeException("fanout 실패")).given(eventProcessor)
-                .fanout(eq(event1), any(), any());
+        willThrow(new RuntimeException("fanout 실패")).given(eventProcessor).fanout(eq(event1), any(), any());
 
         processor.processDue();
 

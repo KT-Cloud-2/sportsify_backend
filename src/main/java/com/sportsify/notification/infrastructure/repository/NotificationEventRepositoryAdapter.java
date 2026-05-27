@@ -35,8 +35,8 @@ public class NotificationEventRepositoryAdapter implements NotificationEventRepo
     }
 
     @Override
-    public List<NotificationEvent> findDueScheduledEventsForUpdate(LocalDateTime now) {
-        return jpaRepository.findDueScheduledEventsForUpdate(now);
+    public List<NotificationEvent> findDueScheduledEventsForUpdate(LocalDateTime now, int maxRetry) {
+        return jpaRepository.findDueScheduledEventsForUpdate(now, maxRetry);
     }
 
     @Override

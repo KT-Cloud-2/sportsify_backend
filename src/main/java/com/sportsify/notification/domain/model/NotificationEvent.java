@@ -49,6 +49,9 @@ public class NotificationEvent {
     @Column(name = "stream_message_id", unique = true)
     private String streamMessageId;
 
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount = 0;
+
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
@@ -69,6 +72,12 @@ public class NotificationEvent {
 
     public static NotificationEvent withId(Long id, NotificationEventType eventType, String payload) {
         NotificationEvent event = create(eventType, payload);
+        event.id = id;
+        return event;
+    }
+
+    public static NotificationEvent scheduledWithId(Long id, NotificationEventType eventType, String payload, LocalDateTime scheduledAt) {
+        NotificationEvent event = createScheduled(eventType, payload, scheduledAt);
         event.id = id;
         return event;
     }
@@ -100,6 +109,23 @@ public class NotificationEvent {
 
     public void markFailed() {
         this.status = NotificationEventStatus.FAILED;
+    }
+
+    public boolean isExhausted(int maxRetry) {
+        return this.retryCount >= maxRetry;
+    }
+
+    public void incrementRetry() {
+        this.retryCount++;
+    }
+
+    public boolean incrementRetryAndCheckExhausted(int maxRetry) {
+        this.retryCount++;
+        return this.retryCount >= maxRetry;
+    }
+
+    public void markPermanentlyFailed() {
+        this.status = NotificationEventStatus.PERMANENTLY_FAILED;
     }
 
     public void markCancelled() {

@@ -90,10 +90,10 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
         // THEN: 두 스레드 합산 claimed 수 = 3 (중복 없음)
         assertThat(totalClaimed.get()).isEqualTo(3);
 
-        // findDueScheduledEventsForUpdate는 PENDING만 조회 — PROCESSING 상태면 0건
+        // claim 후 PROCESSING 상태이므로 재조회 시 0건
         transactionTemplate.execute(status -> {
             List<NotificationEvent> pending = eventRepository.findDueScheduledEventsForUpdate(
-                    LocalDateTime.now().plusHours(1));
+                    LocalDateTime.now().plusHours(1), 3);
             assertThat(pending).isEmpty();
             return null;
         });

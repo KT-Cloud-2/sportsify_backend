@@ -1,0 +1,115 @@
+package com.sportsify.notification.infrastructure.consumer;
+
+import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.notification.application.service.NotificationEventStatusService;
+import com.sportsify.notification.application.service.NotificationFanoutService;
+import com.sportsify.notification.domain.model.NotificationEvent;
+import com.sportsify.notification.domain.model.NotificationEventStatus;
+import com.sportsify.notification.domain.repository.NotificationEventRepository;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
+import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
+import com.sportsify.notification.infrastructure.publisher.RedisStreamNotificationEventPublisher;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.util.List;
+
+@Slf4j
+@Component
+public class PelMessageProcessor {
+
+    private final StringRedisTemplate redisTemplate;
+    private final NotificationFanoutService fanoutService;
+    private final NotificationEventStatusService statusService;
+    private final NotificationEventRepository eventRepository;
+    private final NotificationProperties properties;
+    private final ApplicationEventPublisher eventPublisher;
+    private final List<Integer> backoffMinutes;
+
+    public PelMessageProcessor(StringRedisTemplate redisTemplate,
+                                NotificationFanoutService fanoutService,
+                                NotificationEventStatusService statusService,
+                                NotificationEventRepository eventRepository,
+                                NotificationProperties properties,
+                                ApplicationEventPublisher eventPublisher) {
+        this.redisTemplate = redisTemplate;
+        this.fanoutService = fanoutService;
+        this.statusService = statusService;
+        this.eventRepository = eventRepository;
+        this.properties = properties;
+        this.eventPublisher = eventPublisher;
+        this.backoffMinutes = properties.pel().backoffMinutes();
+    }
+
+    public void process(String streamKey, NotificationEventType eventType, MapRecord<String, Object, Object> message) {
+        try {
+            String payload = String.valueOf(message.getValue().get(RedisStreamNotificationEventPublisher.PAYLOAD_KEY));
+            String streamMessageId = message.getId().getValue();
+            NotificationEvent event = statusService.saveEventWithStreamMessageId(eventType, payload, streamMessageId);
+
+            if (isAlreadyResolved(event)) {
+                acknowledge(streamKey, message);
+                log.info("PEL 이벤트 ACK (이미 처리됨) eventId={} status={}", event.getId(), event.getStatus());
+                return;
+            }
+
+            if (isScheduledPending(event)) {
+                acknowledge(streamKey, message);
+                log.info("PEL 이벤트 ACK (예약 미도래) streamKey={} id={}", streamKey, message.getId());
+                return;
+            }
+
+            if (isExhausted(event, streamKey, message)) {
+                return;
+            }
+
+            if (fanoutService.fanout(event, eventType, payload)) {
+                log.warn("PEL 재처리 발송 실패 streamKey={} id={} retryCount={}", streamKey, message.getId(), event.getRetryCount());
+                return;
+            }
+
+            acknowledge(streamKey, message);
+            log.info("PEL 재처리 완료 streamKey={} id={}", streamKey, message.getId());
+        } catch (Exception e) {
+            log.error("PEL 재처리 실패 streamKey={} id={} error={}", streamKey, message.getId(), e.getMessage());
+        }
+    }
+
+    public Duration resolveBackoff(int retryCount) {
+        int index = Math.min(retryCount, backoffMinutes.size() - 1);
+        return Duration.ofMinutes(backoffMinutes.get(index));
+    }
+
+    private boolean isExhausted(NotificationEvent event, String streamKey, MapRecord<String, Object, Object> message) {
+        boolean exhausted = event.incrementRetryAndCheckExhausted(properties.retry().maxRetry());
+        if (exhausted) {
+            event.markPermanentlyFailed();
+        }
+        eventRepository.save(event);
+
+        if (exhausted) {
+            acknowledge(streamKey, message);
+            log.error("PEL 재처리 모두 소진, 영구 실패 처리 eventId={} retryCount={}", event.getId(), event.getRetryCount());
+            eventPublisher.publishEvent(NotificationPermanentlyFailedEvent.of(event.getId(), event.getEventType(), event.getRetryCount(), "PEL"));
+        }
+        return exhausted;
+    }
+
+    private boolean isAlreadyResolved(NotificationEvent event) {
+        NotificationEventStatus status = event.getStatus();
+        return status == NotificationEventStatus.PUBLISHED || status == NotificationEventStatus.PERMANENTLY_FAILED;
+    }
+
+    private boolean isScheduledPending(NotificationEvent event) {
+        return event.isScheduled() && event.getStatus() == NotificationEventStatus.PENDING;
+    }
+
+    private void acknowledge(String streamKey, MapRecord<String, Object, Object> message) {
+        redisTemplate.opsForStream().acknowledge(streamKey, RedisStreamsConfig.NOTIFICATION_GROUP, message.getId());
+    }
+}

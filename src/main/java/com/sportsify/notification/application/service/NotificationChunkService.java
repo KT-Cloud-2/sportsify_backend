@@ -21,7 +21,7 @@ public class NotificationChunkService {
         }
         boolean anyFailed = false;
         for (Long memberId : memberIds) {
-            if (dispatcher.dispatchToMember(event, memberId, payload)) {
+            if (dispatcher.toMember(event, memberId, payload)) {
                 anyFailed = true;
             }
         }

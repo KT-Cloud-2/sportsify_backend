@@ -13,15 +13,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class NotificationDispatcher {
-
-    private static final int MAX_RETRY = 3;
 
     private final NotificationRepository notificationRepository;
     private final NotificationChannelRepository channelRepository;
@@ -44,7 +41,7 @@ public class NotificationDispatcher {
                 .collect(Collectors.toMap(NotificationSender::channelType, Function.identity()));
     }
 
-    public boolean dispatchToMember(NotificationEvent event, Long memberId, String payload) {
+    public boolean toMember(NotificationEvent event, Long memberId, String payload) {
         if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) {
             return false;
         }
@@ -56,7 +53,7 @@ public class NotificationDispatcher {
         List<NotificationChannel> channels = channelRepository.findByMemberIdAndEnabledTrue(memberId);
         boolean anyFailed = false;
         for (NotificationChannel channel : channels) {
-            if (!sendWithRetry(notification.getId(), channel, event.getEventType().name(), payload)) {
+            if (!sendToChannel(notification.getId(), channel, eventTypeName, payload)) {
                 anyFailed = true;
             }
         }
@@ -76,29 +73,24 @@ public class NotificationDispatcher {
         });
     }
 
-    private boolean sendWithRetry(Long notificationId, NotificationChannel channel, String subject, String body) {
-        Optional<NotificationSender> sender = Optional.ofNullable(senderMap.get(channel.getChannelType()));
-        if (sender.isEmpty()) {
+    private boolean sendToChannel(Long notificationId, NotificationChannel channel, String subject, String body) {
+        NotificationSender sender = senderMap.get(channel.getChannelType());
+        if (sender == null) {
             log.warn("지원하지 않는 채널 타입 channelType={} notificationId={}", channel.getChannelType(), notificationId);
             historyRepository.save(NotificationHistory.failed(notificationId, channel.getChannelType(), "지원하지 않는 채널 타입"));
             return false;
         }
-        return attemptSend(notificationId, channel, subject, body, sender.get());
+        return attemptSend(notificationId, channel, subject, body, sender);
     }
 
     private boolean attemptSend(Long notificationId, NotificationChannel channel, String subject, String body, NotificationSender sender) {
-        for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
-            try {
-                sender.send(channel.getChannelTarget(), subject, body);
-                historyRepository.save(NotificationHistory.sent(notificationId, channel.getChannelType()));
-                return true;
-            } catch (Exception e) {
-                log.warn("알림 발송 실패 attempt={}/{} channel={} error={}", attempt, MAX_RETRY, channel.getChannelType(), e.getMessage());
-                if (attempt == MAX_RETRY) {
-                    historyRepository.save(NotificationHistory.failed(notificationId, channel.getChannelType(), e.getMessage()));
-                }
-            }
+        try {
+            sender.send(channel.getChannelTarget(), subject, body);
+            historyRepository.save(NotificationHistory.sent(notificationId, channel.getChannelType()));
+            return true;
+        } catch (Exception e) {
+            historyRepository.save(NotificationHistory.failed(notificationId, channel.getChannelType(), e.getMessage()));
+            return false;
         }
-        return false;
     }
 }
