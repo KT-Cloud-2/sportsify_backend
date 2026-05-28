@@ -37,9 +37,7 @@ public class PaymentRetryEventListener {
     }
 
     private Long extractOrderId(MethodRetryEvent event) {
-        if (!(event.getSource() instanceof MethodInvocation invocation)) {
-            throw new IllegalStateException("MethodRetryEvent의 source가 MethodInvocation이 아닙니다: " + event.getSource().getClass());
-        }
+        MethodInvocation invocation = event.getSource();
 
         Object[] args = invocation.getArguments();
 
@@ -48,7 +46,7 @@ public class PaymentRetryEventListener {
         return switch (args[0]) {
             case PaymentCompletedEvent e -> e.orderId();
             case PaymentCancelledEvent e -> e.orderId();
-            default -> null;
+            default -> throw new IllegalStateException("지원하지 않는 이벤트 타입: " + args[0].getClass());
         };
     }
 }

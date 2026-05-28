@@ -123,7 +123,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
                     .orderId(order.getId())
                     .tossOrderId("TEST_TOSS_ORDER_" + order.getId())
                     .idempotencyKey("TEST_IDEMPOTENCY_" + order.getId())
-                    .amount(20000L)
+                    .amount(fixture.TICKET_PRICE * 2L)
                     .paymentMethod("PAY")
                     .status(status)
                     .requestedAt(LocalDateTime.now())

@@ -74,7 +74,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
         LocalDateTime now = LocalDateTime.now();
 
-        assertThat(createdOrder.getExpiresAt()).isAfter(now).isBefore(now.plusMinutes(16));
+        assertThat(createdOrder.getExpiresAt()).isAfter(now).isBefore(now.plusMinutes(10));
         assertThat(createdOrder.getCreatedAt()).isNotNull();
     }
 

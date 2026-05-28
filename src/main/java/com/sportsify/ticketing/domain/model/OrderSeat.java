@@ -69,23 +69,6 @@ public class OrderSeat {
         return gameSeat.getSectionName();
     }
 
-    public Integer getSeatPrice() {
-        return gameSeat.getPrice();
-    }
-
-
-    public void expire() {
-        status = OrderSeatStatus.EXPIRED;
-        gameSeat.release();
-    }
-
-    public void cancel() {
-        status = OrderSeatStatus.CANCELLED;
-        gameSeat.release();
-    }
-
-    // === 디미터 법칙 위임 메서드 ===
-
     public String getSeatNumber() {
         return gameSeat.getSeatNumber();
     }

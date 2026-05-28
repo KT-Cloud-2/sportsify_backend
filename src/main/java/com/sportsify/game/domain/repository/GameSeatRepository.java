@@ -27,12 +27,10 @@ public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
 
     @Query("""
              SELECT gs FROM GameSeat gs
-             WHERE gs.game.id = :gameId AND gs.id IN :ids AND gs.seatStatus = 'AVAILABLE' ORDER BY gs.id
+             WHERE gs.id IN :ids AND gs.seatStatus = 'AVAILABLE' ORDER BY gs.id
             """)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    List<GameSeat> findAllAvailableByGameIdAndIdsWithLock(
-            @Param("gameId") Long gameId, @Param("ids") List<Long> ids
-    );
+    List<GameSeat> findAllAvailableIdsWithLock(@Param("ids") List<Long> ids);
 
     @Query("SELECT gs FROM GameSeat gs WHERE gs.game.id = :gameId")
     List<GameSeat> findByGameId(Long gameId);

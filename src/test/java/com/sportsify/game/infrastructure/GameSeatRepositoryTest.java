@@ -117,7 +117,7 @@ class GameSeatRepositoryTest extends RepositoryTestSupport {
     @DisplayName("요청한 ID 중 AVAILABLE 상태인 좌석만 정렬되어 조회된다")
     void findAvailableSeatsOnly() {
 
-        List<GameSeat> result = gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(game.getId(),
+        List<GameSeat> result = gameSeatRepository.findAllAvailableIdsWithLock(
                 List.of(gameSeat3.getId(), gameSeat1.getId(), gameSeat2.getId())
         );
 
