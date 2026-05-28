@@ -15,13 +15,16 @@ import com.sportsify.ticketing.domain.repository.OrderRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReservationService {
 
     private final GameSeatRepository gameSeatRepository;
@@ -46,13 +49,13 @@ public class ReservationService {
                     "요청: " + reqDto.seatIds().size() + "매, 최대: " + game.getMaxTicketPerUser() + "매"
             );
 
-        List<GameSeat> requestedSeats = gameSeatRepository.findAllById(reqDto.seatIds());
-        boolean allSameGame = requestedSeats.stream()
-                .allMatch(seat -> seat.getGame().getId().equals(game.getId()));
-        if (!allSameGame)
-            throw new BusinessException(ErrorCode.GAME_MISMATCH);
+        if (reqDto.seatIds().size() != new HashSet<>(reqDto.seatIds()).size())
+            throw new BusinessException(ErrorCode.SEAT_DUPLICATED);
 
-        List<GameSeat> availableSeats = gameSeatRepository.findAllAvailableByGameIdAndIdsWithLock(game.getId(), reqDto.seatIds());
+        List<GameSeat> availableSeats = gameSeatRepository.findAllAvailableIdsWithLock(reqDto.seatIds());
+
+        if (!availableSeats.stream().allMatch(gameSeat -> gameSeat.getGameId().equals(reqDto.gameId())))
+            throw new BusinessException(ErrorCode.GAME_MISMATCH);
 
         if (availableSeats.size() != reqDto.seatIds().size())
             throw new BusinessException(ErrorCode.SEAT_ALREADY_RESERVED);

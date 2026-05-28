@@ -1,10 +1,13 @@
 package com.sportsify.ticketing.application;
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
+import com.sportsify.ticketing.application.listener.PaymentEventListener;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.*;
 import com.sportsify.ticketing.fixture.PaymentEventListenerTestFixture;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 @EnableAsync
@@ -59,6 +63,10 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    @Autowired
+    private PaymentEventListener paymentEventListener;
+
+
     private Member member;
     private Game game;
     private List<Long> gameSeatIds;
@@ -74,6 +82,20 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     void afterEach() {
         fixture.deleteAll();
     }
+
+    @Test
+    @DisplayName("결제 도입 이벤트 수신 시, DB에 저장된 주문이어야 한다.")
+    void onStartedPaymentEvent_orderNotFound() {
+
+        assertThatThrownBy(() ->
+                eventPublisher.publishEvent(
+                        eventFixture.createStartedEventByOrderId(-1L, member.getId())
+                )).isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+
+    }
+
 
     @Test
     @DisplayName("결제 도입 이벤트 수신 시, 주문 상태가 PENDING이어야 한다.")
@@ -104,6 +126,21 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
 
         assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.PAYING);
     }
+
+
+    @Test
+    @DisplayName("결제 완료 이벤트 수신 시, DB에 저장된 주문이어야 한다.")
+    void onSuccessPaymentEvent_orderNotFound() {
+        assertThatThrownBy(() ->
+                paymentEventListener.onPaymentSuccess(
+                        eventFixture.createCompletedEventByOrderId(-1L, member.getId())
+
+                ))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+    }
+
 
     @ParameterizedTest
     @DisplayName("결제 완료 이벤트 수신 시, 주문 상태가 PAYING이어야 한다.")
@@ -192,6 +229,20 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
                     });
                 });
 
+    }
+
+    @Test
+    @DisplayName("결제 취소 이벤트 수신 시, DB에 저장된 주문이어야 한다.")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void onCancelledPaymentEvent_orderNotFound() {
+        assertThatThrownBy(() ->
+                paymentEventListener.onPaymentCancelled(
+                        eventFixture.createCancelledEventByOrderId(-1L, member.getId())
+
+                ))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_NOT_FOUND);
     }
 
     @ParameterizedTest

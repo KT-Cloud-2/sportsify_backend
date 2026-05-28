@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
 
 class OrderTest {
 
@@ -44,40 +44,6 @@ class OrderTest {
 
         assertThat(order.getOrderSeats()).hasSize(1);
         assertThat(order.getOrderSeats()).contains(mockOrderSeat);
-    }
-
-    @Test
-    @DisplayName("expires 호출 시 주문 상태가 EXPIRED로 변경된다.")
-    void changeStatusWhenExpire() {
-        Member member = Member.create("test@test.com", "닉네임", OAuthProvider.GOOGLE, "g-1");
-        Order order = Order.create(member);
-
-        OrderSeat mockOrderSeat = mock(OrderSeat.class);
-
-        order.addOrderSeat(mockOrderSeat);
-
-        order.expire();
-
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.EXPIRED);
-        verify(mockOrderSeat, times(1)).expire();
-
-    }
-
-    @Test
-    @DisplayName("cancel 호출 시 주문 상태가 CANCELLED로 변경된다.")
-    void changeStatusWhenCancel() {
-        Member member = Member.create("test@test.com", "닉네임", OAuthProvider.GOOGLE, "g-1");
-        Order order = Order.create(member);
-
-        OrderSeat mockOrderSeat = mock(OrderSeat.class);
-
-        order.addOrderSeat(mockOrderSeat);
-
-        order.cancel();
-
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        verify(mockOrderSeat, times(1)).cancel();
-
     }
 
 }

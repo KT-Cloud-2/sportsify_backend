@@ -22,6 +22,7 @@ import java.util.List;
 @Component
 public class TicketingTestFixture {
 
+    public int TICKET_PRICE = 15000;
     @Autowired
     private TicketJpaRepository ticketRepository;
     @Autowired
@@ -111,7 +112,7 @@ public class TicketingTestFixture {
                     Seat.builder().section(section).rowNumber(i / 10 + 1 + "").seatNumber(i % 10 + 1 + "").build()
             );
 
-            ids.add(gameSeatRepository.save(GameSeat.builder().game(game).seat(seat).price(15000).build()).getId());
+            ids.add(gameSeatRepository.save(GameSeat.builder().game(game).seat(seat).price(TICKET_PRICE).build()).getId());
         }
 
         return ids;
