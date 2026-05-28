@@ -216,7 +216,7 @@ Redis에서 리프레시 토큰을 삭제하고 액세스 토큰을 블랙리스
 ### 1-5. 내 정보 조회
 
 ```
-GET /api/members/me
+GET /api/members
 ```
 
 **Response (200)**
@@ -242,7 +242,7 @@ GET /api/members/me
 ### 1-6. 닉네임 수정
 
 ```
-PATCH /api/members/me/nickname
+PATCH /api/members/nickname
 ```
 
 **Request Body**
@@ -278,7 +278,7 @@ PATCH /api/members/me/nickname
 ### 1-7. 회원 탈퇴
 
 ```
-DELETE /api/members/me
+DELETE /api/members
 ```
 
 회원 status를 `WITHDRAWN`으로 변경합니다. 실제 데이터는 삭제되지 않습니다.
@@ -290,7 +290,7 @@ DELETE /api/members/me
 ### 1-8. 선호 팀 추가
 
 ```
-POST /api/members/me/favorite-teams
+POST /api/members/favorite-teams
 ```
 
 **Request Body**
@@ -332,7 +332,7 @@ POST /api/members/me/favorite-teams
 ### 1-9. 선호 팀 목록 조회
 
 ```
-GET /api/members/me/favorite-teams
+GET /api/members/favorite-teams
 ```
 
 **Response (200)**
@@ -355,7 +355,7 @@ GET /api/members/me/favorite-teams
 ### 1-10. 선호 팀 우선순위 수정
 
 ```
-PATCH /api/members/me/favorite-teams/{teamId}/priority
+PATCH /api/members/favorite-teams/{teamId}/priority
 ```
 
 **Path Variable** : `teamId` — 우선순위를 변경할 팀 ID
@@ -384,7 +384,7 @@ PATCH /api/members/me/favorite-teams/{teamId}/priority
 ### 1-11. 선호 팀 삭제
 
 ```
-DELETE /api/members/me/favorite-teams/{teamId}
+DELETE /api/members/favorite-teams/{teamId}
 ```
 
 **Response** : `204 No Content`
@@ -737,18 +737,6 @@ GET /api/tickets?page=0&size=10
 
 ---
 
-## 5. 결제
-
-Toss Payments PG와 연동합니다. 결제는 **생성 → 확인** 2단계로 진행됩니다.
-
-| Method | Path | Auth | 설명 |
-|---|---|---|---|
-| POST | `/api/payments` | O | 결제 생성 (Toss 결제 진행 전 등록) |
-| POST | `/api/payments/confirm` | O | 결제 확인 (Toss 승인 후 금액 검증) |
-| POST | `/api/payments/{paymentId}/cancel` | O | 결제 취소 |
-
----
-
 ## 5. Chat 도메인
 
 ### 엔드포인트 목록
@@ -785,7 +773,7 @@ Toss Payments PG와 연동합니다. 결제는 **생성 → 확인** 2단계로 
 ### 5-1. 채팅방 생성
 
 ```
-POST /api/chat/create
+POST /api/chat/rooms
 ```
 
 Auth Required: **O**
@@ -829,7 +817,7 @@ Validation / Business Rules
 ### 5-2. 내 채팅방 목록 조회
 
 ```
-POST /api/chat/rooms
+GET /api/chat/rooms
 ```
 
 Auth Required: **O**
@@ -2010,34 +1998,6 @@ Validation / Business Rules
 
 ---
 
-## 6. Notification 도메인
-
-### 엔드포인트 목록
-
-| method   | path                                           | auth required   | 설명                |
-|----------|------------------------------------------------|-----------------|-------------------|
-| GET      | /api/notifications                             | O               | 알림 목록 조회 (페이징)    |
-| PATCH    | /api/notifications/{notificationId}/read       | O               | 단건 읽음 처리          |
-| PATCH    | /api/notifications/read-all                    | O               | 전체 읽음 처리          |
-| GET      | /api/notifications/stream                      | O               | SSE 실시간 알림 구독     |
-| GET      | /api/notifications/settings                    | O               | 알림 설정 조회          |
-| PUT      | /api/notifications/settings                    | O               | 알림 설정 변경          |
-| GET      | /api/notifications/channels                    | O               | 알림 채널 목록 조회       |
-| POST     | /api/notifications/channels                    | O               | 알림 채널 등록          |
-| DELETE   | /api/notifications/channels/{channelId}        | O               | 알림 채널 삭제          |
-| PATCH    | /api/notifications/channels/{channelId}/toggle | O               | 알림 채널 활성화/비활성화 토글 |
-| method   | path                                           | auth required   | 설명                |
-| -------- | ---------------------------------------        | --------------- | -------------     |
-| GET      | /api/notifications/settings                    | O               | 알림 설정 조회          |
-| PUT      | /api/notifications/settings                    | O               | 알림 설정 변경          |
-| GET      | /api/notifications/channels                    | O               | 알림 채널 목록 조회       |
-| POST     | /api/notifications/channels                    | O               | 알림 채널 추가          |
-| PUT      | /api/notifications/channels/{channel}          | O               | 알림 채널 수정          |
-| DELETE   | /api/notifications/channels/{channel}          | O               | 알림 채널 삭제          |
-| GET      | /api/notifications/history                     | O               | 알림 발송 이력 조회       |
-
----
-
 ## 6. 알림
 
 Redis Streams 기반 비동기 파이프라인으로 알림을 발행·발송합니다.  
@@ -2328,7 +2288,19 @@ PATCH /api/notifications/channels/{channelId}/toggle
 |---|---|---|
 | `NOTIFICATION_CHANNEL_NOT_FOUND` | 404 | 존재하지 않는 채널 |
 
+---
 
+## 7. 결제
+
+Toss Payments PG와 연동합니다. 결제는 **생성 → 확인** 2단계로 진행됩니다.
+
+| Method | Path | Auth | 설명 |
+|---|---|---|---|
+| POST | `/api/payments` | O | 결제 생성 (Toss 결제 진행 전 등록) |
+| POST | `/api/payments/confirm` | O | 결제 확인 (Toss 승인 후 금액 검증) |
+| POST | `/api/payments/{paymentId}/cancel` | O | 결제 취소 |
+
+---
 
 ### 7-1. 결제 생성
 
