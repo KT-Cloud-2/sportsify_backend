@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.springdoc.openapi-gradle-plugin' version '1.9.0'
+    id 'jacoco'
 }
 
 group = 'com'
@@ -13,6 +14,10 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
     }
+}
+
+jacoco {
+    toolVersion = "0.8.14"
 }
 
 repositories {
@@ -111,6 +116,8 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
     useJUnitPlatform()
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+
+    finalizedBy jacocoTestReport
 }
 
 // OpenAPI 스펙 export 설정
@@ -126,9 +133,9 @@ tasks.register('generateApiDocs') {
     dependsOn 'generateOpenApiDocs'
     description = 'openapi.json을 embed한 standalone docs-export.html 생성 (외부 공유용)'
 
-    def specFile    = layout.buildDirectory.file('api-spec/openapi.json')
+    def specFile = layout.buildDirectory.file('api-spec/openapi.json')
     def templateFile = layout.projectDirectory.file('gradle/docs-export-template.html')
-    def outputFile  = layout.projectDirectory.file('docs/docs-export.html')
+    def outputFile = layout.projectDirectory.file('docs/docs-export.html')
 
     inputs.file(specFile)
     inputs.file(templateFile)
@@ -140,4 +147,12 @@ tasks.register('generateApiDocs') {
     }
 }
 
+jacocoTestReport {
+    dependsOn test
 
+    reports {
+        html.required = true
+        xml.required = false
+        csv.required = false
+    }
+}
