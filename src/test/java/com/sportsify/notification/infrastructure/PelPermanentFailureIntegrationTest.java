@@ -74,8 +74,8 @@ class PelPermanentFailureIntegrationTest extends NotificationIntegrationTestSupp
     @DisplayName("채널 없는 회원도 영구 실패 시 Notification 기록이 unread로 저장된다")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void backoff_마지막_재발송_실패시_채널없는회원_Notification_unread_저장() {
-        // 채널이 없으면 Dispatcher.toMember는 Notification을 저장하지 않음
-        // saveNotificationForPermanentlyFailed가 직접 저장해야 한다
+        // 채널이 없어도 Dispatcher.toMember는 Notification을 저장하지만 fanout이 실패를 반환하지 않아 PUBLISHED로 끝남
+        // 영구 실패 경로에서는 saveNotificationForPermanentlyFailed가 별도로 Notification을 저장해야 한다
         int backoffSize = properties.pel().backoffMinutes().size();
         String streamKey = NotificationEventType.PAYMENT_COMPLETED.getStreamKey();
         String msgId = "100-0";
