@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "notification.pel.claim-min-idle=10m",
         "notification.pel.batch-size=100",
         "notification.pel.stuck-timeout=10m",
-        "notification.pel.backoff-minutes=3,5,10",
+        "notification.pel.backoff-minutes=1,3,5,10",
         "notification.stream.max-len=10000",
         "notification.scheduler.reserved-dispatch-cron=0 0/5 * * * *",
         "notification.scheduler.stream-trim-cron=0 0 3 * * *",
@@ -37,9 +37,9 @@ class NotificationPropertiesTest {
     private NotificationProperties properties;
 
     @Test
-    @DisplayName("pel.backoffMinutes가 [3,5,10]으로 바인딩된다")
+    @DisplayName("pel.backoffMinutes가 [1,3,5,10]으로 바인딩된다")
     void pel_backoffMinutes_바인딩() {
-        assertThat(properties.pel().backoffMinutes()).containsExactly(3, 5, 10);
+        assertThat(properties.pel().backoffMinutes()).containsExactly(1, 3, 5, 10);
     }
 
     @Test

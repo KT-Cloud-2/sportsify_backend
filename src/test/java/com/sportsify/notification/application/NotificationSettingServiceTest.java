@@ -82,7 +82,7 @@ class NotificationSettingServiceTest {
     void registerChannel_성공() {
         NotificationChannel channel = NotificationChannel.create(1L, NotificationChannelType.EMAIL, "a@test.com");
         given(channelRepository.existsByMemberIdAndChannelType(1L, NotificationChannelType.EMAIL)).willReturn(false);
-        given(channelRepository.countByMemberId(1L)).willReturn(0);
+        given(channelRepository.countByMemberIdForUpdate(1L)).willReturn(0);
         given(channelRepository.save(any())).willReturn(channel);
 
         var result = settingService.registerChannel(1L, NotificationChannelType.EMAIL, "a@test.com");
@@ -95,7 +95,7 @@ class NotificationSettingServiceTest {
     @DisplayName("채널이 이미 2개 등록된 경우 NOTIFICATION_CHANNEL_LIMIT_EXCEEDED 예외가 발생한다")
     void registerChannel_최대개수초과_예외() {
         given(channelRepository.existsByMemberIdAndChannelType(1L, NotificationChannelType.SLACK)).willReturn(false);
-        given(channelRepository.countByMemberId(1L)).willReturn(2);
+        given(channelRepository.countByMemberIdForUpdate(1L)).willReturn(2);
 
         assertThatThrownBy(() -> settingService.registerChannel(1L, NotificationChannelType.SLACK, "webhook"))
                 .isInstanceOf(BusinessException.class)

@@ -62,6 +62,7 @@ public class EventStatusService {
 
     private void applyStatus(NotificationEvent event, boolean anyFailed) {
         if (anyFailed) {
+            event.incrementRetry();
             event.markFailed();
             eventRepository.save(event);
             return;

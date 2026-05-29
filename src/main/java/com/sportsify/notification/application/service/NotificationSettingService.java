@@ -54,7 +54,7 @@ public class NotificationSettingService {
         if (channelRepository.existsByMemberIdAndChannelType(memberId, channelType)) {
             throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_ALREADY_EXISTS);
         }
-        if (channelRepository.countByMemberId(memberId) >= MAX_CHANNELS_PER_MEMBER) {
+        if (channelRepository.countByMemberIdForUpdate(memberId) >= MAX_CHANNELS_PER_MEMBER) {
             throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_LIMIT_EXCEEDED);
         }
         try {
