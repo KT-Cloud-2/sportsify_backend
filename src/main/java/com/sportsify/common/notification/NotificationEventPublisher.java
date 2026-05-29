@@ -11,10 +11,11 @@ import java.util.List;
  * 잘못된 조합은 런타임 파싱 실패로 이어집니다.
  *
  * <pre>
- * TICKET_OPEN       → TicketOpenPayload   (saleStartAt 있으면 예약 발송, 없으면 즉시)
+ * TICKET_OPEN       → TicketOpenPayload   (saleStartAt 미래면 예약 발송, 과거·없으면 즉시)
  * GAME_START        → GameStartPayload    (gameStartAt 30분 전 예약 발송, 없으면 즉시)
  * PAYMENT_COMPLETED → PaymentCompletedPayload  (즉시 발송)
  * CHAT_MENTION      → ChatMentionPayload        (즉시 발송)
+ * CHAT_INVITED      → ChatMentionPayload        (즉시 발송, 재사용)
  * </pre>
  */
 public interface NotificationEventPublisher {

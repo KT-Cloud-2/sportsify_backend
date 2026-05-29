@@ -9,9 +9,10 @@ public record NotificationPermanentlyFailedEvent(
         NotificationEventType eventType,
         int retryCount,
         String source,
+        String payload,
         LocalDateTime occurredAt
 ) {
-    public static NotificationPermanentlyFailedEvent of(Long eventId, NotificationEventType eventType, int retryCount, String source) {
-        return new NotificationPermanentlyFailedEvent(eventId, eventType, retryCount, source, LocalDateTime.now());
+    public static NotificationPermanentlyFailedEvent of(Long eventId, NotificationEventType eventType, int retryCount, String source, String payload) {
+        return new NotificationPermanentlyFailedEvent(eventId, eventType, retryCount, source, payload, LocalDateTime.now());
     }
 }

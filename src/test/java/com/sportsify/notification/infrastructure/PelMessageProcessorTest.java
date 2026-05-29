@@ -4,8 +4,10 @@ import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.application.service.EventStatusService;
 import com.sportsify.notification.application.service.FanoutService;
+import com.sportsify.notification.application.service.PayloadParser;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
+import com.sportsify.notification.domain.repository.NotificationRepository;
 import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import com.sportsify.notification.infrastructure.consumer.PelMessageProcessor;
@@ -14,6 +16,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.sportsify.notification.support.NotificationIntegrationTestSupport;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,7 +30,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +44,8 @@ class PelMessageProcessorTest {
     @Mock private FanoutService fanoutService;
     @Mock private EventStatusService statusService;
     @Mock private NotificationEventRepository eventRepository;
+    @Mock private NotificationRepository notificationRepository;
+    @Mock private PayloadParser payloadParser;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private StreamOperations<String, Object, Object> streamOps;
 
@@ -48,14 +54,10 @@ class PelMessageProcessorTest {
 
     @BeforeEach
     void setUp() {
-        NotificationProperties properties = new NotificationProperties(
-                new NotificationProperties.Retry(3),
-                new NotificationProperties.Pel(Duration.ofMinutes(10), 100, Duration.ofMinutes(10), List.of(3, 5, 10)),
-                new NotificationProperties.Stream(10000),
-                new NotificationProperties.Scheduler("0 0/5 * * * *", "0 0 3 * * *", "0 0/10 * * * *", "0 0/1 * * * *", Duration.ofSeconds(310)),
-                new NotificationProperties.Slack("", "", Duration.ofMinutes(10))
-        );
-        processor = new PelMessageProcessor(redisTemplate, fanoutService, statusService, eventRepository, properties, eventPublisher);
+        processor = new PelMessageProcessor(
+                redisTemplate, fanoutService, statusService, eventRepository,
+                notificationRepository, payloadParser,
+                NotificationIntegrationTestSupport.defaultProperties(), eventPublisher);
     }
 
     @Test
@@ -76,7 +78,7 @@ class PelMessageProcessorTest {
     @Test
     @DisplayName("재시도 소진 시 PERMANENTLY_FAILED 처리 후 ACK한다")
     void process_재시도소진_영구실패처리() {
-        NotificationEvent event = eventWithRetry(2);
+        NotificationEvent event = eventWithRetry(3);
         MapRecord<String, Object, Object> message = record("2-0");
         given(redisTemplate.opsForStream()).willReturn(streamOps);
         given(statusService.saveEventWithStreamMessageId(any(), any(), any())).willReturn(event);
@@ -88,7 +90,8 @@ class PelMessageProcessorTest {
         verify(eventRepository).save(event);
         verify(streamOps).acknowledge(STREAM_KEY, RedisStreamsConfig.NOTIFICATION_GROUP, RecordId.of("2-0"));
 
-        ArgumentCaptor<NotificationPermanentlyFailedEvent> captor = ArgumentCaptor.forClass(NotificationPermanentlyFailedEvent.class);
+        ArgumentCaptor<NotificationPermanentlyFailedEvent> captor =
+                ArgumentCaptor.forClass(NotificationPermanentlyFailedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().source()).isEqualTo("PEL");
     }
@@ -105,7 +108,7 @@ class PelMessageProcessorTest {
         processor.process(STREAM_KEY, NotificationEventType.PAYMENT_COMPLETED, message);
 
         verify(eventRepository).save(event);
-        verify(redisTemplate, never()).opsForStream();
+        verify(streamOps, never()).acknowledge(anyString(), anyString(), any(RecordId.class));
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -124,13 +127,12 @@ class PelMessageProcessorTest {
         verify(streamOps).acknowledge(STREAM_KEY, RedisStreamsConfig.NOTIFICATION_GROUP, RecordId.of("4-0"));
     }
 
-    @Test
+    @ParameterizedTest(name = "retryCount={0} → {1}분")
+    @CsvSource({"0,1", "1,3", "2,5", "3,10", "99,10"})
     @DisplayName("resolveBackoff는 retryCount에 따라 올바른 백오프를 반환한다")
-    void resolveBackoff_retryCount별_백오프반환() {
-        assertThat(processor.resolveBackoff(0)).isEqualTo(Duration.ofMinutes(3));
-        assertThat(processor.resolveBackoff(1)).isEqualTo(Duration.ofMinutes(5));
-        assertThat(processor.resolveBackoff(2)).isEqualTo(Duration.ofMinutes(10));
-        assertThat(processor.resolveBackoff(99)).isEqualTo(Duration.ofMinutes(10));
+    void resolveBackoff_retryCount별_백오프반환(int retryCount, int expectedMinutes) {
+        assertThat(processor.resolveBackoff(retryCount))
+                .isEqualTo(Duration.ofMinutes(expectedMinutes));
     }
 
     @Test
@@ -142,7 +144,7 @@ class PelMessageProcessorTest {
 
         processor.process(STREAM_KEY, NotificationEventType.PAYMENT_COMPLETED, message);
 
-        verify(redisTemplate, never()).opsForStream();
+        verify(streamOps, never()).acknowledge(anyString(), anyString(), any(RecordId.class));
     }
 
     private NotificationEvent eventWithRetry(int initialRetry) {
@@ -154,8 +156,9 @@ class PelMessageProcessorTest {
     }
 
     private MapRecord<String, Object, Object> record(String id) {
-        return MapRecord.create(STREAM_KEY, Map.<Object, Object>of(
-                RedisStreamNotificationEventPublisher.PAYLOAD_KEY, "{}"
-        )).withId(RecordId.of(id));
+        Map<Object, Object> body = Map.of(RedisStreamNotificationEventPublisher.PAYLOAD_KEY, "{}");
+        return MapRecord.create(STREAM_KEY, body).withId(RecordId.of(id));
     }
+
+
 }

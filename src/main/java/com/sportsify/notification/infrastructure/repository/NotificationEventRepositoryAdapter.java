@@ -40,7 +40,7 @@ public class NotificationEventRepositoryAdapter implements NotificationEventRepo
     }
 
     @Override
-    public List<NotificationEvent> findStuckProcessingEventsForUpdate(LocalDateTime updatedBefore) {
-        return jpaRepository.findStuckProcessingEventsForUpdate(updatedBefore);
+    public List<NotificationEvent> findStuckProcessingEventsForUpdate(LocalDateTime updatedBefore, int maxStuckRetry) {
+        return jpaRepository.findStuckProcessingEventsForUpdate(updatedBefore, maxStuckRetry);
     }
 }

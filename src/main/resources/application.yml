@@ -1,4 +1,3 @@
-
 spring:
   application:
     name: sportsify
@@ -29,13 +28,11 @@ toss:
     cancel-url: https://api.tosspayments.com/v1/payments/{paymentKey}/cancel
 
 notification:
-  retry:
-    max-retry: 3
   pel:
     claim-min-idle: 10m
     batch-size: 100
     stuck-timeout: 10m
-    backoff-minutes: 3,5,10
+    backoff-minutes: 1,3,5,10
   stream:
     max-len: 10000
   scheduler:

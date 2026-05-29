@@ -21,6 +21,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationSettingService {
 
+    private static final int MAX_CHANNELS_PER_MEMBER = 2;
+
     private final NotificationSettingRepository settingRepository;
     private final NotificationChannelRepository channelRepository;
 
@@ -51,6 +53,9 @@ public class NotificationSettingService {
     public NotificationChannelResult registerChannel(Long memberId, NotificationChannelType channelType, String channelTarget) {
         if (channelRepository.existsByMemberIdAndChannelType(memberId, channelType)) {
             throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_ALREADY_EXISTS);
+        }
+        if (channelRepository.countByMemberIdForUpdate(memberId) >= MAX_CHANNELS_PER_MEMBER) {
+            throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_LIMIT_EXCEEDED);
         }
         try {
             NotificationChannel channel = channelRepository.save(

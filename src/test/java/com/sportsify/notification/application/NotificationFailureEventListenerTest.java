@@ -4,6 +4,7 @@ import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.application.listener.FailureEventListener;
 import com.sportsify.notification.infrastructure.config.NotificationProperties;
+import com.sportsify.notification.support.NotificationIntegrationTestSupport;
 import com.sportsify.notification.infrastructure.slack.SlackNotifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +17,6 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
@@ -35,7 +35,7 @@ class FailureEventListenerTest {
     @BeforeEach
     void setUp() {
         failedEvent = new NotificationPermanentlyFailedEvent(
-                1L, NotificationEventType.PAYMENT_COMPLETED, 3, "PEL", LocalDateTime.now());
+                1L, NotificationEventType.PAYMENT_COMPLETED, 3, "PEL", "{}", LocalDateTime.now());
     }
 
     @Test
@@ -90,11 +90,11 @@ class FailureEventListenerTest {
     }
 
     private FailureEventListener listenerWithWebhook(String webhookUrl) {
+        NotificationProperties base = NotificationIntegrationTestSupport.defaultProperties();
         NotificationProperties properties = new NotificationProperties(
-                new NotificationProperties.Retry(3),
-                new NotificationProperties.Pel(Duration.ofMinutes(10), 100, Duration.ofMinutes(10), List.of(3, 5, 10)),
-                new NotificationProperties.Stream(10000),
-                new NotificationProperties.Scheduler("0 0/5 * * * *", "0 0 3 * * *", "0 0/10 * * * *", "0 0/1 * * * *", Duration.ofSeconds(310)),
+                base.pel(),
+                base.stream(),
+                base.scheduler(),
                 new NotificationProperties.Slack(webhookUrl, "secret", Duration.ofMinutes(10))
         );
         return new FailureEventListener(slackNotifier, properties, redisTemplate);

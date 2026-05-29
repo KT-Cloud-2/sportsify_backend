@@ -111,17 +111,13 @@ public class NotificationEvent {
         this.status = NotificationEventStatus.FAILED;
     }
 
-    public boolean isExhausted(int maxRetry) {
-        return this.retryCount >= maxRetry;
-    }
-
     public void incrementRetry() {
         this.retryCount++;
     }
 
-    public boolean incrementRetryAndCheckExhausted(int maxRetry) {
+    public boolean incrementRetryAndCheckExhausted(int backoffSize) {
         this.retryCount++;
-        return this.retryCount >= maxRetry;
+        return this.retryCount >= backoffSize;
     }
 
     public void markPermanentlyFailed() {

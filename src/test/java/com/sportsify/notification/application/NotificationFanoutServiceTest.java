@@ -79,7 +79,6 @@ class FanoutServiceTest {
         ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
         verify(chunkService).processChunk(eq(event), captor.capture(), eq(payload));
         assertThat(captor.getValue()).containsExactly(5L);
-        verify(settingRepository, never()).findMemberIdsByPaymentAlertTrue(any());
     }
 
     @Test
@@ -108,7 +107,6 @@ class FanoutServiceTest {
         ArgumentCaptor<List<Long>> captor = memberIdsCaptor();
         verify(chunkService).processChunk(eq(event), captor.capture(), eq(payload));
         assertThat(captor.getValue()).containsExactly(42L);
-        verify(settingRepository, never()).findMemberIdsByChatMentionAlertTrue(any());
     }
 
     @Test

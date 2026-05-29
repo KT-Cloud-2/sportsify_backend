@@ -15,13 +15,17 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ScheduledEventClaimService {
 
+    // PEL backoff 경로와 별개로 Stuck 복구 자체의 재시도 한도
+    private static final int MAX_STUCK_RETRY = 3;
+
     private final NotificationEventRepository eventRepository;
     private final NotificationProperties properties;
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<NotificationEvent> claimDueEvents() {
+        // 스케줄 재시도 한도는 PEL backoff 단계 수와 동일하게 유지 (backoffMinutes 변경 시 함께 검토)
         List<NotificationEvent> events = eventRepository.findDueScheduledEventsForUpdate(
-                LocalDateTime.now(), properties.retry().maxRetry());
+                LocalDateTime.now(), properties.pel().backoffMinutes().size());
         events.forEach(event -> {
             event.markProcessing();
             eventRepository.save(event);
@@ -31,8 +35,9 @@ public class ScheduledEventClaimService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<NotificationEvent> claimStuckEvents(LocalDateTime stuckBefore) {
-        List<NotificationEvent> events = eventRepository.findStuckProcessingEventsForUpdate(stuckBefore);
+        List<NotificationEvent> events = eventRepository.findStuckProcessingEventsForUpdate(stuckBefore, MAX_STUCK_RETRY);
         events.forEach(event -> {
+            event.incrementRetry();
             event.markPending();
             eventRepository.save(event);
         });

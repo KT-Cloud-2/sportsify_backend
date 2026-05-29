@@ -39,6 +39,11 @@ public class NotificationChannelRepositoryAdapter implements NotificationChannel
     }
 
     @Override
+    public int countByMemberIdForUpdate(Long memberId) {
+        return jpaRepository.findByMemberIdForUpdate(memberId).size();
+    }
+
+    @Override
     public void delete(NotificationChannel channel) {
         jpaRepository.delete(channel);
     }
