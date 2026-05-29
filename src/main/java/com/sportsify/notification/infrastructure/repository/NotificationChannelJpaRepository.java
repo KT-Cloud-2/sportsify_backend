@@ -14,8 +14,6 @@ public interface NotificationChannelJpaRepository extends JpaRepository<Notifica
     Optional<NotificationChannel> findByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType);
     List<NotificationChannel> findByMemberIdAndEnabledTrue(Long memberId);
     boolean existsByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType);
-    int countByMemberId(Long memberId);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM NotificationChannel c WHERE c.memberId = :memberId")
     List<NotificationChannel> findByMemberIdForUpdate(@Param("memberId") Long memberId);
