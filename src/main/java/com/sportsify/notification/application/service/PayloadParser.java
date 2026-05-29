@@ -39,10 +39,13 @@ public class PayloadParser {
     public Optional<LocalDateTime> extractScheduledAt(String payload, NotificationEventType eventType) {
         try {
             JsonNode node = objectMapper.readTree(payload);
+            LocalDateTime now = LocalDateTime.now();
             return switch (eventType) {
-                case TICKET_OPEN -> parseDateTime(node, "saleStartAt");
+                case TICKET_OPEN -> parseDateTime(node, "saleStartAt")
+                        .filter(t -> t.isAfter(now));
                 case GAME_START -> parseDateTime(node, "gameStartAt")
-                        .map(t -> t.minusMinutes(GAME_START_OFFSET_MINUTES));
+                        .map(t -> t.minusMinutes(GAME_START_OFFSET_MINUTES))
+                        .filter(t -> t.isAfter(now));
                 default -> Optional.empty();
             };
         } catch (Exception e) {

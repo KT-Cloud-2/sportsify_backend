@@ -13,6 +13,7 @@ import com.sportsify.notification.domain.repository.NotificationHistoryRepositor
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,6 +34,7 @@ class DispatcherTest {
     @Mock private NotificationHistoryRepository historyRepository;
     @Mock private SseNotificationPort sseNotificationPort;
     @Mock private NotificationSender emailSender;
+    @Mock private NotificationSender slackSender;
 
     private Dispatcher dispatcher;
 
@@ -105,14 +107,13 @@ class DispatcherTest {
         boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isTrue();
-        verify(emailSender, times(1)).send(any(), any(), any());
+        verify(emailSender).send(any(), any(), any());
         verify(historyRepository).save(any());
     }
 
     @Test
     @DisplayName("지원하지 않는 채널 타입이면 FAILED 이력을 저장하고 true를 반환한다")
     void dispatchToMember_지원하지않는채널_FAILED이력저장() {
-        // emailSender만 등록된 dispatcher에 SLACK 채널 → 지원 안 됨
         NotificationChannel slackChannel = NotificationChannel.create(10L, NotificationChannelType.SLACK, "webhook-url");
         given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
         given(notificationRepository.save(any())).willReturn(notification);
@@ -125,27 +126,33 @@ class DispatcherTest {
         verify(historyRepository).save(any());
     }
 
-    @Test
-    @DisplayName("여러 채널 중 일부만 실패해도 anyFailed는 true를 반환한다")
-    void dispatchToMember_복수채널_일부실패_true반환() {
-        NotificationSender slackSender = org.mockito.Mockito.mock(NotificationSender.class);
-        given(slackSender.channelType()).willReturn(NotificationChannelType.SLACK);
-        dispatcher = new Dispatcher(
-                notificationRepository, channelRepository, historyRepository,
-                sseNotificationPort, List.of(emailSender, slackSender)
-        );
+    @Nested
+    @DisplayName("복수 채널 발송")
+    class 복수채널_발송 {
 
-        NotificationChannel slackChannel = NotificationChannel.create(10L, NotificationChannelType.SLACK, "webhook-url");
-        given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
-        given(notificationRepository.save(any())).willReturn(notification);
-        given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of(emailChannel, slackChannel));
-        willDoNothing().given(emailSender).send(any(), any(), any());
-        willThrow(new RuntimeException("Slack 오류")).given(slackSender).send(any(), any(), any());
+        @BeforeEach
+        void setUp() {
+            given(slackSender.channelType()).willReturn(NotificationChannelType.SLACK);
+            dispatcher = new Dispatcher(
+                    notificationRepository, channelRepository, historyRepository,
+                    sseNotificationPort, List.of(emailSender, slackSender)
+            );
+        }
 
-        boolean result = dispatcher.toMember(event, 10L, "{}");
+        @Test
+        @DisplayName("여러 채널 중 일부만 실패해도 anyFailed는 true를 반환한다")
+        void dispatchToMember_복수채널_일부실패_true반환() {
+            NotificationChannel slackChannel = NotificationChannel.create(10L, NotificationChannelType.SLACK, "webhook-url");
+            given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
+            given(notificationRepository.save(any())).willReturn(notification);
+            given(channelRepository.findByMemberIdAndEnabledTrue(10L)).willReturn(List.of(emailChannel, slackChannel));
+            willDoNothing().given(emailSender).send(any(), any(), any());
+            willThrow(new RuntimeException("Slack 오류")).given(slackSender).send(any(), any(), any());
 
-        assertThat(result).isTrue();
-        verify(historyRepository, times(2)).save(any());
+            boolean result = dispatcher.toMember(event, 10L, "{}");
+
+            assertThat(result).isTrue();
+            verify(historyRepository, times(2)).save(any());
+        }
     }
-
 }

@@ -5,8 +5,6 @@ import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.domain.model.Notification;
-import com.sportsify.notification.domain.model.NotificationEvent;
-import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +16,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)

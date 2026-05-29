@@ -17,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ContextConfiguration(initializers = ConfigDataApplicationContextInitializer.class)
 @EnableConfigurationProperties(NotificationProperties.class)
 @TestPropertySource(properties = {
-        "notification.retry.max-retry=3",
         "notification.pel.claim-min-idle=10m",
         "notification.pel.batch-size=100",
         "notification.pel.stuck-timeout=10m",
@@ -36,12 +35,6 @@ class NotificationPropertiesTest {
 
     @Autowired
     private NotificationProperties properties;
-
-    @Test
-    @DisplayName("retry.maxRetry가 yml 값(3)으로 바인딩된다")
-    void retry_maxRetry_바인딩() {
-        assertThat(properties.retry().maxRetry()).isEqualTo(3);
-    }
 
     @Test
     @DisplayName("pel.backoffMinutes가 [3,5,10]으로 바인딩된다")
@@ -70,12 +63,6 @@ class NotificationPropertiesTest {
     }
 
     @Test
-    @DisplayName("retry.maxRetry는 1 이상이어야 한다")
-    void retry_maxRetry_범위검증() {
-        assertThat(properties.retry().maxRetry()).isGreaterThan(0);
-    }
-
-    @Test
     @DisplayName("pel.backoffMinutes는 비어있지 않아야 한다")
     void pel_backoffMinutes_비어있지않음() {
         assertThat(properties.pel().backoffMinutes()).isNotEmpty();
@@ -86,13 +73,6 @@ class NotificationPropertiesTest {
     void pel_backoffMinutes_양수검증() {
         assertThat(properties.pel().backoffMinutes())
                 .allSatisfy(minutes -> assertThat(minutes).isGreaterThan(0));
-    }
-
-    @Test
-    @DisplayName("pel.backoffMinutes 개수가 retry.maxRetry와 같거나 많아야 한다")
-    void pel_backoffMinutes_개수검증() {
-        assertThat(properties.pel().backoffMinutes().size())
-                .isGreaterThanOrEqualTo(properties.retry().maxRetry());
     }
 
     @Test
