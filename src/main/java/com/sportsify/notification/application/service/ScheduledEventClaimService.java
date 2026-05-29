@@ -34,6 +34,7 @@ public class ScheduledEventClaimService {
     public List<NotificationEvent> claimStuckEvents(LocalDateTime stuckBefore) {
         List<NotificationEvent> events = eventRepository.findStuckProcessingEventsForUpdate(stuckBefore);
         events.forEach(event -> {
+            event.incrementRetry();
             event.markPending();
             eventRepository.save(event);
         });
