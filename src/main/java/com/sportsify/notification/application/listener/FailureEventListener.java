@@ -45,6 +45,7 @@ public class FailureEventListener {
     }
 
     private boolean isSuppressed(NotificationPermanentlyFailedEvent event) {
+        // eventType 단위로 suppress — 같은 타입의 연속 실패는 첫 알림만 전송
         String key = SUPPRESS_KEY_PREFIX + event.eventType();
         Boolean isNew = redisTemplate.opsForValue()
                 .setIfAbsent(key, "1", properties.slack().suppressTtl());

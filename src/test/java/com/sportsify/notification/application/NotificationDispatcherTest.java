@@ -11,6 +11,7 @@ import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationHistoryRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
+import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -19,7 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sportsify.notification.domain.model.NotificationSetting;
+
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -32,6 +36,7 @@ class DispatcherTest {
     @Mock private NotificationRepository notificationRepository;
     @Mock private NotificationChannelRepository channelRepository;
     @Mock private NotificationHistoryRepository historyRepository;
+    @Mock private NotificationSettingRepository settingRepository;
     @Mock private SseNotificationPort sseNotificationPort;
     @Mock private NotificationSender emailSender;
     @Mock private NotificationSender slackSender;
@@ -45,9 +50,10 @@ class DispatcherTest {
     @BeforeEach
     void setUp() {
         given(emailSender.channelType()).willReturn(NotificationChannelType.EMAIL);
+        lenient().when(settingRepository.findByMemberId(anyLong())).thenReturn(Optional.empty());
         dispatcher = new Dispatcher(
                 notificationRepository, channelRepository, historyRepository,
-                sseNotificationPort, List.of(emailSender)
+                settingRepository, sseNotificationPort, List.of(emailSender)
         );
 
         event = NotificationEvent.withId(1L, NotificationEventType.PAYMENT_COMPLETED, "{}");
@@ -112,6 +118,20 @@ class DispatcherTest {
     }
 
     @Test
+    @DisplayName("알림 수신 거부 설정이면 발송하지 않고 false를 반환한다")
+    void dispatchToMember_알림수신거부_스킵() {
+        NotificationSetting setting = NotificationSetting.createDefault(10L);
+        setting.update(false, false, false, false);
+        given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
+        given(settingRepository.findByMemberId(10L)).willReturn(Optional.of(setting));
+
+        boolean result = dispatcher.toMember(event, 10L, "{}");
+
+        assertThat(result).isFalse();
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("지원하지 않는 채널 타입이면 FAILED 이력을 저장하고 true를 반환한다")
     void dispatchToMember_지원하지않는채널_FAILED이력저장() {
         NotificationChannel slackChannel = NotificationChannel.create(10L, NotificationChannelType.SLACK, "webhook-url");
@@ -135,7 +155,7 @@ class DispatcherTest {
             given(slackSender.channelType()).willReturn(NotificationChannelType.SLACK);
             dispatcher = new Dispatcher(
                     notificationRepository, channelRepository, historyRepository,
-                    sseNotificationPort, List.of(emailSender, slackSender)
+                    settingRepository, sseNotificationPort, List.of(emailSender, slackSender)
             );
         }
 

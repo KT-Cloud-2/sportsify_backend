@@ -64,6 +64,7 @@ public class FanoutService {
         return switch (eventType) {
             case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue(pageable);
             case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue(pageable);
+            // 새 브로드캐스트 이벤트 추가 시 여기에 케이스 추가 필요
             default -> throw new IllegalStateException("단건 발송 이벤트는 fanoutSingleTarget으로 처리: " + eventType);
         };
     }
