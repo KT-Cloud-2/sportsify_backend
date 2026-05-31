@@ -2,7 +2,8 @@ package com.sportsify.payment.application.service;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentStartedEvent;
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.PaymentCompletedPayload;
@@ -19,6 +20,8 @@ import com.sportsify.payment.domain.type.PaymentStatus;
 import com.sportsify.payment.infrastructure.toss.TossPaymentClient;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmRequest;
 import com.sportsify.payment.infrastructure.toss.dto.TossConfirmResponse;
+import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -42,9 +45,24 @@ public class PaymentService {
     private final TossPaymentClient tossPaymentClient;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final OrderRepository orderRepository;
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
+        Order order = orderRepository.findByIdWithLock(request.getOrderId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (order.isClosed()) {
+            log.warn("결제 시작 불가 상태: orderId={}, status={}", request.getOrderId(), order.getStatus());
+            throw new BusinessException(ErrorCode.ORDER_CLOSED, "status: " + order.getStatus());
+        }
+
+        if (!(order.getMemberId().equals(userId)))
+            throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
+
+        if (!(order.getTotalAmount().equals(request.getAmount())))
+            throw new BusinessException(ErrorCode.AMOUNT_MISMATCH);
+
         return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
                 .map(existingPayment -> {
                     validateSamePaymentRequest(existingPayment, userId, request);
@@ -65,7 +83,6 @@ public class PaymentService {
                             .build();
 
                     Payment savedPayment = paymentRepository.save(payment);
-                    publishPaymentStartedEvent(savedPayment);
 
                     return toResponse(savedPayment);
                 });
@@ -216,18 +233,6 @@ public class PaymentService {
                 .toString()
                 .replace("-", "")
                 .substring(0, 20);
-    }
-
-    private void publishPaymentStartedEvent(Payment payment) {
-        eventPublisher.publishEvent(new PaymentStartedEvent(
-                payment.getOrderId(),
-                payment.getUserId(),
-                payment.getId(),
-                payment.getAmount(),
-                payment.getPaymentKey(),
-                payment.getStatus(),
-                LocalDateTime.now()
-        ));
     }
 
     private void publishPaymentCompletedEvent(Payment payment) {

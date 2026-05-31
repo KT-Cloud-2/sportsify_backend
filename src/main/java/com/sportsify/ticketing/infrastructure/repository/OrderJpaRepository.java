@@ -2,7 +2,9 @@ package com.sportsify.ticketing.infrastructure.repository;
 
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,22 +18,25 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     @Query("""
             SELECT o FROM Order o
             JOIN FETCH o.orderSeats os
+            JOIN FETCH os.gameSeat
+            JOIN FETCH o.member
             WHERE o.id = :orderId
             """)
-    Optional<Order> findByIdWithOrderSeats(@Param("orderId") Long orderId);
+    Optional<Order> findByIdWithAll(@Param("orderId") Long orderId);
 
-    @Query("""
-             SELECT DISTINCT o.id FROM Order o
+    @Query(value = """
+             SELECT o.id FROM orders o
              WHERE o.status = 'PENDING'
-             AND o.expiresAt < :now
-             AND NOT EXISTS(SELECT p FROM Payment p WHERE p.orderId = o.id)
-            """
+             AND o.expires_at < :now
+             AND NOT EXISTS(SELECT 1 FROM payments p WHERE p.order_id = o.id)
+             FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true
     )
     List<Long> findExpiredPendingOrderIdsWithoutPayment(@Param("now") LocalDateTime now);
 
     @Query("""
              SELECT DISTINCT o.id FROM Order o
-             WHERE o.status = 'PAYING'
+             WHERE o.status = 'PENDING'
              AND EXISTS (
                      SELECT p FROM Payment p
                      WHERE p.orderId = o.id
@@ -39,7 +44,12 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
              )
             """
     )
-    List<Long> findPayingOrderIdsWithFailedPayment();
+    List<Long> findPendingOrderIdsWithFailedPayment();
+
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o WHERE o.id = :id")
+    Optional<Order> findByIdWithLock(@Param("id") Long id);
 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Order o SET o.status = :status, o.updatedAt = :now WHERE o.id IN :ids")

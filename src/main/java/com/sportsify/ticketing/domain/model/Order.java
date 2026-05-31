@@ -36,6 +36,9 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderSeat> orderSeats = new ArrayList<>();
 
+    @Column
+    private Long totalAmount;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
@@ -62,6 +65,12 @@ public class Order {
         this.orderSeats.add(orderSeat);
     }
 
+    public void calculateTotalAmount() {
+        this.totalAmount = this.orderSeats.stream()
+                .mapToLong(OrderSeat::getPrice)
+                .sum();
+    }
+
     public void updateStatus(OrderStatus status) {
         this.status = status;
     }
@@ -74,4 +83,7 @@ public class Order {
         return member.getId();
     }
 
+    public boolean isClosed() {
+        return this.status == OrderStatus.CANCELLED || this.status == OrderStatus.EXPIRED;
+    }
 }
