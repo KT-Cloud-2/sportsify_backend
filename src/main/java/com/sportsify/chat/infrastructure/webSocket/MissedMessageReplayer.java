@@ -6,6 +6,7 @@ import com.sportsify.chat.domain.model.event.EventType;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.repository.MessageRepository;
+import com.sportsify.chat.infrastructure.webSocket.dto.ReplayBatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

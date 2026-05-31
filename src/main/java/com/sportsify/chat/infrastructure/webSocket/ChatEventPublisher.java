@@ -1,6 +1,7 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
 import com.sportsify.chat.domain.model.event.ErrorEventType;
+import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -11,7 +12,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class ChatEventPublisher {
-    
+
     public static final String ROOM_TOPIC_PREFIX = "/topic/rooms/";
     public static final String TYPING_SUFFIX = "/typing";
     public static final String SESSION_ERROR_QUEUE_PREFIX = "/queue/errors-user";

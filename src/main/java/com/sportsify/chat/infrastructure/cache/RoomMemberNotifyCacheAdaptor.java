@@ -1,6 +1,5 @@
 package com.sportsify.chat.infrastructure.cache;
 
-import com.sportsify.chat.application.message.config.RedisKeySchema;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import lombok.RequiredArgsConstructor;
@@ -10,11 +9,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j

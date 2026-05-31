@@ -98,7 +98,7 @@ public class ChatEventHandler {
                 if (isDirect) roomMemberNotifyCache.remove(event.roomId(), p.memberId());
             }
             case MemberInvitePayload p -> {
-                if (isDirect) sendInviteNotification(event.roomId(), event.roomName(), p);
+                sendInviteNotification(event.roomId(), event.roomName(), p);
             }
             default -> {
             }

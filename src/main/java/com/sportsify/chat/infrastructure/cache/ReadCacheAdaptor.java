@@ -1,6 +1,5 @@
 package com.sportsify.chat.infrastructure.cache;
 
-import com.sportsify.chat.application.message.config.RedisKeySchema;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.message.MessageId;

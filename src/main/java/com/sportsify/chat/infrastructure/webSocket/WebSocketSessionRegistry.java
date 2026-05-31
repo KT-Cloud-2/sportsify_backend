@@ -1,5 +1,6 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
+import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
