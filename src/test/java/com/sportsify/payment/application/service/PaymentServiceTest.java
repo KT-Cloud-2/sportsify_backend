@@ -2,7 +2,8 @@ package com.sportsify.payment.application.service;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentStartedEvent;
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.PaymentCompletedPayload;
@@ -16,6 +17,8 @@ import com.sportsify.payment.domain.exception.PaymentNotFoundException;
 import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import com.sportsify.payment.infrastructure.toss.TossPaymentClient;
+import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,17 +37,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
 
     @Mock
     private PaymentRepository paymentRepository;
+
+    @Mock
+    private OrderRepository orderRepository;
 
     @Mock
     private TossPaymentClient tossPaymentClient;
@@ -59,10 +61,86 @@ class PaymentServiceTest {
     private PaymentService paymentService;
 
     @Test
+    @DisplayName("fail when order is not found in DB")
+    void createPayment_failed_orderNotFound() {
+        CreatePaymentRequest request = createPaymentRequest();
+        assertThatThrownBy(() -> paymentService.createPayment(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("fail when order is closed")
+    void createPayment_failed_orderIsClosed() {
+        CreatePaymentRequest request = createPaymentRequest();
+        Order mockOrder = mock(Order.class);
+
+        when(mockOrder.isClosed()).thenReturn(true);
+
+        when(orderRepository.findByIdWithLock(anyLong()))
+                .thenReturn(Optional.of(mockOrder));
+
+        assertThatThrownBy(() -> paymentService.createPayment(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_CLOSED);
+    }
+
+    @Test
+    @DisplayName("fail when order's memberId not equals to requested userId")
+    void createPayment_failed_userIdMismatch() {
+        Long userId = 1L;
+        CreatePaymentRequest request = createPaymentRequest();
+        Order mockOrder = mock(Order.class);
+
+        when(mockOrder.isClosed()).thenReturn(false);
+        when(mockOrder.getMemberId()).thenReturn(2L);
+
+        when(orderRepository.findByIdWithLock(anyLong()))
+                .thenReturn(Optional.of(mockOrder));
+
+        assertThatThrownBy(() -> paymentService.createPayment(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_MEMBER_MISMATCH);
+    }
+
+
+    @Test
+    @DisplayName("fail when order's totalAmount not equals to requested amount")
+    void createPayment_failed_amountMismatch() {
+        Long userId = 1L;
+        CreatePaymentRequest request = createPaymentRequest();
+        Order mockOrder = mock(Order.class);
+
+        when(mockOrder.isClosed()).thenReturn(false);
+        when(mockOrder.getMemberId()).thenReturn(userId);
+        when(mockOrder.getTotalAmount()).thenReturn(10000L);
+
+        when(orderRepository.findByIdWithLock(anyLong()))
+                .thenReturn(Optional.of(mockOrder));
+
+        assertThatThrownBy(() -> paymentService.createPayment(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AMOUNT_MISMATCH);
+    }
+
+
+    @Test
     @DisplayName("create payment and publish started event")
     void createPayment_success_publishPaymentStartedEvent() {
         Long userId = 1L;
         CreatePaymentRequest request = createPaymentRequest();
+        Order mockOrder = mock(Order.class);
+
+        when(mockOrder.isClosed()).thenReturn(false);
+        when(mockOrder.getMemberId()).thenReturn(userId);
+        when(mockOrder.getTotalAmount()).thenReturn(request.getAmount());
+
+        when(orderRepository.findByIdWithLock(anyLong()))
+                .thenReturn(Optional.of(mockOrder));
 
         when(paymentRepository.findByIdempotencyKey("IDEMPOTENCY_KEY_123"))
                 .thenReturn(Optional.empty());
@@ -81,16 +159,6 @@ class PaymentServiceTest {
         assertThat(response.getTossOrderId()).startsWith("ORDER_1_");
         assertThat(response.getAmount()).isEqualTo(50000L);
         assertThat(response.getStatus()).isEqualTo("PENDING");
-
-        ArgumentCaptor<PaymentStartedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentStartedEvent.class);
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-
-        PaymentStartedEvent event = eventCaptor.getValue();
-        assertThat(event.orderId()).isEqualTo(1L);
-        assertThat(event.memberId()).isEqualTo(userId);
-        assertThat(event.paymentId()).isEqualTo(1L);
-        assertThat(event.amount()).isEqualTo(50000L);
-        assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
 
         verifyNoInteractions(notificationEventPublisher);
     }

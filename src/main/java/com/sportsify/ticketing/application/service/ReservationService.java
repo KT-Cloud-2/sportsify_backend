@@ -67,6 +67,8 @@ public class ReservationService {
             createdOrder.addOrderSeat(OrderSeat.create(createdOrder, seat, seat.getPrice()));
         });
 
+        createdOrder.calculateTotalAmount();
+
         orderRepository.save(createdOrder);
 
         return ReservationSeatsResponseDto.from(createdOrder, reqDto.gameId());

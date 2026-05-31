@@ -62,7 +62,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("실패된 주문이 없을 때 그대로 return한다.")
     void return_notFoundFailedOrder() {
-        when(orderRepository.findPayingOrderIdsWithFailedPayment()).thenReturn(List.of());
+        when(orderRepository.findPendingOrderIdsWithFailedPayment()).thenReturn(List.of());
 
         orderService.cancelFailedPaymentOrdersBulk();
         verify(gameSeatRepository, never()).bulkReleaseGameSeatsByOrderIds(anyList());
@@ -71,7 +71,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("실패된 주문이 있을 때 로그가 출력되고 좌석 선점이 풀린다.")
     void success_bulkUpdateFailedOrders(CapturedOutput output) {
-        when(orderRepository.findPayingOrderIdsWithFailedPayment()).thenReturn(List.of(1L));
+        when(orderRepository.findPendingOrderIdsWithFailedPayment()).thenReturn(List.of(1L));
 
         orderService.cancelFailedPaymentOrdersBulk();
 

@@ -2,7 +2,6 @@ package com.sportsify.ticketing.application.service;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.game.domain.model.SeatStatus;
@@ -21,26 +20,15 @@ public class OrderPaymentService {
 
     private final OrderRepository orderRepository;
 
-    public void startPayment(PaymentStartedEvent event) {
-        Order order = orderRepository.findById(event.orderId())
+    public Order completePayment(PaymentCompletedEvent event) {
+
+        Order order = orderRepository.findByIdWithAll(event.orderId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         if (order.getStatus() != OrderStatus.PENDING) {
-            log.warn("결제 시작 불가 상태: orderId={}, status={}", event.orderId(), order.getStatus());
-            return;
-        }
-
-        order.updateStatus(OrderStatus.PAYING);
-    }
-
-    public void completePayment(PaymentCompletedEvent event) {
-
-        Order order = orderRepository.findById(event.orderId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (order.getStatus() != OrderStatus.PAYING) {
-            log.warn("결제 완료 불가 상태: orderId={}, status={}", event.orderId(), order.getStatus());
-            return;
+            throw new IllegalStateException(
+                    "결제 완료 불가 상태: orderId=" + event.orderId() + ", status=" + order.getStatus()
+            );
         }
 
         order.updateStatus(OrderStatus.CONFIRMED);
@@ -50,15 +38,18 @@ public class OrderPaymentService {
             orderSeat.updateStatus(OrderSeatStatus.CONFIRMED);
             orderSeat.getGameSeat().updateSeatStatus(SeatStatus.SOLD);
         });
+
+        return order;
     }
 
     public void cancelPayment(PaymentCancelledEvent event) {
-        Order order = orderRepository.findById(event.orderId())
+        Order order = orderRepository.findByIdWithAll(event.orderId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.PAYING) {
-            log.warn("결제 취소 불가 상태: orderId={}, status={}", event.orderId(), order.getStatus());
-            return;
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException(
+                    "결제 취소 불가 상태: orderId=" + event.orderId() + ", status=" + order.getStatus()
+            );
         }
 
         order.updateStatus(OrderStatus.CANCELLED);

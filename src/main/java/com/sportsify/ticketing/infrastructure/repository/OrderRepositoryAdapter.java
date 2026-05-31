@@ -28,8 +28,13 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
-    public Optional<Order> findByIdWithOrderSeats(Long orderId) {
-        return jpaRepository.findByIdWithOrderSeats(orderId);
+    public Optional<Order> findByIdWithAll(Long id) {
+        return jpaRepository.findByIdWithAll(id);
+    }
+
+    @Override
+    public Optional<Order> findByIdWithLock(Long id) {
+        return jpaRepository.findByIdWithLock(id);
     }
 
     @Override
@@ -38,8 +43,8 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
-    public List<Long> findPayingOrderIdsWithFailedPayment() {
-        return jpaRepository.findPayingOrderIdsWithFailedPayment();
+    public List<Long> findPendingOrderIdsWithFailedPayment() {
+        return jpaRepository.findPendingOrderIdsWithFailedPayment();
     }
 
     @Override

@@ -2,12 +2,11 @@ package com.sportsify.ticketing.application.listener;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.ticketing.application.service.OrderPaymentService;
 import com.sportsify.ticketing.application.service.TicketService;
+import com.sportsify.ticketing.domain.model.Order;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -24,19 +23,13 @@ public class PaymentEventListener {
     private final OrderPaymentService orderPaymentService;
     private final TicketService ticketService;
 
-    @EventListener
-    @Transactional
-    public void onPaymentStarted(PaymentStartedEvent event) {
-        orderPaymentService.startPayment(event);
-    }
-
     @Retryable(maxRetries = 3, delayString = "1000ms")
     @TransactionalEventListener(phase = AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onPaymentSuccess(PaymentCompletedEvent event) {
 
-        orderPaymentService.completePayment(event);
-        ticketService.createTickets(event.orderId(), event.memberId());
+        Order completedOrder = orderPaymentService.completePayment(event);
+        ticketService.createTickets(completedOrder);
     }
 
     @Retryable(maxRetries = 3, delayString = "1000ms")
