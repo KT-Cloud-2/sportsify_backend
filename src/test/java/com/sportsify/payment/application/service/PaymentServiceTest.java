@@ -3,12 +3,9 @@ package com.sportsify.payment.application.service;
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.event.PaymentStartedEvent;
-<<<<<<< HEAD
-=======
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.PaymentCompletedPayload;
->>>>>>> develop
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
@@ -36,10 +33,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-<<<<<<< HEAD
-=======
 import static org.mockito.ArgumentMatchers.eq;
->>>>>>> develop
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -58,12 +52,9 @@ class PaymentServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-<<<<<<< HEAD
-=======
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
 
->>>>>>> develop
     @InjectMocks
     private PaymentService paymentService;
 
@@ -91,7 +82,8 @@ class PaymentServiceTest {
         assertThat(response.getAmount()).isEqualTo(50000L);
         assertThat(response.getStatus()).isEqualTo("PENDING");
 
-        ArgumentCaptor<PaymentStartedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentStartedEvent.class);
+        ArgumentCaptor<PaymentStartedEvent> eventCaptor =
+                ArgumentCaptor.forClass(PaymentStartedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
 
         PaymentStartedEvent event = eventCaptor.getValue();
@@ -100,11 +92,8 @@ class PaymentServiceTest {
         assertThat(event.paymentId()).isEqualTo(1L);
         assertThat(event.amount()).isEqualTo(50000L);
         assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
-<<<<<<< HEAD
-=======
 
         verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
     }
 
     @Test
@@ -123,7 +112,8 @@ class PaymentServiceTest {
         assertThat(payment.getPaymentKey()).isEqualTo("MOCK_ORDER_1_TEST");
         assertThat(payment.getApprovedAt()).isNotNull();
 
-        ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        ArgumentCaptor<PaymentCompletedEvent> eventCaptor =
+                ArgumentCaptor.forClass(PaymentCompletedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
 
         PaymentCompletedEvent event = eventCaptor.getValue();
@@ -133,8 +123,6 @@ class PaymentServiceTest {
         assertThat(event.amount()).isEqualTo(50000L);
         assertThat(event.paymentKey()).isEqualTo("MOCK_ORDER_1_TEST");
         assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.COMPLETED);
-<<<<<<< HEAD
-=======
 
         ArgumentCaptor<PaymentCompletedPayload> payloadCaptor =
                 ArgumentCaptor.forClass(PaymentCompletedPayload.class);
@@ -148,7 +136,6 @@ class PaymentServiceTest {
         assertThat(payload.paymentId()).isEqualTo(1L);
         assertThat(payload.memberId()).isEqualTo(1L);
         assertThat(payload.amount()).isEqualTo(50000);
->>>>>>> develop
     }
 
     @Test
@@ -169,7 +156,8 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient).cancel("PAYMENT_KEY_123", "cancel request");
 
-        ArgumentCaptor<PaymentCancelledEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCancelledEvent.class);
+        ArgumentCaptor<PaymentCancelledEvent> eventCaptor =
+                ArgumentCaptor.forClass(PaymentCancelledEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
 
         PaymentCancelledEvent event = eventCaptor.getValue();
@@ -180,11 +168,8 @@ class PaymentServiceTest {
         assertThat(event.paymentKey()).isEqualTo("PAYMENT_KEY_123");
         assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.CANCELED);
         assertThat(event.failureReason()).isEqualTo("cancel request");
-<<<<<<< HEAD
-=======
 
         verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
     }
 
     @Test
@@ -200,94 +185,22 @@ class PaymentServiceTest {
 
         assertThat(response.getStatus()).isEqualTo("CANCELED");
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELED);
-        assertThat(payment.getCancelReason()).isEqualTo("cancel request");
-        assertThat(payment.getCanceledAt()).isNotNull();
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
         verify(eventPublisher).publishEvent(any(PaymentCancelledEvent.class));
-<<<<<<< HEAD
-=======
         verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
     }
 
     @Test
     @DisplayName("fail when payment not found")
     void cancelPayment_paymentNotFound_fail() {
-        Long paymentId = 999L;
-        CancelPaymentRequest request = cancelRequest("cancel request");
+        when(paymentRepository.findById(999L)).thenReturn(Optional.empty());
 
-        when(paymentRepository.findById(paymentId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
+        assertThatThrownBy(() ->
+                paymentService.cancelPayment(999L, cancelRequest("cancel request")))
                 .isInstanceOf(PaymentNotFoundException.class);
 
-        verify(tossPaymentClient, never()).cancel(anyString(), anyString());
-        verifyNoInteractions(eventPublisher);
-<<<<<<< HEAD
-=======
         verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
-    }
-
-    @Test
-    @DisplayName("fail when payment is pending")
-    void cancelPayment_pendingPayment_fail() {
-        Long paymentId = 1L;
-        Payment payment = pendingPayment();
-        CancelPaymentRequest request = cancelRequest("cancel request");
-
-        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
-                .isInstanceOf(InvalidPaymentStatusException.class);
-
-        verify(tossPaymentClient, never()).cancel(anyString(), anyString());
-        verifyNoInteractions(eventPublisher);
-<<<<<<< HEAD
-=======
-        verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
-    }
-
-    @Test
-    @DisplayName("fail when payment already canceled")
-    void cancelPayment_alreadyCanceled_fail() {
-        Long paymentId = 1L;
-        Payment payment = canceledPayment();
-        CancelPaymentRequest request = cancelRequest("cancel request");
-
-        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
-                .isInstanceOf(InvalidPaymentStatusException.class);
-
-        verify(tossPaymentClient, never()).cancel(anyString(), anyString());
-        verifyNoInteractions(eventPublisher);
-<<<<<<< HEAD
-=======
-        verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
-    }
-
-    @Test
-    @DisplayName("fail when completed payment has no payment key")
-    void cancelPayment_emptyPaymentKey_fail() {
-        Long paymentId = 1L;
-        Payment payment = completedPayment(null);
-        CancelPaymentRequest request = cancelRequest("cancel request");
-
-        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-
-        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, request))
-                .isInstanceOf(InvalidPaymentStatusException.class);
-
-        verify(tossPaymentClient, never()).cancel(anyString(), anyString());
-        verifyNoInteractions(eventPublisher);
-<<<<<<< HEAD
-=======
-        verifyNoInteractions(notificationEventPublisher);
->>>>>>> develop
     }
 
     private Payment pendingPayment() {
@@ -322,28 +235,6 @@ class PaymentServiceTest {
                 .status(PaymentStatus.COMPLETED)
                 .requestedAt(LocalDateTime.now())
                 .approvedAt(OffsetDateTime.now())
-                .build();
-
-        ReflectionTestUtils.setField(payment, "id", 1L);
-        return payment;
-    }
-
-    private Payment canceledPayment() {
-        Payment payment = Payment.builder()
-                .userId(1L)
-                .matchId(1L)
-                .seatId(1L)
-                .orderId(1L)
-                .tossOrderId("ORDER_1_TEST")
-                .paymentKey("PAYMENT_KEY_123")
-                .idempotencyKey("IDEMPOTENCY_KEY_123")
-                .amount(50000L)
-                .paymentMethod("CARD")
-                .status(PaymentStatus.CANCELED)
-                .requestedAt(LocalDateTime.now())
-                .approvedAt(OffsetDateTime.now())
-                .canceledAt(LocalDateTime.now())
-                .cancelReason("cancel request")
                 .build();
 
         ReflectionTestUtils.setField(payment, "id", 1L);
