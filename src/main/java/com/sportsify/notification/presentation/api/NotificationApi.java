@@ -33,7 +33,14 @@ public interface NotificationApi {
             responseCode = "204", responseDescription = "성공 (본문 없음)")
     ResponseEntity<Void> markAllRead(Long memberId);
 
-    @SwaggerApi(summary = "SSE 연결", description = "실시간 알림 수신용 SSE 스트림.")
+    @SwaggerApi(summary = "SSE 연결", description = """
+            실시간 알림 수신용 SSE 스트림.
+
+            브라우저 `EventSource`는 커스텀 헤더를 지원하지 않으므로 Access Token을 쿼리 파라미터로 전달합니다.
+            ```
+            const es = new EventSource('/api/notifications/stream?token={accessToken}');
+            ```
+            """)
     SseEmitter subscribe(Long memberId);
 
     // ── 설정 ──

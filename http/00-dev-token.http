@@ -1,0 +1,31 @@
+### Dev: 토큰 발급 (memberId=1, USER)
+# 실행하면 accessToken 이 전역 변수에 저장된다.
+# 이후 모든 요청에서 {{accessToken}} 으로 참조 가능.
+GET http://localhost:8080/dev/token?memberId=1&role=USER
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+  client.global.set("accessToken", response.body.token);
+  client.global.set("refreshToken", response.body.token);
+%}
+
+### Dev: memberId=2 토큰 발급 (채팅 멀티유저 테스트용)
+GET http://localhost:8080/dev/token?memberId=2&role=USER
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+  client.global.set("accessToken2", response.body.token);
+%}
+
+### Dev: 이벤트 직접 발행
+POST http://localhost:8080/dev/events/publish
+Content-Type: application/json
+
+{
+  "stream": "ticket-open-stream",
+  "payload": "{\"gameId\":1}"
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}

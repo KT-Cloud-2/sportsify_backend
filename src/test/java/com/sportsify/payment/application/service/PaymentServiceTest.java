@@ -3,6 +3,12 @@ package com.sportsify.payment.application.service;
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.event.PaymentStartedEvent;
+<<<<<<< HEAD
+=======
+import com.sportsify.common.notification.NotificationEventPublisher;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.PaymentCompletedPayload;
+>>>>>>> develop
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
@@ -30,6 +36,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+<<<<<<< HEAD
+=======
+import static org.mockito.ArgumentMatchers.eq;
+>>>>>>> develop
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,6 +58,12 @@ class PaymentServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+<<<<<<< HEAD
+=======
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
+
+>>>>>>> develop
     @InjectMocks
     private PaymentService paymentService;
 
@@ -84,6 +100,11 @@ class PaymentServiceTest {
         assertThat(event.paymentId()).isEqualTo(1L);
         assertThat(event.amount()).isEqualTo(50000L);
         assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
+<<<<<<< HEAD
+=======
+
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     @Test
@@ -112,6 +133,22 @@ class PaymentServiceTest {
         assertThat(event.amount()).isEqualTo(50000L);
         assertThat(event.paymentKey()).isEqualTo("MOCK_ORDER_1_TEST");
         assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.COMPLETED);
+<<<<<<< HEAD
+=======
+
+        ArgumentCaptor<PaymentCompletedPayload> payloadCaptor =
+                ArgumentCaptor.forClass(PaymentCompletedPayload.class);
+
+        verify(notificationEventPublisher).publish(
+                eq(NotificationEventType.PAYMENT_COMPLETED),
+                payloadCaptor.capture()
+        );
+
+        PaymentCompletedPayload payload = payloadCaptor.getValue();
+        assertThat(payload.paymentId()).isEqualTo(1L);
+        assertThat(payload.memberId()).isEqualTo(1L);
+        assertThat(payload.amount()).isEqualTo(50000);
+>>>>>>> develop
     }
 
     @Test
@@ -143,6 +180,11 @@ class PaymentServiceTest {
         assertThat(event.paymentKey()).isEqualTo("PAYMENT_KEY_123");
         assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.CANCELED);
         assertThat(event.failureReason()).isEqualTo("cancel request");
+<<<<<<< HEAD
+=======
+
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     @Test
@@ -163,6 +205,10 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
         verify(eventPublisher).publishEvent(any(PaymentCancelledEvent.class));
+<<<<<<< HEAD
+=======
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     @Test
@@ -178,6 +224,10 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
         verifyNoInteractions(eventPublisher);
+<<<<<<< HEAD
+=======
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     @Test
@@ -194,6 +244,10 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
         verifyNoInteractions(eventPublisher);
+<<<<<<< HEAD
+=======
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     @Test
@@ -210,6 +264,10 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
         verifyNoInteractions(eventPublisher);
+<<<<<<< HEAD
+=======
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     @Test
@@ -226,6 +284,10 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
         verifyNoInteractions(eventPublisher);
+<<<<<<< HEAD
+=======
+        verifyNoInteractions(notificationEventPublisher);
+>>>>>>> develop
     }
 
     private Payment pendingPayment() {

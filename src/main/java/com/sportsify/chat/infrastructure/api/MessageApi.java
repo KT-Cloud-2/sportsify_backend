@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @CommonApiResponses
 public interface MessageApi {
 
-    @SwaggerApi(summary = "5-12. 채팅 이력 조회")
+    @SwaggerApi(summary = "5-16. 채팅 이력 조회")
     @SwaggerApiError(ErrorCode.FORBIDDEN)
     @SwaggerApiError(ErrorCode.NOT_FOUND)
     ResponseEntity<MessageListResponse> history(
@@ -27,7 +27,7 @@ public interface MessageApi {
             @RequestBody MessagePageNationRequest request
     );
 
-    @SwaggerApi(summary = "5-14. 메시지 삭제")
+    @SwaggerApi(summary = "5-18. 메시지 삭제")
     @SwaggerApiError(ErrorCode.FORBIDDEN)
     @SwaggerApiError(ErrorCode.NOT_FOUND)
     ResponseEntity<MessageDeleteResponse> delete(
@@ -35,7 +35,7 @@ public interface MessageApi {
             @PathVariable Long messageId
     );
 
-    @SwaggerApi(summary = "5-15. 채팅방 메시지 조회")
+    @SwaggerApi(summary = "5-19. 채팅방 메시지 조회")
     @SwaggerApiError(ErrorCode.FORBIDDEN)
     @SwaggerApiError(ErrorCode.NOT_FOUND)
     ResponseEntity<MessageListResponse> getMessages(

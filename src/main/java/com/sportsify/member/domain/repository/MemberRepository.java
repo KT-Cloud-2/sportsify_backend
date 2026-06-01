@@ -12,4 +12,6 @@ public interface MemberRepository {
     Optional<Member> findByProviderAndProviderId(OAuthProvider provider, String providerId);
 
     boolean existsByNickname(String nickname);
+
+    Member getReferenceById(Long id);
 }

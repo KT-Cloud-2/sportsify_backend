@@ -2,6 +2,8 @@ package com.sportsify.common.notification;
 
 import com.sportsify.common.notification.payload.NotificationPayload;
 
+import java.util.List;
+
 /**
  * 알림 이벤트 발행 인터페이스.
  *
@@ -16,6 +18,6 @@ import com.sportsify.common.notification.payload.NotificationPayload;
  * </pre>
  */
 public interface NotificationEventPublisher {
-
     void publish(NotificationEventType eventType, NotificationPayload payload);
+    void publish(NotificationEventType eventType, List<NotificationPayload> payloads);
 }

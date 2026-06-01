@@ -5,12 +5,14 @@ import com.sportsify.game.domain.model.SeatStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
+    @Query("SELECT COUNT(gs) FROM GameSeat gs WHERE gs.game.id = :gameId AND gs.seatStatus = :seatStatus ")
     int countByGameIdAndSeatStatus(Long gameId, SeatStatus seatStatus);
 
     @Query("""
@@ -23,9 +25,22 @@ public interface GameSeatRepository extends JpaRepository<GameSeat, Long> {
             """)
     List<Object[]> findSeatGradeSummaryByGameId(@Param("gameId") Long gameId);
 
-    @Query("SELECT g FROM GameSeat g WHERE g.id IN :ids AND g.seatStatus = 'AVAILABLE' ORDER BY g.id")
+    @Query("""
+             SELECT gs FROM GameSeat gs
+             WHERE gs.id IN :ids AND gs.seatStatus = 'AVAILABLE' ORDER BY gs.id
+            """)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    List<GameSeat> findAllAvailableByIdsWithLock(@Param("ids") List<Long> ids);
+    List<GameSeat> findAllAvailableIdsWithLock(@Param("ids") List<Long> ids);
 
+    @Query("SELECT gs FROM GameSeat gs WHERE gs.game.id = :gameId")
     List<GameSeat> findByGameId(Long gameId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+                UPDATE GameSeat gs SET gs.seatStatus = 'AVAILABLE'
+                WHERE gs.id IN (
+                    SELECT os.gameSeat.id FROM OrderSeat os WHERE os.order.id IN :orderIds
+                )
+            """)
+    void bulkReleaseGameSeatsByOrderIds(@Param("orderIds") List<Long> orderIds);
 }

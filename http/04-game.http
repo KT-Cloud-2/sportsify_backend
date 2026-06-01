@@ -1,0 +1,64 @@
+### 경기 목록 조회 (전체)
+GET http://localhost:8080/api/games
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 경기 목록 조회 - 야구 + 판매중
+GET http://localhost:8080/api/games?sportType=BASEBALL&status=ON_SALE
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 경기 목록 조회 - 특정 팀 + 기간 필터
+GET http://localhost:8080/api/games?teamId=1&from=2025-01-01T00:00:00&to=2025-12-31T23:59:59
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 경기 상세 조회
+GET http://localhost:8080/api/games/1
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 경기 좌석 목록 조회 (전체)
+GET http://localhost:8080/api/games/1/seats
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 경기 좌석 목록 조회 - 등급/상태 필터
+GET http://localhost:8080/api/games/1/seats?grade=VIP&status=AVAILABLE
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 경기 생성
+POST http://localhost:8080/api/games
+Content-Type: application/json
+
+{
+  "stadiumId": 1,
+  "homeTeamId": 1,
+  "awayTeamId": 2,
+  "sportType": "BASEBALL",
+  "startAt": "2025-07-01T18:00:00",
+  "durationMinutes": 180,
+  "status": "ON_SALE",
+  "dayType": "WEEKDAY",
+  "gameGrade": "NORMAL",
+  "maxTicketPerUser": 4,
+  "saleStartAt": "2025-06-01T10:00:00",
+  "saleEndAt": "2025-07-01T12:00:00"
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}

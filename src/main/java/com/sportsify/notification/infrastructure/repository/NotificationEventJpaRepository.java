@@ -13,9 +13,9 @@ public interface NotificationEventJpaRepository extends JpaRepository<Notificati
 
     Optional<NotificationEvent> findByStreamMessageId(String streamMessageId);
 
-    @Query(value = "SELECT * FROM notification_events WHERE status = 'PENDING' AND scheduled_at <= :now FOR UPDATE SKIP LOCKED",
+    @Query(value = "SELECT * FROM notification_events WHERE status IN ('PENDING', 'FAILED') AND scheduled_at <= :now AND retry_count < :maxRetry FOR UPDATE SKIP LOCKED",
             nativeQuery = true)
-    List<NotificationEvent> findDueScheduledEventsForUpdate(@Param("now") LocalDateTime now);
+    List<NotificationEvent> findDueScheduledEventsForUpdate(@Param("now") LocalDateTime now, @Param("maxRetry") int maxRetry);
 
     @Query(value = "SELECT * FROM notification_events WHERE status = 'PROCESSING' AND updated_at <= :updatedBefore FOR UPDATE SKIP LOCKED",
             nativeQuery = true)

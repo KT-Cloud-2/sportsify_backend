@@ -1,0 +1,104 @@
+### 알림 목록 조회 (최신순 페이징)
+GET http://localhost:8080/api/notifications?page=0&size=20&sort=createdAt,desc
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### SSE 스트림 연결
+# EventSource 는 커스텀 헤더 불가 → token 쿼리 파라미터 사용
+GET http://localhost:8080/api/notifications/stream?token={{accessToken}}
+Accept: text/event-stream
+
+### 단건 읽음 처리
+PATCH http://localhost:8080/api/notifications/1/read
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 전체 읽음 처리
+PATCH http://localhost:8080/api/notifications/read-all
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 설정 조회
+GET http://localhost:8080/api/notifications/settings
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 설정 수정
+PUT http://localhost:8080/api/notifications/settings
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "ticketOpenAlert": true,
+  "gameStartAlert": true,
+  "paymentAlert": true,
+  "chatMentionAlert": false
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 채널 목록 조회
+GET http://localhost:8080/api/notifications/channels
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 채널 등록 - 이메일
+POST http://localhost:8080/api/notifications/channels
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "channelType": "EMAIL",
+  "channelTarget": "test@example.com"
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 채널 등록 - Slack
+POST http://localhost:8080/api/notifications/channels
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "channelType": "SLACK",
+  "channelTarget": "#alerts"
+}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 채널 활성화/비활성화 토글
+PATCH http://localhost:8080/api/notifications/channels/1/toggle
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}
+
+### 알림 채널 삭제
+DELETE http://localhost:8080/api/notifications/channels/1
+Authorization: Bearer {{accessToken}}
+
+> {%
+  client.test("2xx/3xx", function() { client.assert(response.status >= 200 && response.status < 400, "status: " + response.status); });
+%}

@@ -5,11 +5,13 @@ import com.sportsify.game.domain.repository.*;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
+import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.infrastructure.repository.TeamJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderSeatJpaRepository;
+import com.sportsify.ticketing.infrastructure.repository.TicketJpaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,9 @@ import java.util.List;
 @Component
 public class TicketingTestFixture {
 
+    public int TICKET_PRICE = 15000;
+    @Autowired
+    private TicketJpaRepository ticketRepository;
     @Autowired
     private SeatRepository seatRepository;
     @Autowired
@@ -42,6 +47,8 @@ public class TicketingTestFixture {
     private OrderJpaRepository orderRepository;
     @Autowired
     private OrderSeatJpaRepository orderSeatRepository;
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     public Game createGame() {
         Stadium stadium = stadiumRepository.save(
@@ -105,7 +112,7 @@ public class TicketingTestFixture {
                     Seat.builder().section(section).rowNumber(i / 10 + 1 + "").seatNumber(i % 10 + 1 + "").build()
             );
 
-            ids.add(gameSeatRepository.save(GameSeat.builder().game(game).seat(seat).price(15000).build()).getId());
+            ids.add(gameSeatRepository.save(GameSeat.builder().game(game).seat(seat).price(TICKET_PRICE).build()).getId());
         }
 
         return ids;
@@ -134,7 +141,9 @@ public class TicketingTestFixture {
     }
 
     public void deleteAll() {
+        ticketRepository.deleteAll();
         orderSeatRepository.deleteAll();
+        paymentRepository.deleteAll();
         orderRepository.deleteAll();
         gameSeatRepository.deleteAll();
         pricePolicyRepository.deleteAll();

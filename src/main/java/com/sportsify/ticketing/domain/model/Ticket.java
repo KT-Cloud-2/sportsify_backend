@@ -61,6 +61,51 @@ public class Ticket {
         return new Ticket(orderSeat, member, price);
     }
 
+    // === 디미터 법칙 위임 메서드 ===
+
+    public Long getGameId() {
+        return orderSeat.getGameId();
+    }
+
+    public String getSportType() {
+        return orderSeat.getSportType();
+    }
+
+    public String getHomeTeamName() {
+        return orderSeat.getHomeTeamName();
+    }
+
+    public String getAwayTeamName() {
+        return orderSeat.getAwayTeamName();
+    }
+
+    public LocalDateTime getStartAt() {
+        return orderSeat.getStartAt();
+    }
+
+    public String getStadium() {
+        return orderSeat.getStadiumName();
+    }
+
+    public String getSeatGrade() {
+        return orderSeat.getSeatGradeName();
+    }
+
+    public String getSeatSection() {
+        return orderSeat.getSectionName();
+    }
+
+    public String getSeatNumber() {
+        return orderSeat.getSeatNumber();
+    }
+
+    public String getStatusName() {
+        return status.name();
+    }
+
+    // === 상태 변경 ===
+
+
     public void updateAsUsed(LocalDateTime usedAt) {
         this.status = TicketStatus.USED;
         this.usedAt = usedAt;

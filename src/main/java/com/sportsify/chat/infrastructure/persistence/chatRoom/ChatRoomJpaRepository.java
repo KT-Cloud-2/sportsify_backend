@@ -53,4 +53,6 @@ public interface ChatRoomJpaRepository extends JpaRepository<ChatRoomJpaEntity, 
     );
 
     boolean existsByIdAndStatus(Long id, String status);
+
+    boolean existsByIdAndTypeAndStatus(Long id, String type, String status);
 }

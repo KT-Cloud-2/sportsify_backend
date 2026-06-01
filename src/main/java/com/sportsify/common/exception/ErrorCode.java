@@ -13,6 +13,8 @@ public enum ErrorCode {
     BUSINESS_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_VIOLATION", "비즈니스 규칙을 위반했습니다."),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS", "요청 한도를 초과했습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다."),
+    REQUEST_INVALID(HttpStatus.BAD_REQUEST, "REQUEST_INVALID", "Request Body가 필요합니다."),
+    REQUEST_BODY_MALFORMED(HttpStatus.BAD_REQUEST, "REQUEST_BODY_MALFORMED", "요청 본문의 JSON 형식이 올바르지 않습니다."),
 
     // 회원 / 인증
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "존재하지 않는 회원입니다."),
@@ -36,6 +38,7 @@ public enum ErrorCode {
     // 예매
     GAME_NOT_FOUND(HttpStatus.NOT_FOUND, "GAME_NOT_FOUND", "존재하지 않는 경기입니다."),
     GAME_NOT_ON_SALE(HttpStatus.valueOf(422), "GAME_NOT_ON_SALE", "판매 중이 아닌 경기입니다."),
+    GAME_MISMATCH(HttpStatus.BAD_REQUEST, "GAME_MISMATCH", "동일한 게임의 좌석만 예매할 수 있습니다."),
     SEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "SEAT_NOT_FOUND", "존재하지 않는 좌석입니다."),
     SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "SEAT_ALREADY_RESERVED", "이미 선점된 좌석입니다."),
     SEAT_IS_NULL(HttpStatus.NOT_FOUND, "SEAT_IS_NULL", "선택된 좌석이 없습니다."),
@@ -43,9 +46,12 @@ public enum ErrorCode {
     TICKET_LIMIT_EXCEEDED(HttpStatus.valueOf(422), "TICKET_LIMIT_EXCEEDED", "경기당 1인 최대 4매를 초과했습니다."),
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "존재하지 않는 주문입니다."),
     ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다."),
+    ORDER_MEMBER_MISMATCH(HttpStatus.FORBIDDEN, "ORDER_MEMBER_MISMATCH", "요청자와 주문자가 일치하지 않습니다."),
 
     // 게임
-    PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다.");
+    PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다."),
+    STADIUM_NOT_FOUND(HttpStatus.NOT_FOUND, "STADIUM_NOT_FOUND", "존재하지 않는 경기장입니다.");
+
 
     private final HttpStatus httpStatus;
     private final String code;
@@ -73,14 +79,9 @@ public enum ErrorCode {
         String detailValue = (detail == null || detail.isBlank()) ? "null" : "\"" + detail + "\"";
         return """
                 {
-                  "success": false,
-                  "data": null,
-                  "error": {
                     "code": "%s",
                     "message": "%s",
                     "detail": %s
-                  },
-                  "timestamp": "2026-04-29T12:00:00Z"
                 }""".formatted(code, message, detailValue);
     }
 }

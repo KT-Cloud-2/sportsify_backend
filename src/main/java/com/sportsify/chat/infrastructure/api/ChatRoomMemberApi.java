@@ -1,5 +1,6 @@
 package com.sportsify.chat.infrastructure.api;
 
+import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberInvitesResponse;
 import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberResponse;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.swagger.AuthRequiredApi;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @CommonApiResponses
 public interface ChatRoomMemberApi {
 
-    @SwaggerApi(summary = "5-7. 채팅방 입장")
+    @SwaggerApi(summary = "5-9. 채팅방 입장")
     @SwaggerApiError(ErrorCode.CONFLICT)
     @SwaggerApiError(ErrorCode.FORBIDDEN)
     ResponseEntity<ChatRoomMemberResponse> join(
@@ -24,7 +25,7 @@ public interface ChatRoomMemberApi {
             @PathVariable Long roomId
     );
 
-    @SwaggerApi(summary = "5-8. 채팅방 나가기")
+    @SwaggerApi(summary = "5-10. 채팅방 나가기")
     @SwaggerApiError(ErrorCode.NOT_FOUND)
     @SwaggerApiError(ErrorCode.CONFLICT)
     @SwaggerApiError(ErrorCode.FORBIDDEN)
@@ -33,7 +34,7 @@ public interface ChatRoomMemberApi {
             @PathVariable Long roomId
     );
 
-    @SwaggerApi(summary = "5-9. 참여자 초대")
+    @SwaggerApi(summary = "5-11. 참여자 초대")
     @SwaggerApiError(ErrorCode.INVALID_INPUT)
     @SwaggerApiError(ErrorCode.FORBIDDEN)
     @SwaggerApiError(ErrorCode.CONFLICT)
@@ -43,7 +44,7 @@ public interface ChatRoomMemberApi {
             @RequestParam Long inviteeId
     );
 
-    @SwaggerApi(summary = "5-10. 알림 설정 변경")
+    @SwaggerApi(summary = "5-12. 알림 설정 변경")
     @SwaggerApiError(ErrorCode.NOT_FOUND)
     ResponseEntity<ChatRoomMemberResponse> changeNotification(
             Long memberId,
@@ -51,7 +52,7 @@ public interface ChatRoomMemberApi {
             @RequestParam boolean enabled
     );
 
-    @SwaggerApi(summary = "5-11. 채팅 이력 조회")
+    @SwaggerApi(summary = "5-13. 채팅방 멤버 ban")
     @SwaggerApiError(ErrorCode.INVALID_INPUT)
     @SwaggerApiError(ErrorCode.FORBIDDEN)
     @SwaggerApiError(ErrorCode.NOT_FOUND)
@@ -60,5 +61,18 @@ public interface ChatRoomMemberApi {
             Long memberId,
             @PathVariable Long roomId,
             @RequestParam Long targetId
+    );
+
+    @SwaggerApi(summary = "5-14. 내 초대 목록 조회")
+    ResponseEntity<ChatRoomMemberInvitesResponse> getMyInvites(
+            Long memberId
+    );
+
+    @SwaggerApi(summary = "5-15. 초대 거부")
+    @SwaggerApiError(ErrorCode.NOT_FOUND)
+    @SwaggerApiError(ErrorCode.CONFLICT)
+    ResponseEntity<Void> reject(
+            Long memberId,
+            @PathVariable Long roomId
     );
 }

@@ -2,7 +2,6 @@ package com.sportsify.ticketing.application.service;
 
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
-import com.sportsify.game.application.service.PricePolicyService;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
@@ -10,29 +9,28 @@ import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.GameSeatRepository;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.repository.MemberRepository;
-import com.sportsify.ticketing.application.event.OrderEventPublisher;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReservationService {
 
     private final GameSeatRepository gameSeatRepository;
     private final OrderRepository orderRepository;
     private final MemberRepository memberRepository;
     private final GameRepository gameRepository;
-    private final PricePolicyService pricePolicyService;
-    private final OrderEventPublisher orderEventPublisher;
 
     @Transactional
     public ReservationSeatsResponseDto reserveSeat(Long memberId, ReservationSeatsRequestDto reqDto) {
@@ -51,24 +49,25 @@ public class ReservationService {
                     "요청: " + reqDto.seatIds().size() + "매, 최대: " + game.getMaxTicketPerUser() + "매"
             );
 
-        List<GameSeat> availableSeats = gameSeatRepository.findAllAvailableByIdsWithLock(reqDto.seatIds());
+        if (reqDto.seatIds().size() != new HashSet<>(reqDto.seatIds()).size())
+            throw new BusinessException(ErrorCode.SEAT_DUPLICATED);
+
+        List<GameSeat> availableSeats = gameSeatRepository.findAllAvailableIdsWithLock(reqDto.seatIds());
+
+        if (!availableSeats.stream().allMatch(gameSeat -> gameSeat.getGameId().equals(reqDto.gameId())))
+            throw new BusinessException(ErrorCode.GAME_MISMATCH);
 
         if (availableSeats.size() != reqDto.seatIds().size())
             throw new BusinessException(ErrorCode.SEAT_ALREADY_RESERVED);
 
         Order createdOrder = Order.create(member);
 
-        Map<String, Integer> priceMap = pricePolicyService.getPriceMap(game, availableSeats);
-
         availableSeats.forEach(seat -> {
-            int price = priceMap.get(seat.getZoneGradeName());
             seat.updateSeatStatus(SeatStatus.RESERVED);
-            createdOrder.addOrderSeat(OrderSeat.create(createdOrder, seat, price));
+            createdOrder.addOrderSeat(OrderSeat.create(createdOrder, seat, seat.getPrice()));
         });
 
-        Order savedOrder = orderRepository.save(createdOrder);
-
-        orderEventPublisher.publishOrderCreated(savedOrder);
+        orderRepository.save(createdOrder);
 
         return ReservationSeatsResponseDto.from(createdOrder, reqDto.gameId());
     }

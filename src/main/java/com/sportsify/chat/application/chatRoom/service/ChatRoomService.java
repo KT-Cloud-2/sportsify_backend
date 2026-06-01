@@ -3,24 +3,31 @@ package com.sportsify.chat.application.chatRoom.service;
 import com.sportsify.chat.application.chatRoom.dto.*;
 import com.sportsify.chat.domain.model.chatRoom.*;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
+import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatRoomService {
@@ -29,6 +36,8 @@ public class ChatRoomService {
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final AdvisoryLockAdaptor advisoryLockAdaptor;
+    private final ApplicationEventPublisher eventPublisher;
+    private final MessageRepository messageRepo;
 
     /**
      * 채팅방 생성
@@ -44,16 +53,25 @@ public class ChatRoomService {
         if (type == ChatRoomType.GAME && request.gameId() == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "GAME type requires gameId");
         }
-
         GameId gameId = type == ChatRoomType.GAME ? GameId.of(request.gameId()) : null;
         ChatRoomName name = resolveName(request.name(), type);
         ChatRoom room = chatRoomRepo.save(ChatRoom.create(name, type, request.imageUrl(), gameId, creatorId, now));
         List<ChatRoomMember> members = Stream.concat(
                 Stream.of(ChatRoomMember.newJoin(room.getId(), creatorId, now)),
-                request.inviteeIds().stream().map(MemberId::of).filter(mId -> !creatorId.equals(mId))
-                        .map(id -> ChatRoomMember.newInvited(room.getId(), id, now))
+                Optional.ofNullable(request.inviteeIds())
+                        .orElse(List.of())
+                        .stream()
+                        .map(MemberId::of)
+                        .filter(mId -> !creatorId.equals(mId))
+                        .map(id -> ChatRoomMember.newInvited(room.getId(), creatorId, id, now))
         ).toList();
         chatRoomMemberRepo.saveAll(members);
+        ChatRoomType roomType = room.getType();
+        String roomName = room.getName().value();
+        members.forEach(m -> m.getEvents().forEach(e -> {
+            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomContext(roomType, roomName));
+            else eventPublisher.publishEvent(e);
+        }));
         return ChatRoomResponse.from(room);
     }
 
@@ -80,7 +98,43 @@ public class ChatRoomService {
             room.changeImage(imageUrl, now, requesterId);
         }
 
-        return ChatRoomUpdateResponse.from(chatRoomRepo.save(room));
+        ChatRoom saved = chatRoomRepo.save(room);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
+        return ChatRoomUpdateResponse.from(saved);
+    }
+
+    /**
+     * 채팅방 아카이브 (ACTIVE → ARCHIVED)
+     */
+    @Transactional
+    public ChatRoomArchiveResponse archive(Long roomId, Long memberId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        MemberId requesterId = MemberId.of(memberId);
+        ChatRoom room = findActiveRoomForUpdate(roomId);
+        if (!requesterId.equals(room.getCreatedBy())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can archive room");
+        }
+        room.archive(now);
+        ChatRoom saved = chatRoomRepo.save(room);
+        publishWithRoomContext(saved);
+        return ChatRoomArchiveResponse.from(saved);
+    }
+
+    /**
+     * 채팅방 아카이브 복원 (ARCHIVED → ACTIVE)
+     */
+    @Transactional
+    public ChatRoomArchiveResponse unarchive(Long roomId, Long memberId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        MemberId requesterId = MemberId.of(memberId);
+        ChatRoom room = findNonDeletedRoomForUpdate(roomId);
+        if (!requesterId.equals(room.getCreatedBy())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can unarchive room");
+        }
+        room.unarchive(now);
+        ChatRoom saved = chatRoomRepo.save(room);
+        saved.getEvents().forEach(eventPublisher::publishEvent);
+        return ChatRoomArchiveResponse.from(saved);
     }
 
     /**
@@ -90,12 +144,13 @@ public class ChatRoomService {
     public void delete(Long roomId, Long memberId) {
         LocalDateTime now = LocalDateTime.now(clock);
         MemberId requesterId = MemberId.of(memberId);
-        ChatRoom room = findActiveRoomForUpdate(roomId);
+        ChatRoom room = findNonDeletedRoomForUpdate(roomId);
         if (!requesterId.equals(room.getCreatedBy())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can delete room");
         }
         room.delete(now, requesterId);
-        chatRoomRepo.save(room);
+        ChatRoom saved = chatRoomRepo.save(room);
+        publishWithRoomContext(saved);
         chatRoomMemberRepo.leaveAllMembersByRoom(room.getId(), now);
     }
 
@@ -106,8 +161,9 @@ public class ChatRoomService {
     public ChatRoomListResponse getMyRooms(ChatRoomGetRequest request, Long memberId) {
         ChatRoomType roomType = parseType(request.type());
         Long cursor = request.cursor();
+        MemberId id = MemberId.of(memberId);
 
-        List<ChatRoomMember> memberships = chatRoomMemberRepo.findActiveByMember(MemberId.of(memberId));
+        List<ChatRoomMember> memberships = chatRoomMemberRepo.findActiveByMember(id);
 
         List<ChatRoomId> roomIds = memberships.stream()
                 .filter(ChatRoomMember::isJoined)
@@ -121,16 +177,28 @@ public class ChatRoomService {
         List<ChatRoom> paged = hasNext ? rooms.subList(0, request.limit()) : rooms;
         Long nextCursor = hasNext ? paged.getLast().getId().value() : null;
 
-        Map<ChatRoomId, Long> countMap = chatRoomMemberRepo.countActiveByRooms(paged.stream().map(ChatRoom::getId).toList());
+        List<ChatRoomId> pagedIds = paged.stream().map(ChatRoom::getId).toList();
         Map<ChatRoomId, ChatRoomMember> membershipMap = memberships.stream()
-                .filter(ChatRoomMember::isJoined)
                 .collect(Collectors.toMap(ChatRoomMember::getRoomId, m -> m));
+        Map<ChatRoomId, Message> lastMessages = messageRepo.findLatestByRooms(pagedIds)
+                .stream()
+                .collect(Collectors.toMap(Message::getRoomId, m -> m));
+
+        Map<ChatRoomId, Long> countMap = chatRoomMemberRepo.countActiveByRooms(pagedIds);
+        Map<ChatRoomId, Long> lastReadMap = new HashMap<>();
+        pagedIds.forEach(roomId -> {
+            Long lastReadId = membershipMap.get(roomId).getLastReadMessageId();
+            lastReadMap.put(roomId, lastReadId != null ? lastReadId : 0L);
+        });
+        Map<ChatRoomId, Long> unreadCountMap = messageRepo.countUnreadByRooms(lastReadMap);
 
         List<ChatRoomSummaryResponse> items = paged.stream()
                 .map(r -> ChatRoomSummaryResponse.of(
                         r,
                         countMap.getOrDefault(r.getId(), 0L),
-                        membershipMap.get(r.getId())
+                        membershipMap.get(r.getId()),
+                        ChatMessageResponse.of(lastMessages.get(r.getId())),
+                        unreadCountMap.getOrDefault(r.getId(), 0L)
                 ))
                 .toList();
 
@@ -223,9 +291,21 @@ public class ChatRoomService {
     }
 
     /**
-     * select for update lock
+     * select for update lock (ACTIVE only)
      */
     private ChatRoom findActiveRoomForUpdate(Long roomId) {
+        ChatRoom room = chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(roomId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId));
+        if (room.getStatus() != ChatRoomStatus.ACTIVE && room.getStatus() != ChatRoomStatus.EMPTY) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId);
+        }
+        return room;
+    }
+
+    /**
+     * select for update lock (DELETED 제외)
+     */
+    private ChatRoom findNonDeletedRoomForUpdate(Long roomId) {
         ChatRoom room = chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(roomId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "roomId=" + roomId));
         if (room.getStatus() == ChatRoomStatus.DELETED) {
@@ -251,5 +331,14 @@ public class ChatRoomService {
     private Map<ChatRoomId, Long> getParticipantCounts(List<ChatRoom> rooms) {
         List<ChatRoomId> roomIds = rooms.stream().map(ChatRoom::getId).toList();
         return chatRoomMemberRepo.countActiveByRooms(roomIds); // IN 절을 사용하는 쿼리로 구현
+    }
+
+    private void publishWithRoomContext(ChatRoom room) {
+        String roomName = room.getName().value();
+        ChatRoomType roomType = room.getType();
+        room.getEvents().forEach(e -> {
+            if (e instanceof EventEnvelope<?> env) eventPublisher.publishEvent(env.withRoomContext(roomType, roomName));
+            else eventPublisher.publishEvent(e);
+        });
     }
 }

@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.springdoc.openapi-gradle-plugin' version '1.9.0'
+    id 'jacoco'
 }
 
 group = 'com'
@@ -15,9 +16,17 @@ java {
     }
 }
 
+jacoco {
+    toolVersion = "0.8.14"
+}
+
 repositories {
     mavenCentral()
     maven { url 'https://repo.spring.io/libs-release' }
+}
+
+configurations {
+    mockitoAgent
 }
 
 dependencies {
@@ -73,11 +82,12 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
-    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    mockitoAgent('org.mockito:mockito-core') { transitive = false }
 
     // Testcontainers — testcontainers 2.x 좌표
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
@@ -105,6 +115,9 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+
+    finalizedBy jacocoTestReport
 }
 
 // OpenAPI 스펙 export 설정
@@ -120,9 +133,9 @@ tasks.register('generateApiDocs') {
     dependsOn 'generateOpenApiDocs'
     description = 'openapi.json을 embed한 standalone docs-export.html 생성 (외부 공유용)'
 
-    def specFile    = layout.buildDirectory.file('api-spec/openapi.json')
+    def specFile = layout.buildDirectory.file('api-spec/openapi.json')
     def templateFile = layout.projectDirectory.file('gradle/docs-export-template.html')
-    def outputFile  = layout.projectDirectory.file('docs/docs-export.html')
+    def outputFile = layout.projectDirectory.file('docs/docs-export.html')
 
     inputs.file(specFile)
     inputs.file(templateFile)
@@ -134,4 +147,12 @@ tasks.register('generateApiDocs') {
     }
 }
 
+jacocoTestReport {
+    dependsOn test
 
+    reports {
+        html.required = true
+        xml.required = false
+        csv.required = false
+    }
+}

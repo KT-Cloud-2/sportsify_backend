@@ -35,6 +35,7 @@ class GameSeatRepositoryTest extends RepositoryTestSupport {
     private GameSeat gameSeat1;
     private GameSeat gameSeat2;
     private GameSeat gameSeat3;
+    private Game game;
 
     @BeforeEach
     void beforeEach() {
@@ -85,7 +86,7 @@ class GameSeatRepositoryTest extends RepositoryTestSupport {
         );
 
         // Game
-        Game game = gameRepository.save(
+        game = gameRepository.save(
                 Game.builder()
                         .stadium(stadium)
                         .homeTeam(homeTeam)
@@ -116,7 +117,7 @@ class GameSeatRepositoryTest extends RepositoryTestSupport {
     @DisplayName("요청한 ID 중 AVAILABLE 상태인 좌석만 정렬되어 조회된다")
     void findAvailableSeatsOnly() {
 
-        List<GameSeat> result = gameSeatRepository.findAllAvailableByIdsWithLock(
+        List<GameSeat> result = gameSeatRepository.findAllAvailableIdsWithLock(
                 List.of(gameSeat3.getId(), gameSeat1.getId(), gameSeat2.getId())
         );
 

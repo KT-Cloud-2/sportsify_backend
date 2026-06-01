@@ -3,6 +3,9 @@ package com.sportsify.payment.application.service;
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.event.PaymentStartedEvent;
+import com.sportsify.common.notification.NotificationEventPublisher;
+import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.PaymentCompletedPayload;
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
@@ -38,6 +41,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final TossPaymentClient tossPaymentClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
@@ -91,6 +95,7 @@ public class PaymentService {
         );
 
         publishPaymentCompletedEvent(payment);
+        publishPaymentCompletedNotification(payment);
 
         return toResponse(payment);
     }
@@ -111,6 +116,7 @@ public class PaymentService {
         );
 
         publishPaymentCompletedEvent(payment);
+        publishPaymentCompletedNotification(payment);
 
         return toResponse(payment);
     }
@@ -234,6 +240,21 @@ public class PaymentService {
                 payment.getStatus(),
                 LocalDateTime.now()
         ));
+    }
+
+    private void publishPaymentCompletedNotification(Payment payment) {
+        notificationEventPublisher.publish(
+                NotificationEventType.PAYMENT_COMPLETED,
+                new PaymentCompletedPayload(
+                        payment.getId(),
+                        payment.getUserId(),
+                        Math.toIntExact(payment.getAmount())
+                )
+        );
+
+        log.info("결제 완료 알림 발행 완료. paymentId={}, userId={}",
+                payment.getId(),
+                payment.getUserId());
     }
 
     private void publishPaymentCancelledEvent(Payment payment, String cancelReason) {

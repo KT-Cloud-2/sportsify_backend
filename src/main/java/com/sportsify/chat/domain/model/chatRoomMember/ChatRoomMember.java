@@ -2,17 +2,24 @@ package com.sportsify.chat.domain.model.chatRoomMember;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
+import com.sportsify.chat.domain.model.event.EventType;
+import com.sportsify.chat.domain.model.event.chatRoomMember.*;
 import com.sportsify.chat.domain.model.message.MessageId;
 import lombok.Getter;
+import org.springframework.data.domain.AbstractAggregateRoot;
+import org.springframework.data.domain.DomainEvents;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.Objects;
 
 /**
  * 채팅방 멤버 Aggregate Root
  */
 @Getter
-public class ChatRoomMember {
+public class ChatRoomMember extends AbstractAggregateRoot<ChatRoomMember> {
 
     private final ChatRoomId roomId;
     private final MemberId memberId;
@@ -45,20 +52,24 @@ public class ChatRoomMember {
      * 새 입장(공개 방 또는 자기 의지로 join)
      */
     public static ChatRoomMember newJoin(ChatRoomId roomId, MemberId memberId, LocalDateTime now) {
-        return new ChatRoomMember(
+        ChatRoomMember member = new ChatRoomMember(
                 null, roomId, memberId, MemberStatus.JOINED,
                 true, now, now, null
         );
+        member.registerEvent(EventEnvelope.of(EventType.MEMBER_JOINED, roomId, now.toInstant(ZoneOffset.UTC), new MemberJoinPayload(memberId.value())));
+        return member;
     }
 
     /**
      * 비공개 방으로 초대 발송
      */
-    public static ChatRoomMember newInvited(ChatRoomId roomId, MemberId memberId, LocalDateTime now) {
-        return new ChatRoomMember(
-                null, roomId, memberId, MemberStatus.INVITED,
+    public static ChatRoomMember newInvited(ChatRoomId roomId, MemberId inviter, MemberId invited, LocalDateTime now) {
+        ChatRoomMember member = new ChatRoomMember(
+                null, roomId, invited, MemberStatus.INVITED,
                 true, now, now, null
         );
+        member.registerEvent(EventEnvelope.of(EventType.MEMBER_INVITED, roomId, now.toInstant(ZoneOffset.UTC), new MemberInvitePayload(inviter.value(), invited.value())));
+        return member;
     }
 
     /**
@@ -101,7 +112,9 @@ public class ChatRoomMember {
             return;
         }
         this.status = MemberStatus.JOINED;
+        this.notificationEnabled = true;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.MEMBER_JOINED, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberJoinPayload(this.memberId.value())));
     }
 
     /**
@@ -116,6 +129,7 @@ public class ChatRoomMember {
         }
         this.status = MemberStatus.LEFT;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.MEMBER_LEFT, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberLeftPayload(this.memberId.value())));
     }
 
     /**
@@ -138,6 +152,7 @@ public class ChatRoomMember {
         }
         this.status = MemberStatus.BANNED;
         this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(EventType.MEMBER_BANNED, this.roomId, now.toInstant(ZoneOffset.UTC), new MemberBannedPayload(this.memberId.value())));
     }
 
     /**
@@ -179,6 +194,38 @@ public class ChatRoomMember {
         if (this.status == MemberStatus.INVITED) return;
         this.status = MemberStatus.INVITED;
         this.updatedAt = now;
+    }
+
+    /**
+     * 초대 거부
+     */
+    public void rejectInvite(LocalDateTime now) {
+        validateRejectInvite(this.status);
+        if (this.status == MemberStatus.JOINED) {
+            throw new IllegalStateException("Already joined member");
+        }
+        if (this.status == MemberStatus.REJECT) return;
+        this.status = MemberStatus.REJECT;
+        this.updatedAt = now;
+        this.registerEvent(EventEnvelope.of(
+                EventType.MEMBER_REJECTED,
+                this.roomId,
+                now.toInstant(ZoneOffset.UTC),
+                new MemberRejectedPayload(this.memberId.value()))
+        );
+    }
+
+    @DomainEvents
+    public Collection<Object> getEvents() {
+        return super.domainEvents();
+    }
+
+    private void validateRejectInvite(MemberStatus status) {
+        if (status == MemberStatus.BANNED ||
+                status == MemberStatus.LEFT ||
+                status == MemberStatus.DELETED) {
+            throw new IllegalStateException("this user cannot reject invite");
+        }
     }
 
     /* -------------------- 상태값 체크 -------------------- */

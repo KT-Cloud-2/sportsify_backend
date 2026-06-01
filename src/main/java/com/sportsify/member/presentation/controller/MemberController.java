@@ -18,14 +18,14 @@ public class MemberController implements MemberApi {
 
     private final MemberService memberService;
 
-    @GetMapping("/me")
+    @GetMapping
     public ResponseEntity<MemberResponse> getMe(
             @AuthenticationPrincipal Long memberId
     ) {
         return ResponseEntity.ok(MemberResponse.from(memberService.getMe(memberId)));
     }
 
-    @PatchMapping("/me/nickname")
+    @PatchMapping("/nickname")
     public ResponseEntity<UpdateNicknameResponse> updateNickname(
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody UpdateNicknameRequest request
@@ -33,7 +33,7 @@ public class MemberController implements MemberApi {
         return ResponseEntity.ok(UpdateNicknameResponse.from(memberService.updateNickname(memberId, request.nickname())));
     }
 
-    @DeleteMapping("/me")
+    @DeleteMapping
     public ResponseEntity<Void> withdraw(
             @AuthenticationPrincipal Long memberId
     ) {
@@ -41,7 +41,7 @@ public class MemberController implements MemberApi {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/me/favorite-teams")
+    @PostMapping("/favorite-teams")
     public ResponseEntity<FavoriteTeamResponse> addFavoriteTeam(
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody AddFavoriteTeamRequest request
@@ -49,7 +49,7 @@ public class MemberController implements MemberApi {
         return ResponseEntity.ok(FavoriteTeamResponse.from(memberService.addFavoriteTeam(memberId, request.teamId(), request.priority())));
     }
 
-    @GetMapping("/me/favorite-teams")
+    @GetMapping("/favorite-teams")
     public ResponseEntity<List<FavoriteTeamResponse>> getFavoriteTeams(
             @AuthenticationPrincipal Long memberId
     ) {
@@ -60,7 +60,7 @@ public class MemberController implements MemberApi {
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/me/favorite-teams/{teamId}/priority")
+    @PatchMapping("/favorite-teams/{teamId}/priority")
     public ResponseEntity<FavoriteTeamResponse> updateFavoriteTeamPriority(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long teamId,
@@ -69,7 +69,7 @@ public class MemberController implements MemberApi {
         return ResponseEntity.ok(FavoriteTeamResponse.from(memberService.updateFavoriteTeamPriority(memberId, teamId, request.priority())));
     }
 
-    @DeleteMapping("/me/favorite-teams/{teamId}")
+    @DeleteMapping("/favorite-teams/{teamId}")
     public ResponseEntity<Void> removeFavoriteTeam(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long teamId

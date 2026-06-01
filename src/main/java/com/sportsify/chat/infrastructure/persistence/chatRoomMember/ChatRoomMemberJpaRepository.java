@@ -67,6 +67,11 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
             "AND m.status IN ('JOINED', 'INVITED')")
     long countActiveByRoomId(@Param("roomId") Long roomId);
 
+    @Query("SELECT m FROM ChatRoomMemberJpaEntity m " +
+            "WHERE m.memberId = :memberId " +
+            "AND m.status = 'INVITED'")
+    List<ChatRoomMemberJpaEntity> findInvitedByMemberId(@Param("memberId") Long memberId);
+
 
     boolean existsByRoomIdAndMemberIdAndStatus(Long roomId, Long memberId, String status);
 
@@ -81,7 +86,7 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
             "WHERE m.roomId = :roomId AND m.status IN ('JOINED', 'INVITED')")
     void leaveAllActiveByRoomId(@Param("roomId") Long roomId, @Param("now") LocalDateTime now);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE ChatRoomMemberJpaEntity m " +
             "SET m.lastReadMessageId = :messageId, m.updatedAt = :now " +
             "WHERE m.roomId = :roomId AND m.memberId = :memberId " +
@@ -93,5 +98,8 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
             @Param("messageId") Long messageId,
             @Param("now") LocalDateTime now);
 
+    @Query("SELECT m.memberId, m.lastReadMessageId FROM ChatRoomMemberJpaEntity m " +
+            "WHERE m.roomId = :roomId AND m.status = 'JOINED'")
+    List<Object[]> findLastReadMessageIdsByRoomId(@Param("roomId") Long roomId);
 
 }

@@ -1,16 +1,20 @@
 package com.sportsify.chat.application.chatRoomMember.service;
 
+import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberInvitesResponse;
 import com.sportsify.chat.application.chatRoomMember.dto.ChatRoomMemberResponse;
 import com.sportsify.chat.domain.model.chatRoom.*;
+import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.chatRoomMember.ChatRoomMember;
 import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockAdaptor;
 import com.sportsify.chat.infrastructure.persistence.lock.AdvisoryLockKeys;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +27,13 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class ChatRoomMemberService {
+
     private final ChatRoomRepository chatRoomRepo;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
     private final Clock clock;
     private final AdvisoryLockAdaptor advisoryLockAdaptor;
+    private final ApplicationEventPublisher eventPublisher;
+    private final RoomMemberNotifyCache roomMemberNotifyCache;
 
     /**
      * 채팅방 입장
@@ -43,28 +50,38 @@ public class ChatRoomMemberService {
         }
         Optional<ChatRoomMember> memberOpt = findMemberWithStatus(room.getId(), memberId, accessStatuses);
 
+        ChatRoomMember savedMember;
         if (memberOpt.isEmpty()) {
             if (room.getType() == ChatRoomType.DIRECT) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot find this member: " + memberId);
             }
             ChatRoomMember newMember = ChatRoomMember.newJoin(room.getId(), id, now);
             try {
-                return ChatRoomMemberResponse.from(chatRoomMemberRepo.saveAndFlush(newMember));
+                savedMember = chatRoomMemberRepo.saveAndFlush(newMember);
+                publishWithRoomContext(savedMember, room.getType(), room.getName().value());
             } catch (DataIntegrityViolationException e) {
                 throw new BusinessException(ErrorCode.CONFLICT, "Already exists in this room: " + roomId + " member: " + memberId);
             }
-
+        } else {
+            ChatRoomMember member = memberOpt.get();
+            savedMember = switch (member.getStatus()) {
+                case JOINED -> throw new BusinessException(ErrorCode.CONFLICT, "Already joined room");
+                case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "This user is banned");
+                default -> {
+                    member.accept(now);
+                    ChatRoomMember saved = chatRoomMemberRepo.save(member);
+                    publishWithRoomContext(saved, room.getType(), room.getName().value());
+                    yield saved;
+                }
+            };
         }
 
-        ChatRoomMember member = memberOpt.get();
-        return switch (member.getStatus()) {
-            case JOINED -> throw new BusinessException(ErrorCode.CONFLICT, "Already joined room");
-            case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "This user is banned");
-            default -> {
-                member.accept(now);
-                yield ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
-            }
-        };
+        if (room.getStatus() == ChatRoomStatus.EMPTY) {
+            room.reactivate(now);
+            chatRoomRepo.save(room);
+        }
+
+        return ChatRoomMemberResponse.from(savedMember);
     }
 
     /**
@@ -73,7 +90,9 @@ public class ChatRoomMemberService {
     @Transactional
     public ChatRoomMemberResponse leave(Long roomId, Long memberId) {
         ChatRoomId chatRoomId = ChatRoomId.of(roomId);
-        if (chatRoomRepo.findById(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value())).getStatus().equals(ChatRoomStatus.ARCHIVED)) {
+        ChatRoom room = chatRoomRepo.findById(chatRoomId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find room : " + chatRoomId.value()));
+        if (room.getStatus().equals(ChatRoomStatus.ARCHIVED)) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Archived room");
         }
         LocalDateTime now = LocalDateTime.now(clock);
@@ -85,7 +104,15 @@ public class ChatRoomMemberService {
             case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "This user is banned");
             default -> {
                 member.leave(now);
-                yield ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
+                ChatRoomMember saved = chatRoomMemberRepo.saveAndFlush(member);
+                publishWithRoomContext(saved, room.getType(), room.getName().value());
+
+                if (chatRoomMemberRepo.countActiveByRoom(chatRoomId) == 0) {
+                    room.markEmpty(now);
+                    chatRoomRepo.save(room);
+                }
+
+                yield ChatRoomMemberResponse.from(saved);
             }
         };
     }
@@ -109,25 +136,28 @@ public class ChatRoomMemberService {
         }
 
         Optional<ChatRoomMember> inviteeOpt = findMemberWithStatus(room.getId(), inviteeId,
-                List.of(MemberStatus.JOINED, MemberStatus.INVITED, MemberStatus.BANNED, MemberStatus.LEFT));
+                List.of(MemberStatus.JOINED, MemberStatus.INVITED, MemberStatus.BANNED, MemberStatus.LEFT, MemberStatus.REJECT));
 
         if (inviteeOpt.isPresent()) {
             ChatRoomMember member = inviteeOpt.get();
             return switch (member.getStatus()) {
                 case JOINED -> throw new BusinessException(ErrorCode.CONFLICT, "Already joined member: " + inviteeId);
                 case INVITED -> throw new BusinessException(ErrorCode.CONFLICT, "Already invited member: " + inviteeId);
-                case BANNED ->
-                        throw new BusinessException(ErrorCode.FORBIDDEN, "Banned member cannot be invited: " + inviteeId);
+                case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "Banned member cannot be invited: " + inviteeId);
                 default -> {
                     member.changeStatusToInvite(now);
-                    yield ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
+                    ChatRoomMember saved = chatRoomMemberRepo.save(member);
+                    publishWithRoomContext(saved, room.getType(), room.getName().value());
+                    yield ChatRoomMemberResponse.from(saved);
                 }
             };
         }
 
-        ChatRoomMember newMember = ChatRoomMember.newInvited(room.getId(), MemberId.of(inviteeId), now);
+        ChatRoomMember newMember = ChatRoomMember.newInvited(room.getId(), MemberId.of(requesterId), MemberId.of(inviteeId), now);
         try {
-            return ChatRoomMemberResponse.from(chatRoomMemberRepo.saveAndFlush(newMember));
+            ChatRoomMember saved = chatRoomMemberRepo.saveAndFlush(newMember);
+            publishWithRoomContext(saved, room.getType(), room.getName().value());
+            return ChatRoomMemberResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(ErrorCode.CONFLICT, "Already exists in this room: " + roomId);
         }
@@ -158,7 +188,9 @@ public class ChatRoomMemberService {
         }
 
         target.ban(now);
-        return ChatRoomMemberResponse.from(chatRoomMemberRepo.save(target));
+        ChatRoomMember saved = chatRoomMemberRepo.save(target);
+        publishWithRoomContext(saved, room.getType(), room.getName().value());
+        return ChatRoomMemberResponse.from(saved);
     }
 
     /**
@@ -171,10 +203,49 @@ public class ChatRoomMemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find this member: " + memberId));
 
         member.changeNotification(enabled, now);
-        return ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member));
+        ChatRoomMemberResponse response = ChatRoomMemberResponse.from(chatRoomMemberRepo.save(member), enabled);
+        roomMemberNotifyCache.put(roomId, memberId, enabled);
+        return response;
     }
 
+    /**
+     * 초대 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatRoomMemberInvitesResponse getMyInvites(Long memberId) {
+        MemberId id = MemberId.of(memberId);
+        return ChatRoomMemberInvitesResponse.from(chatRoomMemberRepo.findInvitedByMemberId(id));
+    }
+
+    /**
+     * 초대 거부
+     */
+    @Transactional
+    public void rejectInvite(Long memberId, Long roomId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        MemberId id = MemberId.of(memberId);
+        ChatRoomId chatRoomId = ChatRoomId.of(roomId);
+        ChatRoomMember chatRoomMember = chatRoomMemberRepo.findByRoomAndMember(chatRoomId, id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find this member: " + memberId));
+        if (chatRoomMember.getStatus() == MemberStatus.JOINED) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Cannot cancel invite member: " + memberId);
+        }
+        chatRoomMember.rejectInvite(now);
+        chatRoomMemberRepo.save(chatRoomMember).getEvents().forEach(eventPublisher::publishEvent);
+    }
+
+
     /* -------------------- private functions -------------------- */
+
+    private void publishWithRoomContext(ChatRoomMember member, ChatRoomType roomType, String roomName) {
+        member.getEvents().forEach(e -> {
+            if (e instanceof EventEnvelope<?> env) {
+                eventPublisher.publishEvent(env.withRoomContext(roomType, roomName));
+            } else {
+                eventPublisher.publishEvent(e);
+            }
+        });
+    }
 
     private Optional<ChatRoomMember> findMemberWithStatus(ChatRoomId roomId, Long memberId, List<MemberStatus> statuses) {
         MemberId id = MemberId.of(memberId);

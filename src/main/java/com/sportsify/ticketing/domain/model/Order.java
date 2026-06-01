@@ -51,7 +51,7 @@ public class Order {
     private Order(Member member) {
         this.member = member;
         this.status = OrderStatus.PENDING;
-        this.expiresAt = LocalDateTime.now().plusMinutes(15);
+        this.expiresAt = LocalDateTime.now().plusMinutes(10);
     }
 
     public static Order create(Member member) {

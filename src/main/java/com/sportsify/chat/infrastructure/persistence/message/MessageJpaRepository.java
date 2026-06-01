@@ -64,4 +64,42 @@ public interface MessageJpaRepository extends JpaRepository<MessageJpaEntity, Lo
     @Query("SELECT m FROM MessageJpaEntity m " +
             "WHERE m.id = :messageId")
     Optional<MessageJpaEntity> findByIdForUpdate(@Param("messageId") Long messageId);
+
+    @Query(value = """                                                                                                                                                                                                                                                                                                
+            SELECT m.* FROM chat_messages m                                                                                                                                                                                                                                                                               
+            INNER JOIN (
+              SELECT room_id, MAX(id) AS max_id
+              FROM chat_messages                                                                                                                                                                                                                                                                                            
+              WHERE room_id IN :roomIds AND sender_id = :memberId
+              GROUP BY room_id                                                                                                                                                                                                                                                                                        
+            ) latest ON m.id = latest.max_id                                                                                                                                                                                                                                                                        
+            """,
+            nativeQuery = true)
+    List<MessageJpaEntity> findMyLatestByRooms(
+            @Param("roomIds") List<Long> roomIds,
+            @Param("memberId") Long memberId);
+
+
+    @Query("SELECT m FROM MessageJpaEntity m " +
+            "WHERE m.roomId = :roomId " +
+            "AND m.id > :afterMessageId " +
+            "AND m.status = 'ACTIVE' " +
+            "ORDER BY m.id ASC")
+    List<MessageJpaEntity> findAfter(@Param("roomId") Long roomId,
+                                     @Param("afterMessageId") Long afterMessageId,
+                                     Pageable pageable);
+
+    @Query(value = """
+            SELECT m.* FROM chat_messages m
+            INNER JOIN (
+                SELECT room_id, MAX(id) AS max_id
+                FROM chat_messages
+                WHERE room_id IN :roomIds
+                GROUP BY room_id
+            ) latest ON m.room_id = latest.room_id AND m.id = latest.max_id
+            """,
+            nativeQuery = true)
+    List<MessageJpaEntity> findLatestByRooms(
+            @Param("roomIds") List<Long> roomIds
+    );
 }
