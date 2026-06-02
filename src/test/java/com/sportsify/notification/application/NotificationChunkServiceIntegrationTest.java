@@ -47,10 +47,9 @@ class ChunkServiceIntegrationTest extends RepositoryTestSupport {
         });
 
         // 외부 트랜잭션 안에서 processChunk 호출
-        transactionTemplate.execute(status -> {
+        transactionTemplate.executeWithoutResult(status -> {
             outerTxName.set(TransactionSynchronizationManager.getCurrentTransactionName());
             chunkService.processChunk(event, List.of(1L), "{}");
-            return null;
         });
 
         // 트랜잭션이 분리됐으면 이름(또는 참조)이 다르거나 inner가 별도 실행됨

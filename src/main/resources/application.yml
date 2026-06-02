@@ -33,6 +33,7 @@ notification:
     batch-size: 100
     stuck-timeout: 10m
     backoff-minutes: 1,3,5,10
+    max-stuck-retry: 3
   stream:
     max-len: 10000
   scheduler:
@@ -41,6 +42,8 @@ notification:
     pel-reclaim-cron: "0 0/1 * * * *"
     reserved-dispatch-cron: "0 0/5 * * * *"
     leader-lock-ttl: 310s
+  channel:
+    max-per-member: 2
   slack:
     webhook-url: ${SLACK_WEBHOOK_URL:}
     signing-secret: ${SLACK_SIGNING_SECRET:}

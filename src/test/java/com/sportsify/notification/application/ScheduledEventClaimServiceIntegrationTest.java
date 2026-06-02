@@ -56,12 +56,11 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
     void claimDueEvents_동시claim_중복없음() throws InterruptedException {
         // GIVEN: 만기 예약 이벤트 3건 저장
         LocalDateTime past = LocalDateTime.now().minusMinutes(1);
-        transactionTemplate.execute(status -> {
+        transactionTemplate.executeWithoutResult(status -> {
             for (int i = 0; i < 3; i++) {
                 eventRepository.save(NotificationEvent.createScheduled(
                         NotificationEventType.TICKET_OPEN, "{}", past));
             }
-            return null;
         });
 
         // WHEN: 두 스레드가 동시에 claim
@@ -91,12 +90,96 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
         assertThat(totalClaimed.get()).isEqualTo(3);
 
         // claim 후 PROCESSING 상태이므로 재조회 시 0건
-        transactionTemplate.execute(status -> {
+        transactionTemplate.executeWithoutResult(status -> {
             List<NotificationEvent> pending = eventRepository.findDueScheduledEventsForUpdate(
                     LocalDateTime.now().plusHours(1), 3);
             assertThat(pending).isEmpty();
-            return null;
         });
+    }
+
+    @Test
+    @DisplayName("stuck 3회 복구 후에도 Due 클레임이 차단되지 않는다")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void claimDueEvents_stuck복구_횟수와_무관하게_클레임된다() {
+        // GIVEN: 만기 예약 이벤트에 stuckRetryCount=3 누적 (retry_count=0)
+        LocalDateTime past = LocalDateTime.now().minusMinutes(1);
+        NotificationEvent event = transactionTemplate.execute(status -> {
+            NotificationEvent e = NotificationEvent.createScheduled(
+                    NotificationEventType.TICKET_OPEN, "{}", past);
+            // stuck 복구를 3회 시뮬레이션
+            e.incrementStuckRetry();
+            e.incrementStuckRetry();
+            e.incrementStuckRetry();
+            return eventRepository.save(e);
+        });
+
+        // WHEN
+        List<NotificationEvent> claimed = transactionTemplate.execute(status ->
+                claimService.claimDueEvents());
+
+        // THEN: stuckRetryCount가 쌓여도 Due 클레임 가능
+        assertThat(claimed).hasSize(1);
+        assertThat(claimed.get(0).getId()).isEqualTo(event.getId());
+    }
+
+    @Test
+    @DisplayName("send retry가 누적돼도 stuck 복구가 차단되지 않는다")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void claimStuckEvents_sendRetry누적과_무관하게_복구된다() {
+        // GIVEN: Clock을 15분 전으로 고정하여 PROCESSING 상태 저장
+        Clock pastClock = Clock.fixed(Instant.now().minusSeconds(15 * 60), ZoneId.systemDefault());
+        clockReference.set(pastClock);
+
+        NotificationEvent event = transactionTemplate.execute(status -> {
+            NotificationEvent e = NotificationEvent.createScheduled(
+                    NotificationEventType.TICKET_OPEN, "{}", LocalDateTime.now(pastClock).minusMinutes(5));
+            // send-retry 3회 누적 (PEL 소진 수준)
+            e.incrementRetry();
+            e.incrementRetry();
+            e.incrementRetry();
+            e.markProcessing();
+            return eventRepository.save(e);
+        });
+
+        clockReference.set(Clock.systemDefaultZone());
+
+        // WHEN
+        LocalDateTime stuckBefore = LocalDateTime.now().minusMinutes(10);
+        List<NotificationEvent> recovered = transactionTemplate.execute(status ->
+                claimService.claimStuckEvents(stuckBefore));
+
+        // THEN: retry_count가 MAX와 같아도 stuck 복구는 stuckRetryCount 기준이므로 복구됨
+        assertThat(recovered).hasSize(1);
+        assertThat(recovered.get(0).getId()).isEqualTo(event.getId());
+    }
+
+    @Test
+    @DisplayName("stuck 복구 횟수가 MAX_STUCK_RETRY에 도달하면 더 이상 복구되지 않는다")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void claimStuckEvents_stuck한도초과시_복구안됨() {
+        // GIVEN: Clock을 15분 전으로 고정, stuckRetryCount=3 (한도 도달)
+        Clock pastClock = Clock.fixed(Instant.now().minusSeconds(15 * 60), ZoneId.systemDefault());
+        clockReference.set(pastClock);
+
+        transactionTemplate.execute(status -> {
+            NotificationEvent e = NotificationEvent.createScheduled(
+                    NotificationEventType.TICKET_OPEN, "{}", LocalDateTime.now(pastClock).minusMinutes(5));
+            e.incrementStuckRetry();
+            e.incrementStuckRetry();
+            e.incrementStuckRetry();
+            e.markProcessing();
+            return eventRepository.save(e);
+        });
+
+        clockReference.set(Clock.systemDefaultZone());
+
+        // WHEN
+        LocalDateTime stuckBefore = LocalDateTime.now().minusMinutes(10);
+        List<NotificationEvent> recovered = transactionTemplate.execute(status ->
+                claimService.claimStuckEvents(stuckBefore));
+
+        // THEN: stuckRetryCount >= MAX_STUCK_RETRY(3) 이므로 복구 대상 아님
+        assertThat(recovered).isEmpty();
     }
 
     @Test
@@ -123,17 +206,15 @@ class ScheduledEventClaimServiceIntegrationTest extends RepositoryTestSupport {
 
         // WHEN: 10분 타임아웃 기준으로 stuck 이벤트 복구
         LocalDateTime stuckBefore = LocalDateTime.now().minusMinutes(10);
-        transactionTemplate.execute(status -> {
+        transactionTemplate.executeWithoutResult(status -> {
             List<NotificationEvent> recovered = claimService.claimStuckEvents(stuckBefore);
             assertThat(recovered).hasSize(1);
-            return null;
         });
 
         // THEN: PENDING으로 복구됨
-        transactionTemplate.execute(status -> {
+        transactionTemplate.executeWithoutResult(status -> {
             NotificationEvent recovered = eventRepository.findById(event.getId()).orElseThrow();
             assertThat(recovered.getStatus()).isEqualTo(NotificationEventStatus.PENDING);
-            return null;
         });
     }
 }

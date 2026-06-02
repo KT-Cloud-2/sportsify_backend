@@ -97,19 +97,17 @@ public class PelMessageProcessor {
     }
 
     private boolean isExhausted(NotificationEvent event, String streamKey, MapRecord<String, Object, Object> message) {
-        boolean exhausted = event.incrementRetryAndCheckExhausted(backoffMinutes.size());
-        if (exhausted) {
-            event.markPermanentlyFailed();
+        if (!event.incrementRetryAndCheckExhausted(backoffMinutes.size())) {
+            eventRepository.save(event);
+            return false;
         }
+        event.markPermanentlyFailed();
         eventRepository.save(event);
-
-        if (exhausted) {
-            saveNotificationForPermanentlyFailed(event);
-            acknowledge(streamKey, message);
-            log.error("PEL 재처리 모두 소진, 영구 실패 처리 eventId={} retryCount={}", event.getId(), event.getRetryCount());
-            eventPublisher.publishEvent(NotificationPermanentlyFailedEvent.of(event.getId(), event.getEventType(), event.getRetryCount(), "PEL", event.getPayload()));
-        }
-        return exhausted;
+        saveNotificationForPermanentlyFailed(event);
+        acknowledge(streamKey, message);
+        log.error("PEL 재처리 모두 소진, 영구 실패 처리 eventId={} retryCount={}", event.getId(), event.getRetryCount());
+        eventPublisher.publishEvent(NotificationPermanentlyFailedEvent.of(event.getId(), event.getEventType(), event.getRetryCount(), "PEL", event.getPayload()));
+        return true;
     }
 
     private void saveNotificationForPermanentlyFailed(NotificationEvent event) {

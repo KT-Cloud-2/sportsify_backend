@@ -6,10 +6,12 @@ import com.sportsify.notification.application.service.NotificationSettingService
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
+import com.sportsify.notification.support.NotificationIntegrationTestSupport;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,7 +25,6 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class NotificationSettingServiceTest {
 
-    @InjectMocks
     private NotificationSettingService settingService;
 
     @Mock
@@ -31,6 +32,12 @@ class NotificationSettingServiceTest {
 
     @Mock
     private NotificationChannelRepository channelRepository;
+
+    @BeforeEach
+    void setUp() {
+        NotificationProperties properties = NotificationIntegrationTestSupport.defaultProperties();
+        settingService = new NotificationSettingService(settingRepository, channelRepository, properties);
+    }
 
     @Test
     @DisplayName("알림 설정이 없으면 NOTIFICATION_SETTING_NOT_FOUND 예외가 발생한다")

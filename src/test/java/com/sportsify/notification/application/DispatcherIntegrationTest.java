@@ -1,6 +1,7 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.PaymentCompletedPayload;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
@@ -19,14 +20,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -43,13 +46,15 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @Autowired private NotificationChannelRepository channelRepository;
     @Autowired private MemberJpaRepository memberJpaRepository;
     @Autowired private TransactionTemplate transactionTemplate;
+    @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private SseEmitterManager sseEmitterManager;
 
     private Long memberId;
+    private String payload;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         willDoNothing().given(sseEmitterManager).send(anyLong(), anyString());
 
         String uid = UUID.randomUUID().toString().substring(0, 8);
@@ -58,6 +63,8 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
                     Member.create(uid + "@test.com", "tester", OAuthProvider.GOOGLE, uid));
             return member.getId();
         });
+
+        payload = objectMapper.writeValueAsString(new PaymentCompletedPayload(1L, memberId, 10000));
     }
 
     @Test
@@ -65,14 +72,11 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void fanout실패시_이벤트상태_FAILED() {
         NotificationEvent event = transactionTemplate.execute(status ->
-                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED,
-                        "{\"memberId\":" + memberId + "}"))
+                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload))
         );
 
-        transactionTemplate.execute(status -> {
-            statusService.markEventStatus(event.getId(), true);
-            return null;
-        });
+        transactionTemplate.executeWithoutResult(status ->
+                statusService.markEventStatus(event.getId(), true));
 
         NotificationEvent saved = transactionTemplate.execute(status ->
                 eventRepository.findById(event.getId()).orElseThrow()
@@ -86,21 +90,17 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void PUBLISHED_이벤트_PEL재처리_중복발송없음() {
         NotificationEvent event = transactionTemplate.execute(status ->
-                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED,
-                        "{\"memberId\":" + memberId + "}"))
+                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload))
         );
 
-        transactionTemplate.execute(status -> {
-            dispatcher.toMember(event, memberId, "{\"memberId\":" + memberId + "}");
-            return null;
-        });
+        transactionTemplate.executeWithoutResult(status ->
+                dispatcher.toMember(event, memberId, payload));
 
         assertThat(notificationCountFor(memberId, event.getId())).isEqualTo(1);
 
-        transactionTemplate.execute(status -> {
-            boolean result = dispatcher.toMember(event, memberId, "{\"memberId\":" + memberId + "}");
+        transactionTemplate.executeWithoutResult(status -> {
+            boolean result = dispatcher.toMember(event, memberId, payload);
             assertThat(result).isFalse();
-            return null;
         });
 
         assertThat(notificationCountFor(memberId, event.getId())).isEqualTo(1);
@@ -111,14 +111,11 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void 알림발송시_Notification_unread_저장() {
         NotificationEvent event = transactionTemplate.execute(status ->
-                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED,
-                        "{\"memberId\":" + memberId + "}"))
+                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload))
         );
 
-        transactionTemplate.execute(status -> {
-            dispatcher.toMember(event, memberId, "{\"memberId\":" + memberId + "}");
-            return null;
-        });
+        transactionTemplate.executeWithoutResult(status ->
+                dispatcher.toMember(event, memberId, payload));
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT is_read FROM notifications WHERE member_id = ? AND event_id = ?",
@@ -133,18 +130,13 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void 발송완료후_NotificationEvent_PUBLISHED_마킹() {
         NotificationEvent event = transactionTemplate.execute(status ->
-                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED,
-                        "{\"memberId\":" + memberId + "}"))
+                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload))
         );
 
-        transactionTemplate.execute(status -> {
-            dispatcher.toMember(event, memberId, "{\"memberId\":" + memberId + "}");
-            return null;
-        });
-        transactionTemplate.execute(status -> {
-            statusService.markEventStatus(event.getId(), false);
-            return null;
-        });
+        transactionTemplate.executeWithoutResult(status ->
+                dispatcher.toMember(event, memberId, payload));
+        transactionTemplate.executeWithoutResult(status ->
+                statusService.markEventStatus(event.getId(), false));
 
         NotificationEvent saved = transactionTemplate.execute(status ->
                 eventRepository.findById(event.getId()).orElseThrow()
@@ -160,15 +152,12 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
         willThrow(new RuntimeException("SSE 연결 없음")).given(sseEmitterManager).send(anyLong(), anyString());
 
         NotificationEvent event = transactionTemplate.execute(status ->
-                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED,
-                        "{\"memberId\":" + memberId + "}"))
+                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload))
         );
 
         try {
-            transactionTemplate.execute(status -> {
-                dispatcher.toMember(event, memberId, "{\"memberId\":" + memberId + "}");
-                return null;
-            });
+            transactionTemplate.executeWithoutResult(status ->
+                    dispatcher.toMember(event, memberId, payload));
         } catch (RuntimeException ignored) {
             // afterCommit에서 SSE 예외가 전파됨 — 트랜잭션은 이미 커밋
         }
@@ -185,21 +174,16 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @DisplayName("EMAIL 채널 발송 실패 시 NotificationHistory에 이력이 기록된다")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void 채널발송실패시_NotificationHistory_이력기록() {
-        transactionTemplate.execute(status -> {
-            channelRepository.save(
-                    NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "invalid-target@fail.com"));
-            return null;
-        });
+        transactionTemplate.executeWithoutResult(status ->
+                channelRepository.save(
+                        NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "invalid-target@fail.com")));
 
         NotificationEvent event = transactionTemplate.execute(status ->
-                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED,
-                        "{\"memberId\":" + memberId + "}"))
+                eventRepository.save(NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload))
         );
 
-        transactionTemplate.execute(status -> {
-            dispatcher.toMember(event, memberId, "{\"memberId\":" + memberId + "}");
-            return null;
-        });
+        transactionTemplate.executeWithoutResult(status ->
+                dispatcher.toMember(event, memberId, payload));
 
         assertThat(notificationCountFor(memberId, event.getId())).isEqualTo(1);
 

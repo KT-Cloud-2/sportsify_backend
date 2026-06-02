@@ -95,6 +95,7 @@ class FailureEventListenerTest {
                 base.pel(),
                 base.stream(),
                 base.scheduler(),
+                base.channel(),
                 new NotificationProperties.Slack(webhookUrl, "secret", Duration.ofMinutes(10))
         );
         return new FailureEventListener(slackNotifier, properties, redisTemplate);

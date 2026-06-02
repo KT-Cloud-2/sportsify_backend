@@ -1,6 +1,7 @@
 package com.sportsify.notification.infrastructure;
 
 import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.common.notification.payload.PaymentCompletedPayload;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
@@ -20,6 +21,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.ObjectMapper;
+
 import java.util.UUID;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
@@ -46,6 +49,7 @@ class PelPermanentFailureIntegrationTest extends NotificationIntegrationTestSupp
     @Autowired private NotificationProperties properties;
     @Autowired private TransactionTemplate transactionTemplate;
     @Autowired private StringRedisTemplate redisTemplate;
+    @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private SseEmitterManager sseEmitterManager;
 
@@ -87,7 +91,7 @@ class PelPermanentFailureIntegrationTest extends NotificationIntegrationTestSupp
             return m.getId();
         });
 
-        String payload = "{\"memberId\":" + noChannelMemberId + "}";
+        String payload = toPayload(new PaymentCompletedPayload(1L, noChannelMemberId, 10000));
 
         NotificationEvent event = transactionTemplate.execute(status -> {
             NotificationEvent e = NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload);
@@ -120,7 +124,7 @@ class PelPermanentFailureIntegrationTest extends NotificationIntegrationTestSupp
         String streamKey = NotificationEventType.PAYMENT_COMPLETED.getStreamKey();
         String msgId = "200-0";
         long nonExistentMemberId = -9999L;
-        String payload = "{\"memberId\":" + nonExistentMemberId + "}";
+        String payload = toPayload(new PaymentCompletedPayload(1L, nonExistentMemberId, 10000));
 
         NotificationEvent event = transactionTemplate.execute(status -> {
             NotificationEvent e = NotificationEvent.create(NotificationEventType.PAYMENT_COMPLETED, payload);
@@ -145,7 +149,7 @@ class PelPermanentFailureIntegrationTest extends NotificationIntegrationTestSupp
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void PEL_소진후_추가재처리_fanout없음() {
         int backoffSize = properties.pel().backoffMinutes().size();
-        String payload = "{\"memberId\":" + memberId + "}";
+        String payload = toPayload(new PaymentCompletedPayload(1L, memberId, 10000));
         String streamKey = NotificationEventType.PAYMENT_COMPLETED.getStreamKey();
         String msgId = "300-0";
 
@@ -172,6 +176,14 @@ class PelPermanentFailureIntegrationTest extends NotificationIntegrationTestSupp
         NotificationEventStatus finalStatus = transactionTemplate.execute(status ->
                 eventRepository.findById(event.getId()).orElseThrow().getStatus());
         assertThat(finalStatus).isEqualTo(NotificationEventStatus.PERMANENTLY_FAILED);
+    }
+
+    private String toPayload(Object payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private MapRecord<String, Object, Object> mapRecord(String streamKey, String payload, String msgId) {

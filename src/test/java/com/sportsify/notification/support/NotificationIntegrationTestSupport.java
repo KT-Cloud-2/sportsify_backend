@@ -38,9 +38,10 @@ public abstract class NotificationIntegrationTestSupport extends RepositoryTestS
 
     public static NotificationProperties defaultProperties() {
         return new NotificationProperties(
-                new NotificationProperties.Pel(Duration.ofMinutes(10), 100, Duration.ofMinutes(10), List.of(1, 3, 5, 10)),
+                new NotificationProperties.Pel(Duration.ofMinutes(10), 100, Duration.ofMinutes(10), List.of(1, 3, 5, 10), 3),
                 new NotificationProperties.Stream(10000),
                 new NotificationProperties.Scheduler("0 0/5 * * * *", "0 0 3 * * *", "0 0/10 * * * *", "0 0/1 * * * *", Duration.ofSeconds(310)),
+                new NotificationProperties.Channel(2),
                 new NotificationProperties.Slack("", "", Duration.ofMinutes(10))
         );
     }

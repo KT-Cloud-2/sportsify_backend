@@ -52,6 +52,9 @@ public class NotificationEvent {
     @Column(name = "retry_count", nullable = false)
     private int retryCount = 0;
 
+    @Column(name = "stuck_retry_count", nullable = false)
+    private int stuckRetryCount = 0;
+
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
@@ -113,6 +116,10 @@ public class NotificationEvent {
 
     public void incrementRetry() {
         this.retryCount++;
+    }
+
+    public void incrementStuckRetry() {
+        this.stuckRetryCount++;
     }
 
     public boolean incrementRetryAndCheckExhausted(int backoffSize) {
