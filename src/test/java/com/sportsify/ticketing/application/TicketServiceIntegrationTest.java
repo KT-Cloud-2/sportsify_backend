@@ -1,11 +1,12 @@
 package com.sportsify.ticketing.application;
 
-import com.sportsify.common.exception.BusinessException;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.application.service.TicketService;
+import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.repository.OrderRepository;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
@@ -19,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TicketServiceIntegrationTest extends RepositoryTestSupport {
 
@@ -31,6 +31,9 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
 
     @Autowired
     private TicketingTestFixture fixture;
+
+    @Autowired
+    private OrderRepository orderRepository;
 
     private Member member;
     private Game game;
@@ -53,9 +56,9 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     void createTickets_success() {
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-        Long orderId = resDto.orderId();
+        Order order = orderRepository.findByIdWithAll(resDto.orderId()).orElseThrow(RuntimeException::new);
 
-        ticketService.createTickets(orderId, member.getId());
+        ticketService.createTickets(order);
 
         TicketListResponseDto tickets = ticketService.getMyTickets(member.getId(), 0, 10);
         assertThat(tickets.items()).hasSize(3);
@@ -68,24 +71,13 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
     }
 
     @Test
-    @DisplayName("createTickets 호출 시 요청자와 주문자가 불일치하면 예외가 발생한다.")
-    void createTickets_memberMismatch() {
-        Member otherMember = fixture.createMember("other@test.com", "other");
-
-        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-
-        assertThatThrownBy(() -> ticketService.createTickets(resDto.orderId(), otherMember.getId()))
-                .isInstanceOf(BusinessException.class);
-    }
-
-
-    @Test
     @DisplayName("getMyTickets 호출 시 페이징이 올바르게 적용된다.")
     void getMyTickets_paging() {
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-        ticketService.createTickets(resDto.orderId(), member.getId());
+        Order order = orderRepository.findByIdWithAll(resDto.orderId()).orElseThrow(RuntimeException::new);
+
+        ticketService.createTickets(order);
 
         TicketListResponseDto page0 = ticketService.getMyTickets(member.getId(), 0, 2);
         TicketListResponseDto page1 = ticketService.getMyTickets(member.getId(), 1, 2);
@@ -107,7 +99,9 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
 
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-        ticketService.createTickets(resDto.orderId(), member.getId());
+        Order order = orderRepository.findByIdWithAll(resDto.orderId()).orElseThrow(RuntimeException::new);
+
+        ticketService.createTickets(order);
 
         TicketListResponseDto myTickets = ticketService.getMyTickets(member.getId(), 0, 10);
         TicketListResponseDto otherTickets = ticketService.getMyTickets(otherMember.getId(), 0, 10);
@@ -116,20 +110,4 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
         assertThat(otherTickets.items()).isEmpty();
     }
 
-    @Test
-    @DisplayName("존재하지 않는 회원으로 createTickets 호출 시 예외가 발생한다.")
-    void createTickets_memberNotFound() {
-        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-
-        assertThatThrownBy(() -> ticketService.createTickets(resDto.orderId(), 9999L))
-                .isInstanceOf(BusinessException.class);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 주문으로 createTickets 호출 시 예외가 발생한다.")
-    void createTickets_orderNotFound() {
-        assertThatThrownBy(() -> ticketService.createTickets(9999L, member.getId()))
-                .isInstanceOf(BusinessException.class);
-    }
 }

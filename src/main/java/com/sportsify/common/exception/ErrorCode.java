@@ -47,10 +47,14 @@ public enum ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "존재하지 않는 주문입니다."),
     ORDER_EXPIRED(HttpStatus.GONE, "ORDER_EXPIRED", "예약 시간이 만료되었습니다."),
     ORDER_MEMBER_MISMATCH(HttpStatus.FORBIDDEN, "ORDER_MEMBER_MISMATCH", "요청자와 주문자가 일치하지 않습니다."),
+    ORDER_CLOSED(HttpStatus.CONFLICT, "ORDER_CLOSED", "이미 처리된 주문으로 결제를 시작할 수 없습니다."),
 
     // 게임
     PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다."),
-    STADIUM_NOT_FOUND(HttpStatus.NOT_FOUND, "STADIUM_NOT_FOUND", "존재하지 않는 경기장입니다.");
+    STADIUM_NOT_FOUND(HttpStatus.NOT_FOUND, "STADIUM_NOT_FOUND", "존재하지 않는 경기장입니다."),
+
+    // 결제
+    AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "AMOUNT_MISMATCH", "요청 금액이 주문 금액과 일치하지 않습니다.");
 
 
     private final HttpStatus httpStatus;
