@@ -23,15 +23,13 @@ public record ReservationSeatsResponseDto(
                 .map(ReservationSeatDto::from)
                 .toList();
 
-        Long amount = order.getOrderSeats().stream().mapToLong(OrderSeat::getPrice).sum();
-
         return new ReservationSeatsResponseDto(
                 order.getId(),
                 gameId,
                 order.getMember().getId(),
                 order.getStatus(),
                 order.getCreatedAt(),
-                amount,
+                order.getTotalAmount(),
                 seats,
                 order.getExpiresAt()
         );

@@ -84,51 +84,6 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     }
 
     @Test
-    @DisplayName("결제 도입 이벤트 수신 시, DB에 저장된 주문이어야 한다.")
-    void onStartedPaymentEvent_orderNotFound() {
-
-        assertThatThrownBy(() ->
-                eventPublisher.publishEvent(
-                        eventFixture.createStartedEventByOrderId(-1L, member.getId())
-                )).isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.ORDER_NOT_FOUND);
-
-    }
-
-
-    @Test
-    @DisplayName("결제 도입 이벤트 수신 시, 주문 상태가 PENDING이어야 한다.")
-    void onStartedPaymentEvent_isPending(CapturedOutput output) {
-        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
-
-        Order order = orderRepository.findById(orderId).orElseThrow();
-        order.updateStatus(OrderStatus.CONFIRMED);
-
-        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
-
-        Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
-
-        assertThat(updatedOrder.getStatus()).isNotEqualTo(OrderStatus.PAYING);
-        assertThat(output.getOut()).contains("결제 시작 불가 상태:");
-    }
-
-    @Test
-    @DisplayName("결제 도입 이벤트 수신 시, 주문 상태가 PAYING으로 변경된다.")
-    void onStartedPaymentEvent() {
-        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
-
-        eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
-
-        Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
-
-        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.PAYING);
-    }
-
-
-    @Test
     @DisplayName("결제 완료 이벤트 수신 시, DB에 저장된 주문이어야 한다.")
     void onSuccessPaymentEvent_orderNotFound() {
         assertThatThrownBy(() ->
@@ -143,8 +98,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
 
 
     @ParameterizedTest
-    @DisplayName("결제 완료 이벤트 수신 시, 주문 상태가 PAYING이어야 한다.")
-    @EnumSource(value = OrderStatus.class, names = {"PENDING", "CONFIRMED", "CANCELLED"})
+    @DisplayName("결제 완료 이벤트 수신 시, 주문 상태가 PENDING이어야 한다.")
+    @EnumSource(value = OrderStatus.class, names = {"CONFIRMED", "CANCELLED"})
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void onSuccessPaymentEvent_isPaying(OrderStatus status, CapturedOutput output) {
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
@@ -174,7 +129,6 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
             eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
         });
 
@@ -206,7 +160,6 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
             eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
         });
 
@@ -215,7 +168,7 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
                 .untilAsserted(() -> {
                     transactionTemplate.executeWithoutResult(status -> {
                         List<Ticket> tickets = ticketRepository.findAll();
-                        Order order = orderRepository.findByIdWithOrderSeats(orderId).orElseThrow();
+                        Order order = orderRepository.findById(orderId).orElseThrow();
                         List<Long> orderSeatIds = order.getOrderSeats().stream().map(OrderSeat::getId).toList();
                         assertThat(tickets).hasSize(gameSeatIds.size());
                         assertThat(tickets)
@@ -277,7 +230,6 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createStartedEventByOrderId(orderId, member.getId()));
             eventPublisher.publishEvent(eventFixture.createCancelledEventByOrderId(orderId, member.getId()));
         });
 

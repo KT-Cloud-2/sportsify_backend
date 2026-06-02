@@ -37,7 +37,7 @@ public class OrderService {
     @Transactional
     public void cancelFailedPaymentOrdersBulk() {
         LocalDateTime now = LocalDateTime.now();
-        List<Long> orderIds = orderRepository.findPayingOrderIdsWithFailedPayment();
+        List<Long> orderIds = orderRepository.findPendingOrderIdsWithFailedPayment();
 
         if (orderIds.isEmpty()) return;
 
