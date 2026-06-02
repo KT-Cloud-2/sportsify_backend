@@ -1,6 +1,7 @@
 package com.sportsify.notification.application.service;
 
 import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -8,8 +9,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -17,9 +16,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PayloadParser {
 
-    private static final long GAME_START_OFFSET_MINUTES = 30;
-
     private final ObjectMapper objectMapper;
+    private final NotificationProperties properties;
 
     public Long extractMemberId(String payload, String eventTypeName) {
         try {
@@ -44,7 +42,7 @@ public class PayloadParser {
                 case TICKET_OPEN -> parseDateTime(node, "saleStartAt")
                         .filter(t -> t.isAfter(now));
                 case GAME_START -> parseDateTime(node, "gameStartAt")
-                        .map(t -> t.minusMinutes(GAME_START_OFFSET_MINUTES))
+                        .map(t -> t.minusMinutes(properties.payload().gameStartOffsetMinutes()))
                         .filter(t -> t.isAfter(now));
                 default -> Optional.empty();
             };

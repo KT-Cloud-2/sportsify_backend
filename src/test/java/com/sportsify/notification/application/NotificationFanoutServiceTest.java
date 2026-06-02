@@ -6,6 +6,7 @@ import com.sportsify.notification.application.service.FanoutService;
 import com.sportsify.notification.application.service.PayloadParser;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.support.NotificationIntegrationTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class FanoutServiceTest {
 
     @BeforeEach
     void setUp() {
-        fanoutService = new FanoutService(settingRepository, chunkService, payloadParser);
+        fanoutService = new FanoutService(settingRepository, chunkService, payloadParser, NotificationIntegrationTestSupport.defaultProperties());
     }
 
     @Test

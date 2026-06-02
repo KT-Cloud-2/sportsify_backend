@@ -42,6 +42,9 @@ public abstract class NotificationIntegrationTestSupport extends RepositoryTestS
                 new NotificationProperties.Stream(10000),
                 new NotificationProperties.Scheduler("0 0/5 * * * *", "0 0 3 * * *", "0 0/10 * * * *", "0 0/1 * * * *", Duration.ofSeconds(310)),
                 new NotificationProperties.Channel(2),
+                new NotificationProperties.Fanout(500),
+                new NotificationProperties.Payload(30),
+                new NotificationProperties.Sse(1800000),
                 new NotificationProperties.Slack("", "", Duration.ofMinutes(10))
         );
     }

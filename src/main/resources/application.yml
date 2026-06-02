@@ -44,6 +44,12 @@ notification:
     leader-lock-ttl: 310s
   channel:
     max-per-member: 2
+  fanout:
+    chunk-size: 500
+  payload:
+    game-start-offset-minutes: 30
+  sse:
+    timeout-ms: 1800000
   slack:
     webhook-url: ${SLACK_WEBHOOK_URL:}
     signing-secret: ${SLACK_SIGNING_SECRET:}

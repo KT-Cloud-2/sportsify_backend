@@ -3,6 +3,7 @@ package com.sportsify.notification.application.service;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -16,11 +17,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FanoutService {
 
-    private static final int CHUNK_SIZE = 500;
-
     private final NotificationSettingRepository settingRepository;
     private final ChunkService chunkService;
     private final PayloadParser payloadParser;
+    private final NotificationProperties properties;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
         if (eventType.isSingleTarget()) {
@@ -45,7 +45,7 @@ public class FanoutService {
         Slice<Long> chunk;
 
         do {
-            chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, CHUNK_SIZE));
+            chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, properties.fanout().chunkSize()));
             try {
                 if (chunkService.processChunk(event, chunk.getContent(), payload)) {
                     anyFailed = true;

@@ -2,6 +2,7 @@ package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.application.service.PayloadParser;
+import com.sportsify.notification.support.NotificationIntegrationTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class PayloadParserTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = JsonMapper.builder().build();
-        parser = new PayloadParser(objectMapper);
+        parser = new PayloadParser(objectMapper, NotificationIntegrationTestSupport.defaultProperties());
     }
 
     @Test
