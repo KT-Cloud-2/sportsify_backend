@@ -49,19 +49,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
-        Order order = orderRepository.findByIdWithLock(request.getOrderId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (order.isClosed()) {
-            log.warn("결제 시작 불가 상태: orderId={}, status={}", request.getOrderId(), order.getStatus());
-            throw new BusinessException(ErrorCode.ORDER_CLOSED, "status: " + order.getStatus());
-        }
-
-        if (!(order.getMemberId().equals(userId)))
-            throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
-
-        if (!(order.getTotalAmount().equals(request.getAmount())))
-            throw new BusinessException(ErrorCode.AMOUNT_MISMATCH);
+        validateOrder(request.getOrderId(), userId, request.getAmount());
 
         return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
                 .map(existingPayment -> {
@@ -288,5 +276,21 @@ public class PaymentService {
                 .requestedAt(payment.getRequestedAt())
                 .approvedAt(payment.getApprovedAt())
                 .build();
+    }
+
+    private void validateOrder(Long orderId, Long userId, Long amount) {
+        Order order = orderRepository.findByIdWithLock(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (order.isClosed()) {
+            log.warn("결제 시작 불가 상태: orderId={}, status={}", orderId, order.getStatus());
+            throw new BusinessException(ErrorCode.ORDER_CLOSED, "status: " + order.getStatus());
+        }
+
+        if (!(order.getMemberId().equals(userId)))
+            throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
+
+        if (!(order.getTotalAmount().equals(amount)))
+            throw new BusinessException(ErrorCode.AMOUNT_MISMATCH);
     }
 }

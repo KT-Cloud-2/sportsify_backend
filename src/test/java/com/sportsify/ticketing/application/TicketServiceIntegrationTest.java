@@ -99,7 +99,7 @@ class TicketServiceIntegrationTest extends RepositoryTestSupport {
 
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-        Order order = orderRepository.findById(resDto.orderId()).orElseThrow(RuntimeException::new);
+        Order order = orderRepository.findByIdWithAll(resDto.orderId()).orElseThrow(RuntimeException::new);
 
         ticketService.createTickets(order);
 
