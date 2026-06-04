@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -44,11 +44,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-test
-    # develop → main 머지(squash merge 포함) 시에만 배포
-    if: >
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      github.event.head_commit.author.name != 'github-actions[bot]'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
     steps:
       - uses: actions/checkout@v4
