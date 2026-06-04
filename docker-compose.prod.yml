@@ -57,8 +57,6 @@ services:
     depends_on:
       was-blue:
         condition: service_healthy
-      was-green:
-        condition: service_healthy
     restart: unless-stopped
     logging:
       driver: awslogs
