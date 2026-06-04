@@ -119,8 +119,9 @@ jobs:
 
             docker pull $IMAGE_NAME:$IMAGE_TAG
 
-            # 현재 active 컨테이너 확인
-            if docker ps --format '{{.Names}}' | grep -q sportsify-was-blue; then
+            # nginx.conf의 sportsify-active upstream에서 현재 라우팅 대상 확인
+            ACTIVE_SERVER=$(awk '/upstream sportsify-active/,/}/' ~/nginx/nginx.conf | grep server | awk '{print $2}')
+            if echo "$ACTIVE_SERVER" | grep -q "was-blue"; then
               ACTIVE=blue
               NEXT=green
             else
