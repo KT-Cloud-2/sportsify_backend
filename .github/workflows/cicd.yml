@@ -111,6 +111,14 @@ jobs:
               --output text | \
               awk '{split($1,a,"/"); print a[4] "=" $2}' > ~/.env
 
+            # 인프라 기동 (최대 3회 재시도, 실패 시 완전 초기화 후 재시도)
+            for i in 1 2 3; do
+              docker compose -f ~/docker-compose.infra.yml --env-file ~/.env up -d && break
+              echo "인프라 기동 실패 ($i/3), 초기화 후 재시도..."
+              docker compose -f ~/docker-compose.infra.yml down -v --rmi all
+              sleep 5
+            done
+
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
               | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
