@@ -10,6 +10,7 @@ import com.sportsify.notification.domain.model.NotificationChannelType;
 import com.sportsify.notification.domain.model.NotificationSetting;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class NotificationSettingService {
 
     private final NotificationSettingRepository settingRepository;
     private final NotificationChannelRepository channelRepository;
+    private final NotificationProperties properties;
 
     @Transactional(readOnly = true)
     public NotificationSettingResult getSetting(Long memberId) {
@@ -51,6 +53,9 @@ public class NotificationSettingService {
     public NotificationChannelResult registerChannel(Long memberId, NotificationChannelType channelType, String channelTarget) {
         if (channelRepository.existsByMemberIdAndChannelType(memberId, channelType)) {
             throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_ALREADY_EXISTS);
+        }
+        if (channelRepository.countByMemberIdForUpdate(memberId) >= properties.channel().maxPerMember()) {
+            throw new BusinessException(ErrorCode.NOTIFICATION_CHANNEL_LIMIT_EXCEEDED);
         }
         try {
             NotificationChannel channel = channelRepository.save(

@@ -3,6 +3,7 @@ package com.sportsify.notification.application.service;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -16,11 +17,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FanoutService {
 
-    private static final int CHUNK_SIZE = 500;
-
     private final NotificationSettingRepository settingRepository;
     private final ChunkService chunkService;
     private final PayloadParser payloadParser;
+    private final NotificationProperties properties;
 
     public boolean fanout(NotificationEvent event, NotificationEventType eventType, String payload) {
         if (eventType.isSingleTarget()) {
@@ -45,7 +45,7 @@ public class FanoutService {
         Slice<Long> chunk;
 
         do {
-            chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, CHUNK_SIZE));
+            chunk = resolveTargetMemberIds(eventType, PageRequest.of(page, properties.fanout().chunkSize()));
             try {
                 if (chunkService.processChunk(event, chunk.getContent(), payload)) {
                     anyFailed = true;
@@ -64,6 +64,7 @@ public class FanoutService {
         return switch (eventType) {
             case TICKET_OPEN -> settingRepository.findMemberIdsByTicketOpenAlertTrue(pageable);
             case GAME_START -> settingRepository.findMemberIdsByGameStartAlertTrue(pageable);
+            // 새 브로드캐스트 이벤트 추가 시 여기에 케이스 추가 필요
             default -> throw new IllegalStateException("단건 발송 이벤트는 fanoutSingleTarget으로 처리: " + eventType);
         };
     }

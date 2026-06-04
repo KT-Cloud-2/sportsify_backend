@@ -34,13 +34,4 @@ public class NotificationSettingRepositoryAdapter implements NotificationSetting
         return jpaRepository.findMemberIdsByGameStartAlertTrue(pageable);
     }
 
-    @Override
-    public Slice<Long> findMemberIdsByPaymentAlertTrue(Pageable pageable) {
-        return jpaRepository.findMemberIdsByPaymentAlertTrue(pageable);
-    }
-
-    @Override
-    public Slice<Long> findMemberIdsByChatMentionAlertTrue(Pageable pageable) {
-        return jpaRepository.findMemberIdsByChatMentionAlertTrue(pageable);
-    }
 }

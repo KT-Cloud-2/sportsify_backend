@@ -17,8 +17,8 @@ public interface NotificationEventJpaRepository extends JpaRepository<Notificati
             nativeQuery = true)
     List<NotificationEvent> findDueScheduledEventsForUpdate(@Param("now") LocalDateTime now, @Param("maxRetry") int maxRetry);
 
-    @Query(value = "SELECT * FROM notification_events WHERE status = 'PROCESSING' AND updated_at <= :updatedBefore FOR UPDATE SKIP LOCKED",
+    @Query(value = "SELECT * FROM notification_events WHERE status = 'PROCESSING' AND updated_at <= :updatedBefore AND stuck_retry_count < :maxStuckRetry FOR UPDATE SKIP LOCKED",
             nativeQuery = true)
-    List<NotificationEvent> findStuckProcessingEventsForUpdate(@Param("updatedBefore") LocalDateTime updatedBefore);
+    List<NotificationEvent> findStuckProcessingEventsForUpdate(@Param("updatedBefore") LocalDateTime updatedBefore, @Param("maxStuckRetry") int maxStuckRetry);
 
 }

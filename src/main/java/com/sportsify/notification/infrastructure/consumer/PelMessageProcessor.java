@@ -4,9 +4,12 @@ import com.sportsify.common.event.NotificationPermanentlyFailedEvent;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.notification.application.service.EventStatusService;
 import com.sportsify.notification.application.service.FanoutService;
+import com.sportsify.notification.application.service.PayloadParser;
+import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
 import com.sportsify.notification.domain.model.NotificationEventStatus;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
+import com.sportsify.notification.domain.repository.NotificationRepository;
 import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import com.sportsify.notification.infrastructure.publisher.RedisStreamNotificationEventPublisher;
@@ -27,6 +30,8 @@ public class PelMessageProcessor {
     private final FanoutService fanoutService;
     private final EventStatusService statusService;
     private final NotificationEventRepository eventRepository;
+    private final NotificationRepository notificationRepository;
+    private final PayloadParser payloadParser;
     private final NotificationProperties properties;
     private final ApplicationEventPublisher eventPublisher;
     private final List<Integer> backoffMinutes;
@@ -35,12 +40,16 @@ public class PelMessageProcessor {
                                 FanoutService fanoutService,
                                 EventStatusService statusService,
                                 NotificationEventRepository eventRepository,
+                                NotificationRepository notificationRepository,
+                                PayloadParser payloadParser,
                                 NotificationProperties properties,
                                 ApplicationEventPublisher eventPublisher) {
         this.redisTemplate = redisTemplate;
         this.fanoutService = fanoutService;
         this.statusService = statusService;
         this.eventRepository = eventRepository;
+        this.notificationRepository = notificationRepository;
+        this.payloadParser = payloadParser;
         this.properties = properties;
         this.eventPublisher = eventPublisher;
         this.backoffMinutes = properties.pel().backoffMinutes();
@@ -88,18 +97,30 @@ public class PelMessageProcessor {
     }
 
     private boolean isExhausted(NotificationEvent event, String streamKey, MapRecord<String, Object, Object> message) {
-        boolean exhausted = event.incrementRetryAndCheckExhausted(properties.retry().maxRetry());
-        if (exhausted) {
-            event.markPermanentlyFailed();
+        if (!event.incrementRetryAndCheckExhausted(backoffMinutes.size())) {
+            eventRepository.save(event);
+            return false;
         }
+        event.markPermanentlyFailed();
         eventRepository.save(event);
+        saveNotificationForPermanentlyFailed(event);
+        acknowledge(streamKey, message);
+        log.error("PEL 재처리 모두 소진, 영구 실패 처리 eventId={} retryCount={}", event.getId(), event.getRetryCount());
+        eventPublisher.publishEvent(NotificationPermanentlyFailedEvent.of(event.getId(), event.getEventType(), event.getRetryCount(), "PEL", event.getPayload()));
+        return true;
+    }
 
-        if (exhausted) {
-            acknowledge(streamKey, message);
-            log.error("PEL 재처리 모두 소진, 영구 실패 처리 eventId={} retryCount={}", event.getId(), event.getRetryCount());
-            eventPublisher.publishEvent(NotificationPermanentlyFailedEvent.of(event.getId(), event.getEventType(), event.getRetryCount(), "PEL"));
+    private void saveNotificationForPermanentlyFailed(NotificationEvent event) {
+        if (!event.getEventType().isSingleTarget()) {
+            return;
         }
-        return exhausted;
+        try {
+            Long memberId = payloadParser.extractMemberId(event.getPayload(), event.getTypeName());
+            if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) return;
+            notificationRepository.save(Notification.create(memberId, event.getId()));
+        } catch (Exception e) {
+            log.error("영구 실패 알림 기록 저장 실패 eventId={}", event.getId(), e);
+        }
     }
 
     private boolean isAlreadyResolved(NotificationEvent event) {

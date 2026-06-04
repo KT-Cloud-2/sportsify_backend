@@ -1,6 +1,8 @@
 package com.sportsify.notification.infrastructure.sse;
 
 import com.sportsify.notification.application.port.SseNotificationPort;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -12,14 +14,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SseEmitterManager implements SseNotificationPort {
 
-    private static final long SSE_TIMEOUT_MS = 30 * 60 * 1000L;
+    private final NotificationProperties properties;
     private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     @Override
     public SseEmitter subscribe(Long memberId) {
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+        SseEmitter emitter = new SseEmitter(properties.sse().timeoutMs());
         SseEmitter previous = emitters.put(memberId, emitter);
         if (previous != null) {
             previous.complete();

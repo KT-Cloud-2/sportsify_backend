@@ -60,6 +60,7 @@ public class StreamConsumer {
             }
 
             boolean failed = fanoutService.fanout(event, eventType, message.getValue());
+            statusService.markEventStatus(event.getId(), failed);
             if (failed) {
                 log.warn("즉시 발송 실패, PEL 보류 streamKey={} id={}", streamKey, message.getId());
                 return;

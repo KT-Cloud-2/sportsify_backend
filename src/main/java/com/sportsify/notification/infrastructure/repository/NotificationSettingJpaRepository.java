@@ -17,9 +17,4 @@ public interface NotificationSettingJpaRepository extends JpaRepository<Notifica
     @Query("SELECT s.memberId FROM NotificationSetting s WHERE s.gameStartAlert = true")
     Slice<Long> findMemberIdsByGameStartAlertTrue(Pageable pageable);
 
-    @Query("SELECT s.memberId FROM NotificationSetting s WHERE s.paymentAlert = true")
-    Slice<Long> findMemberIdsByPaymentAlertTrue(Pageable pageable);
-
-    @Query("SELECT s.memberId FROM NotificationSetting s WHERE s.chatMentionAlert = true")
-    Slice<Long> findMemberIdsByChatMentionAlertTrue(Pageable pageable);
 }

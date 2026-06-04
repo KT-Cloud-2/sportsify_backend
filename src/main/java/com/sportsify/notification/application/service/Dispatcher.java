@@ -6,6 +6,7 @@ import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationHistoryRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
+import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -23,6 +24,7 @@ public class Dispatcher {
     private final NotificationRepository notificationRepository;
     private final NotificationChannelRepository channelRepository;
     private final NotificationHistoryRepository historyRepository;
+    private final NotificationSettingRepository settingRepository;
     private final SseNotificationPort sseNotificationPort;
     private final Map<NotificationChannelType, NotificationSender> senderMap;
 
@@ -30,12 +32,14 @@ public class Dispatcher {
             NotificationRepository notificationRepository,
             NotificationChannelRepository channelRepository,
             NotificationHistoryRepository historyRepository,
+            NotificationSettingRepository settingRepository,
             SseNotificationPort sseNotificationPort,
             List<NotificationSender> senders
     ) {
         this.notificationRepository = notificationRepository;
         this.channelRepository = channelRepository;
         this.historyRepository = historyRepository;
+        this.settingRepository = settingRepository;
         this.sseNotificationPort = sseNotificationPort;
         this.senderMap = senders.stream()
                 .collect(Collectors.toMap(NotificationSender::channelType, Function.identity()));
@@ -43,6 +47,10 @@ public class Dispatcher {
 
     public boolean toMember(NotificationEvent event, Long memberId, String payload) {
         if (notificationRepository.existsByEventIdAndMemberId(event.getId(), memberId)) return false;
+        boolean enabled = settingRepository.findByMemberId(memberId)
+                .map(s -> s.isEnabledFor(event.getEventType()))
+                .orElse(true);
+        if (!enabled) return false;
 
         Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
         scheduleSse(memberId, event.getTypeName());
