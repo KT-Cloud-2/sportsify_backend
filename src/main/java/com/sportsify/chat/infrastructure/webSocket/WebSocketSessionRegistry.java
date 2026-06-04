@@ -170,7 +170,10 @@ public class WebSocketSessionRegistry {
 
         toNotify.forEach(sid -> {
             enterGracePeriod(sid);
-            eventPublisher.publishEvent(new TokenExpiredEvent(sid));
+            SessionInfo info = sessions.get(sid);
+            if (info != null) {
+                eventPublisher.publishEvent(new TokenExpiredEvent(sid, info.memberId()));
+            }
         });
         toDisconnect.forEach(sid -> {
             SessionInfo current = sessions.get(sid);
@@ -195,7 +198,7 @@ public class WebSocketSessionRegistry {
             unsubscribeRoom(sid, subId);             // registry 즉시 정리
             forceUnsubscribeFromBroker(sid, subId);  // broker 구독 해제
         });
-        eventPublisher.publishEvent(new RoomSubscriptionRevokedEvent(sid, roomId));
+        eventPublisher.publishEvent(new RoomSubscriptionRevokedEvent(sid, roomId, info.memberId()));
     }
 
     private void forceUnsubscribeFromBroker(String sid, String subscriptionId) {

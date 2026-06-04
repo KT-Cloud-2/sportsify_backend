@@ -95,6 +95,7 @@ public class ChatEventHandler {
                 if (isDirect) roomMemberNotifyCache.put(event.roomId(), p.memberId(), true);
             }
             case MemberLeftPayload p -> {
+                webSocketSessionRegistry.revokeRoomSubscriptionByMember(p.memberId(), event.roomId());
                 if (isDirect) roomMemberNotifyCache.remove(event.roomId(), p.memberId());
             }
             case MemberInvitePayload p -> {

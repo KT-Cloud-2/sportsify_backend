@@ -4,6 +4,7 @@ import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.model.message.MessageId;
 import com.sportsify.chat.domain.repository.ReadCache;
+import com.sportsify.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.Cursor;
@@ -59,7 +60,7 @@ public class ReadCacheAdaptor implements ReadCache {
                             MemberId.of(Long.parseLong(parts[3])),
                             MessageId.of(Long.parseLong(raw))
                     ));
-                } catch (NumberFormatException e) {
+                } catch (NumberFormatException | BusinessException e) {
                     log.warn("Skipping malformed read receipt: key={}", key, e);
                 }
             });

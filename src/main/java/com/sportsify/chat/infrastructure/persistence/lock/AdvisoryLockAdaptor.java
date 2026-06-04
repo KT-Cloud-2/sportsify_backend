@@ -14,21 +14,6 @@ public class AdvisoryLockAdaptor {
     @PersistenceContext
     private EntityManager em;
 
-    /**
-     * 트랜잭션 종료 시까지 advisory lock 을 보유
-     */
-    public void acquireXactLock(String lockKey) {
-        if (lockKey == null || lockKey.isBlank()) {
-            throw new IllegalArgumentException("lockKey must not be blank");
-        }
-        em.createNativeQuery(
-                        "SELECT pg_advisory_xact_lock(" +
-                                "  ('x' || substr(md5(:k), 1, 16))::bit(64)::bigint" +
-                                ")"
-                )
-                .setParameter("k", lockKey)
-                .getSingleResult();
-    }
 
     /**
      * 즉시 시도 후 실패 시 false 반환 (대기하지 않음)

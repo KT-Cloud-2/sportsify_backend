@@ -1,0 +1,1 @@
+ALTER TABLE chat_rooms DROP CONSTRAINT IF EXISTS fk_chat_game;

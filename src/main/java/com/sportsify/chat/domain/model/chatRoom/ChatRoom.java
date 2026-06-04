@@ -192,7 +192,7 @@ public class ChatRoom extends AbstractAggregateRoot<ChatRoom> {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Only room leader can rename/delete room");
         }
         if (this.status == ChatRoomStatus.DELETED) {
-            return;
+            throw new BusinessException(ErrorCode.CONFLICT, "Cannot delete deleted room");
         }
         this.status = ChatRoomStatus.DELETED;
         this.updatedAt = now;

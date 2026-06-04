@@ -18,7 +18,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -50,8 +50,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        if (accessor.getCommand() == null) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null || accessor.getCommand() == null) {
             return message;
         }
         try {
@@ -59,7 +59,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 case CONNECT -> handleConnect(accessor);
                 case SUBSCRIBE -> handleSubscribe(accessor);
                 case UNSUBSCRIBE -> handleUnsubscribe(accessor);
-                case SEND -> handleSend(accessor);
+                case SEND -> {
+                    if (!handleSend(accessor)) return null;
+                }
                 default -> {
                 }
             }
@@ -70,16 +72,20 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             throw new MessageDeliveryException("Internal authentication error");
         }
         populateUserFromRegistry(accessor);
-        return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
+        return message;
     }
 
     private void populateUserFromRegistry(StompHeaderAccessor accessor) {
         if (accessor.getUser() != null) return;
+        if (!accessor.isMutable()) return;
         String sessionId = accessor.getSessionId();
         if (sessionId == null) return;
-        webSocketSessionRegistry.get(sessionId)
-                .map(WebSocketSessionRegistry.SessionInfo::toAuthentication)
-                .ifPresent(accessor::setUser);
+        var info = webSocketSessionRegistry.get(sessionId);
+        if (info.isPresent()) {
+            accessor.setUser(info.get().toAuthentication());
+        } else {
+            accessor.setUser(() -> "guest:" + sessionId);
+        }
     }
 
     // 토큰 없으면 익명 연결 허용
@@ -136,18 +142,18 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         webSocketSessionRegistry.unsubscribeRoom(accessor.getSessionId(), subscriptionId);
     }
 
-    private void handleSend(StompHeaderAccessor accessor) {
+    private boolean handleSend(StompHeaderAccessor accessor) {
         String sid = accessor.getSessionId();
         WebSocketSessionRegistry.SessionInfo info = webSocketSessionRegistry.get(sid)
                 .orElseThrow(() -> new MessageDeliveryException("SEND on unknown session"));
 
-        if (!info.tokenExpiresAt().isBefore(Instant.now(clock))) return;
+        if (!info.tokenExpiresAt().isBefore(Instant.now(clock))) return true;
 
-        if (tryRefreshExpiry(sid, info, accessor)) return;
+        if (tryRefreshExpiry(sid, info, accessor)) return true;
 
         webSocketSessionRegistry.enterGracePeriod(sid);
-        eventPublisher.publishEvent(new TokenExpiredEvent(sid));
-        throw new MessageDeliveryException("Token expired");
+        eventPublisher.publishEvent(new TokenExpiredEvent(sid, info.memberId()));
+        return false;
     }
 
 
