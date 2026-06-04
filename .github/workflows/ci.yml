@@ -106,7 +106,7 @@ jobs:
               --region ${{ secrets.AWS_REGION }} \
               --query "Parameters[*].[Name,Value]" \
               --output text | \
-              awk '{split($1,a,"/"); print a[4] "=" $2}' > ~/sportsify/.env.prod
+              awk '{split($1,a,"/"); print a[4] "=" $2}' > ~/sportsify/.env
 
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
               | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
