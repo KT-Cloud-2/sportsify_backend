@@ -149,7 +149,7 @@ jobs:
             fi
 
             # nginx upstream 전환
-            sed -i "s|server was-$ACTIVE:8080|server was-$NEXT:8080|" ~/nginx/nginx.conf
+            sed -i "s|was-$ACTIVE:8080|was-$NEXT:8080|" ~/nginx/nginx.conf
             docker exec sportsify-nginx nginx -s reload
 
             # 이전 컨테이너 중단
