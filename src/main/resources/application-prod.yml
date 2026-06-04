@@ -77,8 +77,7 @@ app:
   oauth2:
     redirect-uri: ${FRONTEND_URL}/oauth2/callback
   cors:
-    allowed-origins:
-      - ${FRONTEND_URL}
+    allowed-origins: ${FRONTEND_URL}
 
 mqtt:
   enabled: false
