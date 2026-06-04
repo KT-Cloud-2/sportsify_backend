@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "**" ]
   pull_request:
-    branches: [ develop, main ]
+    branches: [ develop ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -99,6 +99,15 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
+            # Parameter Store에서 .env.prod 생성
+            aws ssm get-parameters-by-path \
+              --path "/sportsify/backend/" \
+              --with-decryption \
+              --region ${{ secrets.AWS_REGION }} \
+              --query "Parameters[*].[Name,Value]" \
+              --output text | \
+              awk '{split($1,a,"/"); print a[4] "=" $2}' > ~/sportsify/.env.prod
+
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
               | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
