@@ -78,11 +78,7 @@ app:
     redirect-uri: ${FRONTEND_URL}/oauth2/callback
   cors:
     allowed-origins:
-      - https://jhkoder.shop
-      - http://localhost:8081
-      - http://localhost:8082
-      - http://127.0.0.1:8081
-      - http://127.0.0.1:8082
+      - ${FRONTEND_URL}
 
 mqtt:
   enabled: false
