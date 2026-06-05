@@ -38,6 +38,11 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
+    public Long findGameIdByOrderId(Long orderId) {
+        return jpaRepository.findGameIdByOrderId(orderId);
+    }
+
+    @Override
     public List<Long> findExpiredPendingOrderIdsWithoutPayment(LocalDateTime now) {
         return jpaRepository.findExpiredPendingOrderIdsWithoutPayment(now);
     }

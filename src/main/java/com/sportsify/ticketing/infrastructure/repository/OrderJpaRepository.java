@@ -51,6 +51,14 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
+    @Query("""
+                SELECT DISTINCT gs.id FROM Order o
+                JOIN o.orderSeats os
+                JOIN os.gameSeat gs
+                WHERE o.id = :orderId
+            """)
+    Long findGameIdByOrderId(@Param("orderId") Long orderId);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Order o SET o.status = :status, o.updatedAt = :now WHERE o.id IN :ids")
     void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);

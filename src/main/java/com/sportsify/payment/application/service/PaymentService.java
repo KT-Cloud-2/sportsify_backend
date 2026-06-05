@@ -285,11 +285,8 @@ public class PaymentService {
         Order order = orderRepository.findByIdWithLock(request.getOrderId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        Game game = gameRepository.findById(request.getMatchId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.GAME_NOT_FOUND));
-
-        if (!game.isOnSale()) {
-            throw new BusinessException(ErrorCode.GAME_NOT_ON_SALE);
+        if (!(order.getMemberId().equals(userId))) {
+            throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
         }
 
         if (order.isClosed()) {
@@ -297,10 +294,19 @@ public class PaymentService {
             throw new BusinessException(ErrorCode.ORDER_CLOSED, "status: " + order.getStatus());
         }
 
-        if (!(order.getMemberId().equals(userId)))
-            throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
-
-        if (!(order.getTotalAmount().equals(request.getAmount())))
+        if (!(order.getTotalAmount().equals(request.getAmount()))) {
             throw new BusinessException(ErrorCode.AMOUNT_MISMATCH);
+        }
+
+        Long gameId = orderRepository.findGameIdByOrderId(order.getId());
+        if (!gameId.equals(request.getMatchId())) {
+            throw new BusinessException(ErrorCode.GAME_MISMATCH);
+        }
+
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.GAME_NOT_FOUND));
+        if (!game.isOnSale()) {
+            throw new BusinessException(ErrorCode.GAME_NOT_ON_SALE);
+        }
     }
 }

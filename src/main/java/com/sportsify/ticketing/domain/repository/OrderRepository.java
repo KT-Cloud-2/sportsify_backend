@@ -15,6 +15,8 @@ public interface OrderRepository {
 
     Optional<Order> findByIdWithLock(Long id);
 
+    Long findGameIdByOrderId(@Param("orderId") Long orderId);
+
     List<Long> findExpiredPendingOrderIdsWithoutPayment(LocalDateTime now);
 
     List<Long> findPendingOrderIdsWithFailedPayment();
