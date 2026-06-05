@@ -114,20 +114,10 @@ jobs:
             # 공유 네트워크 생성 (없으면 생성, 있으면 무시)
             docker network create sportsify-net 2>/dev/null || true
 
-            # 인프라 기동 (최대 3회 재시도, 실패 시 완전 초기화 후 재시도)
-            INFRA_STARTED=false
-            for i in 1 2 3; do
-              if docker compose -f ~/docker-compose.infra.yml --env-file ~/.env up -d; then
-                INFRA_STARTED=true
-                break
-              fi
-              echo "인프라 기동 실패 ($i/3), 초기화 후 재시도..."
-              docker compose -f ~/docker-compose.infra.yml down -v --rmi all
-              sleep 5
-            done
-
-            if [ "$INFRA_STARTED" != "true" ]; then
-              echo "인프라 기동 실패: 3회 시도 후에도 실패"
+            # 인프라 기동
+            if ! docker compose -f ~/docker-compose.infra.yml --env-file ~/.env up -d; then
+              echo "인프라 기동 실패"
+              docker compose -f ~/docker-compose.infra.yml --env-file ~/.env down -v --rmi all
               exit 1
             fi
 
