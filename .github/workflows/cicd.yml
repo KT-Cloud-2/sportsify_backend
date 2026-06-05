@@ -111,6 +111,9 @@ jobs:
               --output text | \
               awk '{split($1,a,"/"); print a[4] "=" $2}' > ~/.env
 
+            # 공유 네트워크 생성 (없으면 생성, 있으면 무시)
+            docker network create sportsify-net 2>/dev/null || true
+
             # 인프라 기동 (최대 3회 재시도, 실패 시 완전 초기화 후 재시도)
             for i in 1 2 3; do
               docker compose -f ~/docker-compose.infra.yml --env-file ~/.env up -d && break
@@ -129,6 +132,7 @@ jobs:
 
             # nginx.conf의 sportsify-active upstream에서 현재 라우팅 대상 확인
             ACTIVE_SERVER=$(awk '/upstream sportsify-active/,/}/' ~/nginx/nginx.conf | grep server | awk '{print $2}')
+            
             if echo "$ACTIVE_SERVER" | grep -q "was-blue"; then
               ACTIVE=blue
               NEXT=green
