@@ -98,6 +98,7 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf,monitoring/prometheus.yml"
           target: "~/"
+          overwrite: true
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1
