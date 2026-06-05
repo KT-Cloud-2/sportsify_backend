@@ -70,4 +70,4 @@ services:
 
 networks:
   sportsify-net:
-    driver: bridge
+    external: true
