@@ -47,7 +47,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # 테스트 용도의 push
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && !github.event.pull_request)
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
