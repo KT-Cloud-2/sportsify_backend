@@ -153,7 +153,7 @@ class WebSocketSessionRegistryTest {
         verify(ws2, never()).close(any());
         // 방 구독 인덱스에서 제거됨
         assertThat(registry.get(SID).get().subscribedRooms()).doesNotContainValue(10L);
-        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L));
+        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L, MEMBER_ID));
     }
 
     // ── revokeAllRoomSubscriptions ────────────────────────────
@@ -174,8 +174,8 @@ class WebSocketSessionRegistryTest {
         verify(wsSession, never()).close(any());
         verify(ws2, never()).close(any());
         // 두 세션 모두 방 구독 해제 이벤트 발행
-        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L));
-        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent("sid-2", 10L));
+        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L, MEMBER_ID));
+        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent("sid-2", 10L, 99L));
     }
 
     // ── onDisconnect ──────────────────────────────────────────
@@ -206,7 +206,7 @@ class WebSocketSessionRegistryTest {
 
         verify(wsSession, never()).close(any());
         assertThat(registry.get(SID)).isPresent();
-        verify(eventPublisher).publishEvent(new TokenExpiredEvent(SID));
+        verify(eventPublisher).publishEvent(new TokenExpiredEvent(SID, MEMBER_ID));
     }
 
     @Test

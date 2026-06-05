@@ -113,6 +113,18 @@ class ChatRoomSubscribeAccessCheckerTest {
     }
 
     @Test
+    @DisplayName("ACTIVE DIRECT 방에서 INVITED 상태 멤버는 구독을 거부한다")
+    void canSubscribe_ACTIVE_DIRECT_방_INVITED멤버_거부() {
+        ChatRoom room = directRoom(ChatRoomStatus.ACTIVE);
+        MemberId memberId = MemberId.of(3L);
+        given(chatRoomMemberRepository.existsJoinedByRoomAndMember(room.getId(), memberId)).willReturn(false);
+
+        boolean result = checker.canSubscribe(room, Optional.of(memberId));
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
     @DisplayName("EMPTY DIRECT 방에서 JOINED 멤버는 구독을 허용한다")
     void canSubscribe_EMPTY_DIRECT_방_JOINED멤버_허용() {
         ChatRoom room = directRoom(ChatRoomStatus.EMPTY);
@@ -144,6 +156,43 @@ class ChatRoomSubscribeAccessCheckerTest {
 
         assertThat(result).isFalse();
         verify(chatRoomMemberRepository, never()).existsJoinedByRoomAndMember(any(), any());
+    }
+
+    // ──────────────────────── canSubscribeForUpdate ────────────────────────
+
+    @Test
+    @DisplayName("JOINED 멤버는 ForUpdate 구독을 허용한다")
+    void canSubscribeForUpdate_JOINED멤버_허용() {
+        ChatRoomId roomId = ChatRoomId.of(20L);
+        MemberId memberId = MemberId.of(1L);
+        given(chatRoomMemberRepository.existsJoinedByRoomAndMemberForUpdate(roomId, memberId)).willReturn(true);
+
+        boolean result = checker.canSubscribeForUpdate(roomId, Optional.of(memberId));
+
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("BANNED(비JOINED) 멤버는 ForUpdate 구독을 거부한다")
+    void canSubscribeForUpdate_BANNED멤버_거부() {
+        ChatRoomId roomId = ChatRoomId.of(20L);
+        MemberId memberId = MemberId.of(1L);
+        given(chatRoomMemberRepository.existsJoinedByRoomAndMemberForUpdate(roomId, memberId)).willReturn(false);
+
+        boolean result = checker.canSubscribeForUpdate(roomId, Optional.of(memberId));
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("memberId가 없으면 ForUpdate 구독을 거부하고 DB를 조회하지 않는다")
+    void canSubscribeForUpdate_memberId없음_거부_DB조회없음() {
+        ChatRoomId roomId = ChatRoomId.of(20L);
+
+        boolean result = checker.canSubscribeForUpdate(roomId, Optional.empty());
+
+        assertThat(result).isFalse();
+        verify(chatRoomMemberRepository, never()).existsJoinedByRoomAndMemberForUpdate(any(), any());
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────

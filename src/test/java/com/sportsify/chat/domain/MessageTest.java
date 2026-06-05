@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MessageTest {
 
@@ -20,6 +21,7 @@ class MessageTest {
     private static final MemberId SENDER = MemberId.of(1L);
     private static final MessageContent CONTENT = MessageContent.of("안녕하세요");
     private static final Instant INSTANT_NOW = Instant.parse("2026-05-06T12:00:00Z");
+
     // ──────────────────────── send ────────────────────────
 
     @Test
@@ -88,6 +90,26 @@ class MessageTest {
                         .isInstanceOf(MessageSentPayload.class));
     }
 
+    @Test
+    @DisplayName("system 메시지에 assignId를 호출하면 이벤트가 등록되지 않는다")
+    void assignId_system메시지_이벤트_없음() {
+        Message msg = Message.system(ROOM_ID, SENDER, CONTENT, INSTANT_NOW);
+
+        msg.assignId(MessageId.of(99L));
+
+        assertThat(msg.getId()).isEqualTo(MessageId.of(99L));
+        assertThat(msg.getEvents()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("이미 id가 부여된 메시지에 재부여하면 예외가 발생한다")
+    void assignId_중복_예외() {
+        Message msg = restored(MessageStatus.ACTIVE);
+
+        assertThatThrownBy(() -> msg.assignId(MessageId.of(99L)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     // ──────────────────────── softDelete ────────────────────────
 
     @Test
@@ -95,7 +117,7 @@ class MessageTest {
     void softDelete_상태변경() {
         Message msg = restored(MessageStatus.ACTIVE);
 
-        msg.softDelete(SENDER, INSTANT_NOW);
+        msg.softDelete(INSTANT_NOW);
 
         assertThat(msg.getStatus()).isEqualTo(MessageStatus.DELETED);
         assertThat(msg.isDeleted()).isTrue();
@@ -112,7 +134,7 @@ class MessageTest {
     void softDelete_DELETED_멱등() {
         Message msg = restored(MessageStatus.DELETED);
 
-        msg.softDelete(SENDER, INSTANT_NOW);
+        msg.softDelete(INSTANT_NOW);
 
         assertThat(msg.getStatus()).isEqualTo(MessageStatus.DELETED);
         assertThat(msg.getEvents()).isEmpty();

@@ -41,6 +41,7 @@ class MissedMessageReplayerTest {
 
     private static final long ROOM_ID = 42L;
     private static final String SESSION_ID = "sess-1";
+    private static final long SESSION_MEMBER_ID = 1L;
     private static final String VALID_DESTINATION = "/topic/rooms/" + ROOM_ID;
 
     @InjectMocks
@@ -60,7 +61,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(null, "0", SESSION_ID));
 
         verify(messageRepository, never()).findByRoomAfter(any(), any(), anyInt());
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     @Test
@@ -69,7 +70,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event("/queue/other/42", "0", SESSION_ID));
 
         verify(messageRepository, never()).findByRoomAfter(any(), any(), anyInt());
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     @Test
@@ -78,7 +79,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, null, SESSION_ID));
 
         verify(messageRepository, never()).findByRoomAfter(any(), any(), anyInt());
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     @Test
@@ -87,7 +88,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event("/topic/rooms", "0", SESSION_ID));
 
         verify(messageRepository, never()).findByRoomAfter(any(), any(), anyInt());
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     @Test
@@ -96,7 +97,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event("/topic/rooms/abc", "0", SESSION_ID));
 
         verify(messageRepository, never()).findByRoomAfter(any(), any(), anyInt());
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     @Test
@@ -105,7 +106,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "notANumber", SESSION_ID));
 
         verify(messageRepository, never()).findByRoomAfter(any(), any(), anyInt());
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     // ──────────────────────── 성공 경로 ────────────────────────
@@ -119,7 +120,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         verify(messageRepository).findByRoomAfter(ChatRoomId.of(ROOM_ID), 0L, 11);
-        verify(chatEventPublisher, never()).publishReplayToSession(any(), any());
+        verify(chatEventPublisher, never()).publishToUser(anyLong(), any(), any());
     }
 
     @Test
@@ -132,7 +133,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         ArgumentCaptor<ReplayBatch> captor = ArgumentCaptor.forClass(ReplayBatch.class);
-        verify(chatEventPublisher).publishReplayToSession(eq(SESSION_ID), captor.capture());
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/queue/replay"));
 
         List<com.sportsify.chat.domain.model.event.EventEnvelope<MessageSentPayload>> envelopes = captor.getValue().messages();
         assertThat(envelopes).hasSize(3);
@@ -149,7 +150,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         ArgumentCaptor<ReplayBatch> captor = ArgumentCaptor.forClass(ReplayBatch.class);
-        verify(chatEventPublisher).publishReplayToSession(eq(SESSION_ID), captor.capture());
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/queue/replay"));
 
         List<com.sportsify.chat.domain.model.event.EventEnvelope<MessageSentPayload>> envelopes = captor.getValue().messages();
         assertThat(envelopes).hasSize(10);
@@ -166,7 +167,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         ArgumentCaptor<ReplayBatch> captor = ArgumentCaptor.forClass(ReplayBatch.class);
-        verify(chatEventPublisher).publishReplayToSession(eq(SESSION_ID), captor.capture());
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/queue/replay"));
 
         List<com.sportsify.chat.domain.model.event.EventEnvelope<MessageSentPayload>> envelopes = captor.getValue().messages();
         assertThat(envelopes).hasSize(10);
@@ -177,8 +178,8 @@ class MissedMessageReplayerTest {
     }
 
     @Test
-    @DisplayName("올바른 sessionId로 publish한다")
-    void onSubscribe_올바른_sessionId로_publish() {
+    @DisplayName("accessor에서 추출한 memberId로 publish한다")
+    void onSubscribe_올바른_memberId로_publish() {
         String customSid = "custom-session-99";
         List<com.sportsify.chat.domain.model.message.Message> messages = messages(1, ROOM_ID);
         given(messageRepository.findByRoomAfter(ChatRoomId.of(ROOM_ID), 0L, 11))
@@ -186,7 +187,7 @@ class MissedMessageReplayerTest {
 
         replayer.onSubscribe(event(VALID_DESTINATION, "0", customSid));
 
-        verify(chatEventPublisher).publishReplayToSession(eq(customSid), any(ReplayBatch.class));
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), any(ReplayBatch.class), eq("/queue/replay"));
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────
@@ -194,6 +195,7 @@ class MissedMessageReplayerTest {
     private SessionSubscribeEvent event(String destination, String lastMessageId, String sessionId) {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
         accessor.setSessionId(sessionId);
+        accessor.setUser(() -> String.valueOf(SESSION_MEMBER_ID));
         if (destination != null) accessor.setDestination(destination);
         if (lastMessageId != null) accessor.addNativeHeader("lastMessageId", lastMessageId);
         Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());

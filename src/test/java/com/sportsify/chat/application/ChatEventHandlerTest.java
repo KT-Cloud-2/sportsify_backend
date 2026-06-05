@@ -9,10 +9,13 @@ import com.sportsify.chat.domain.model.event.EventEnvelope;
 import com.sportsify.chat.domain.model.event.EventType;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomArchivedPayload;
 import com.sportsify.chat.domain.model.event.chatRoom.RoomDeletePayload;
+import com.sportsify.chat.domain.model.event.chatRoom.RoomUnarchivedPayload;
+import com.sportsify.chat.domain.model.event.chatRoom.RoomUpdatePayload;
 import com.sportsify.chat.domain.model.event.chatRoomMember.MemberBannedPayload;
 import com.sportsify.chat.domain.model.event.chatRoomMember.MemberInvitePayload;
 import com.sportsify.chat.domain.model.event.chatRoomMember.MemberJoinPayload;
 import com.sportsify.chat.domain.model.event.chatRoomMember.MemberLeftPayload;
+import com.sportsify.chat.domain.model.event.message.MessageDeletePayLoad;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.*;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
@@ -205,7 +208,7 @@ class ChatEventHandlerTest {
 
         chatEventHandler.sendEvent(event);
 
-        verify(notificationEventPublisher, never()).publish(any(), any());
+        verify(notificationEventPublisher, never()).publish(any(NotificationEventType.class), any(NotificationPayload.class));
     }
 
     @Test
@@ -224,7 +227,7 @@ class ChatEventHandlerTest {
 
         chatEventHandler.sendEvent(event);
 
-        verify(notificationEventPublisher, never()).publish(any(), any());
+        verify(notificationEventPublisher, never()).publish(any(NotificationEventType.class), any(NotificationPayload.class));
     }
 
     @Test
@@ -238,7 +241,7 @@ class ChatEventHandlerTest {
 
         chatEventHandler.sendEvent(event);
 
-        verify(notificationEventPublisher, never()).publish(any(), any());
+        verify(notificationEventPublisher, never()).publish(any(NotificationEventType.class), any(NotificationPayload.class));
         verifyNoInteractions(webSocketSessionRegistry);
     }
 
@@ -248,7 +251,7 @@ class ChatEventHandlerTest {
         given(roomMemberNotifyCache.getNotifiableMemberIds(ROOM_ID))
                 .willReturn(Optional.of(Set.of(1L, 2L)));
         given(webSocketSessionRegistry.getSubscribedMemberIds(ROOM_ID)).willReturn(Set.of());
-        doThrow(new RuntimeException("Redis 장애")).when(notificationEventPublisher).publish(any(), any());
+        doThrow(new RuntimeException("Redis 장애")).when(notificationEventPublisher).publish(any(NotificationEventType.class), any(NotificationPayload.class));
 
         EventEnvelope<MessageSentPayload> event = new EventEnvelope<>(
                 EventType.MESSAGE_SENT.name(), ROOM_ID, NOW,
@@ -283,7 +286,22 @@ class ChatEventHandlerTest {
 
         verify(chatRoomMemberRepo).findActiveByRoom(ChatRoomId.of(ROOM_ID));
         verify(roomMemberNotifyCache).populate(eq(ROOM_ID), any());
-        verify(notificationEventPublisher).publish(eq(NotificationEventType.CHAT_MENTION), any());
+        verify(notificationEventPublisher).publish(eq(NotificationEventType.CHAT_MENTION), any(NotificationPayload.class));
+    }
+
+    @Test
+    @DisplayName("MESSAGE_DELETED 이벤트 수신 시 알림 저장 없이 방에 브로드캐스트한다")
+    void sendEvent_MESSAGE_DELETED_이벤트_알림없이_방브로드캐스트() {
+        EventEnvelope<MessageDeletePayLoad> event = new EventEnvelope<>(
+                EventType.MESSAGE_DELETED.name(), ROOM_ID, NOW,
+                new MessageDeletePayLoad(55L), null, null, null
+        );
+
+        chatEventHandler.sendEvent(event);
+
+        verify(publisher).publishToRoom(ROOM_ID, event);
+        verifyNoInteractions(messageRepo);
+        verifyNoInteractions(webSocketSessionRegistry);
     }
 
     // ──────────────────────── BAN 이벤트 ────────────────────────
@@ -410,6 +428,44 @@ class ChatEventHandlerTest {
         verify(roomMemberNotifyCache).evict(ROOM_ID);
     }
 
+    // ──────────────────────── 방 수정 / 언아카이브 이벤트 ────────────────────────
+
+    @Test
+    @DisplayName("ROOM_UPDATED 이벤트 수신 시 시스템 메시지를 저장하고 alertMessageId 포함 이벤트를 방에 발행한다")
+    void sendEvent_ROOM_UPDATED_이벤트_시스템메시지_저장_방브로드캐스트() {
+        EventEnvelope<RoomUpdatePayload> event = new EventEnvelope<>(
+                EventType.ROOM_UPDATED.name(), ROOM_ID, NOW,
+                new RoomUpdatePayload("새 방 이름", null), null, null, null
+        );
+        given(messageRepo.save(any())).willReturn(alertMessage(105L));
+
+        chatEventHandler.sendEvent(event);
+
+        verify(messageRepo).save(any());
+        ArgumentCaptor<EventEnvelope> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(publisher).publishToRoom(eq(ROOM_ID), captor.capture());
+        assertThat(captor.getValue().alertMessageId()).isEqualTo(105L);
+        verifyNoInteractions(webSocketSessionRegistry);
+    }
+
+    @Test
+    @DisplayName("ROOM_UNARCHIVED 이벤트 수신 시 시스템 메시지를 저장하고 alertMessageId 포함 이벤트를 방에 발행한다")
+    void sendEvent_ROOM_UNARCHIVED_이벤트_시스템메시지_저장_방브로드캐스트() {
+        EventEnvelope<RoomUnarchivedPayload> event = new EventEnvelope<>(
+                EventType.ROOM_UNARCHIVED.name(), ROOM_ID, NOW,
+                new RoomUnarchivedPayload(), null, null, null
+        );
+        given(messageRepo.save(any())).willReturn(alertMessage(106L));
+
+        chatEventHandler.sendEvent(event);
+
+        verify(messageRepo).save(any());
+        ArgumentCaptor<EventEnvelope> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(publisher).publishToRoom(eq(ROOM_ID), captor.capture());
+        assertThat(captor.getValue().alertMessageId()).isEqualTo(106L);
+        verifyNoInteractions(webSocketSessionRegistry);
+    }
+
     // ──────────────────────── 멤버 입장 / 퇴장 이벤트 ────────────────────────
 
     @Test
@@ -474,6 +530,7 @@ class ChatEventHandlerTest {
         verify(roomMemberNotifyCache, never()).remove(any(), any());
     }
 
+
     // ──────────────────────── 초대 알림 발행 ────────────────────────
 
     @Test
@@ -525,7 +582,7 @@ class ChatEventHandlerTest {
     @DisplayName("초대 알림 발행 중 예외가 발생해도 예외가 전파되지 않고 이벤트 처리가 완료된다")
     void sendEvent_초대알림_발행예외_전파안함() {
         given(messageRepo.save(any())).willReturn(alertMessage(10L));
-        doThrow(new RuntimeException("알림 발행 실패")).when(notificationEventPublisher).publish(any(), any());
+        doThrow(new RuntimeException("알림 발행 실패")).when(notificationEventPublisher).publish(any(NotificationEventType.class), any(NotificationPayload.class));
 
         EventEnvelope<MemberInvitePayload> event = new EventEnvelope<>(
                 EventType.MEMBER_INVITED.name(), ROOM_ID, NOW,
