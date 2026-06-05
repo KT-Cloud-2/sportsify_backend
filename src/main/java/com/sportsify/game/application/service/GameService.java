@@ -154,10 +154,8 @@ public class GameService {
     }
 
     private void scheduleGameSale(Game game) {
-        if (game.getSaleStartAt() != null) {
+        if (game.hasSaleSchedule()) {
             gameSaleTaskScheduler.scheduleSaleStart(game.getId(), game.getSaleStartAt());
-        }
-        if (game.getSaleEndAt() != null) {
             gameSaleTaskScheduler.scheduleSaleEnd(game.getId(), game.getSaleEndAt());
         }
     }

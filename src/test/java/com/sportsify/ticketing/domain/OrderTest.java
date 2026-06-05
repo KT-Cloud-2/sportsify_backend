@@ -3,6 +3,7 @@ package com.sportsify.ticketing.domain;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderConstants;
 import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.domain.model.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -23,9 +24,9 @@ class OrderTest {
     void order_createOrderWithPendingStatus() {
         Member member = Member.create("test@test.com", "닉네임", OAuthProvider.GOOGLE, "g-1");
 
-        LocalDateTime before = LocalDateTime.now().plusMinutes(10).minusSeconds(1);
+        LocalDateTime before = LocalDateTime.now().plusMinutes(OrderConstants.EXPIRATION_MINUTES).minusSeconds(1);
         Order order = Order.create(member);
-        LocalDateTime after = LocalDateTime.now().plusMinutes(10).plusSeconds(1);
+        LocalDateTime after = LocalDateTime.now().plusMinutes(OrderConstants.EXPIRATION_MINUTES).plusSeconds(1);
 
         assertThat(order.getMember()).isEqualTo(member);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);

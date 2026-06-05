@@ -5,6 +5,7 @@ import com.sportsify.game.application.scheduler.GameScheduleInitializer;
 import com.sportsify.game.application.scheduler.GameStatusUpdater;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.repository.GameRepository;
+import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,9 @@ class GameScheduleInitializerTest {
 
     @Mock
     private GameStatusUpdater gameStatusUpdater;
+
+    @Mock
+    private OrderExpirationScheduler orderExpirationScheduler;
 
     @Test
     @DisplayName("서버 시작 시 saleStartAt이 지난 SCHEDULED 경기를 즉시 ON_SALE로 전환한다.")
@@ -102,5 +106,6 @@ class GameScheduleInitializerTest {
         gameScheduleInitializer.init();
 
         verify(gameSaleTaskScheduler).scheduleSaleEnd(1L, saleEndAt);
+        verify(orderExpirationScheduler).onSaleStarted();
     }
 }

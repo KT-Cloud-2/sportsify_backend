@@ -15,6 +15,7 @@ import com.sportsify.game.presentation.dto.GameCreateResponseDto;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.domain.repository.TeamRepository;
+import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +52,9 @@ class GameServiceTest {
     @Mock
     private GameSaleTaskScheduler gameSaleTaskScheduler;
 
+    @Mock
+    private OrderExpirationScheduler orderExpirationScheduler;
+
 
     @Test
     @DisplayName("경기 생성 성공")
@@ -65,7 +69,7 @@ class GameServiceTest {
                 1L, 1L, 2L, SportType.BASEBALL,
                 startAt, 180, GameStatus.SCHEDULED,
                 DayType.WEEKDAY, GameGrade.NORMAL, 4,
-                startAt.minusDays(5), startAt.minusMinutes(30)
+                startAt.minusDays(5), startAt.plusDays(5)
         );
 
         when(stadiumRepository.findById(1L)).thenReturn(Optional.of(stadium));
@@ -74,7 +78,7 @@ class GameServiceTest {
 
         Game savedGame = mock(Game.class);
         when(savedGame.getSaleStartAt()).thenReturn(startAt.minusDays(5));
-        when(savedGame.getSaleEndAt()).thenReturn(startAt.minusMinutes(30));
+        when(savedGame.getSaleEndAt()).thenReturn(startAt.plusDays(5));
         when(savedGame.getId()).thenReturn(1L);
         when(savedGame.getStadium()).thenReturn(stadium);
         when(savedGame.getHomeTeam()).thenReturn(homeTeam);
@@ -86,6 +90,7 @@ class GameServiceTest {
         when(savedGame.getDayType()).thenReturn(DayType.WEEKDAY);
         when(savedGame.getGameGrade()).thenReturn(GameGrade.NORMAL);
         when(savedGame.getMaxTicketPerUser()).thenReturn(4);
+        when(savedGame.hasSaleSchedule()).thenReturn(true);
         when(stadium.getId()).thenReturn(1L);
         when(homeTeam.getId()).thenReturn(1L);
         when(awayTeam.getId()).thenReturn(2L);
@@ -103,8 +108,8 @@ class GameServiceTest {
         assertThat(response.status()).isEqualTo(GameStatus.SCHEDULED);
 
         verify(gameSaleTaskScheduler).scheduleSaleStart(eq(1L), eq(startAt.minusDays(5)));
-        verify(gameSaleTaskScheduler).scheduleSaleEnd(eq(1L), eq(startAt.minusMinutes(30)));
-        
+        verify(gameSaleTaskScheduler).scheduleSaleEnd(eq(1L), eq(startAt.plusDays(5)));
+
         verify(gameRepository).save(any(Game.class));
         verify(notificationEventPublisher).publish(eq(NotificationEventType.GAME_START), any(GameStartPayload.class));
     }

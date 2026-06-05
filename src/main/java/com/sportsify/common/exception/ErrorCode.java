@@ -53,6 +53,8 @@ public enum ErrorCode {
     // 게임
     PRICE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRICE_POLICY_NOT_FOUND", "가격 정책이 존재하지 않습니다."),
     STADIUM_NOT_FOUND(HttpStatus.NOT_FOUND, "STADIUM_NOT_FOUND", "존재하지 않는 경기장입니다."),
+    SALE_PERIOD_BOTH_REQUIRED(HttpStatus.BAD_REQUEST, "SALE_PERIOD_BOTH_REQUIRED", "판매 시작일과 종료일은 함께 입력해야 합니다."),
+    SALE_END_BEFORE_START(HttpStatus.BAD_REQUEST, "SALE_END_BEFORE_START", "판매 종료일은 시작일 이후여야 합니다."),
 
     // 결제
     AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "AMOUNT_MISMATCH", "요청 금액이 주문 금액과 일치하지 않습니다.");
