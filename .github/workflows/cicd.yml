@@ -96,7 +96,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf"
+          source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf,monitoring/prometheus.yml"
           target: "~/"
 
       - name: Deploy to EC2 via SSH
