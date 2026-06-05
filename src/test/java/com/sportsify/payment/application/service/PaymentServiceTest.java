@@ -7,6 +7,8 @@ import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.PaymentCompletedPayload;
+import com.sportsify.game.domain.model.Game;
+import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
@@ -49,6 +51,9 @@ class PaymentServiceTest {
     private OrderRepository orderRepository;
 
     @Mock
+    private GameRepository gameRepository;
+
+    @Mock
     private TossPaymentClient tossPaymentClient;
 
     @Mock
@@ -71,15 +76,49 @@ class PaymentServiceTest {
     }
 
     @Test
+    @DisplayName("fail when game is not found")
+    void createPayment_failed_gameIsNotFound() {
+        CreatePaymentRequest request = createPaymentRequest();
+        Order mockOrder = mock(Order.class);
+
+        when(orderRepository.findByIdWithLock(anyLong())).thenReturn(Optional.of(mockOrder));
+        
+        assertThatThrownBy(() -> paymentService.createPayment(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.GAME_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("fail when game is not on sale")
+    void createPayment_failed_gameIsNotOnSale() {
+        CreatePaymentRequest request = createPaymentRequest();
+        Order mockOrder = mock(Order.class);
+        Game mockGame = mock(Game.class);
+
+        when(mockGame.isOnSale()).thenReturn(false);
+
+        when(gameRepository.findById(anyLong())).thenReturn(Optional.of(mockGame));
+        when(orderRepository.findByIdWithLock(anyLong())).thenReturn(Optional.of(mockOrder));
+
+        assertThatThrownBy(() -> paymentService.createPayment(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.GAME_NOT_ON_SALE);
+    }
+
+    @Test
     @DisplayName("fail when order is closed")
     void createPayment_failed_orderIsClosed() {
         CreatePaymentRequest request = createPaymentRequest();
         Order mockOrder = mock(Order.class);
+        Game mockGame = mock(Game.class);
 
+        when(mockGame.isOnSale()).thenReturn(true);
         when(mockOrder.isClosed()).thenReturn(true);
 
-        when(orderRepository.findByIdWithLock(anyLong()))
-                .thenReturn(Optional.of(mockOrder));
+        when(gameRepository.findById(anyLong())).thenReturn(Optional.of(mockGame));
+        when(orderRepository.findByIdWithLock(anyLong())).thenReturn(Optional.of(mockOrder));
 
         assertThatThrownBy(() -> paymentService.createPayment(1L, request))
                 .isInstanceOf(BusinessException.class)
@@ -93,12 +132,14 @@ class PaymentServiceTest {
         Long userId = 1L;
         CreatePaymentRequest request = createPaymentRequest();
         Order mockOrder = mock(Order.class);
+        Game mockGame = mock(Game.class);
 
+        when(mockGame.isOnSale()).thenReturn(true);
         when(mockOrder.isClosed()).thenReturn(false);
         when(mockOrder.getMemberId()).thenReturn(2L);
 
-        when(orderRepository.findByIdWithLock(anyLong()))
-                .thenReturn(Optional.of(mockOrder));
+        when(gameRepository.findById(anyLong())).thenReturn(Optional.of(mockGame));
+        when(orderRepository.findByIdWithLock(anyLong())).thenReturn(Optional.of(mockOrder));
 
         assertThatThrownBy(() -> paymentService.createPayment(userId, request))
                 .isInstanceOf(BusinessException.class)
@@ -113,13 +154,15 @@ class PaymentServiceTest {
         Long userId = 1L;
         CreatePaymentRequest request = createPaymentRequest();
         Order mockOrder = mock(Order.class);
+        Game mockGame = mock(Game.class);
 
+        when(mockGame.isOnSale()).thenReturn(true);
         when(mockOrder.isClosed()).thenReturn(false);
         when(mockOrder.getMemberId()).thenReturn(userId);
         when(mockOrder.getTotalAmount()).thenReturn(10000L);
 
-        when(orderRepository.findByIdWithLock(anyLong()))
-                .thenReturn(Optional.of(mockOrder));
+        when(gameRepository.findById(anyLong())).thenReturn(Optional.of(mockGame));
+        when(orderRepository.findByIdWithLock(anyLong())).thenReturn(Optional.of(mockOrder));
 
         assertThatThrownBy(() -> paymentService.createPayment(userId, request))
                 .isInstanceOf(BusinessException.class)
@@ -134,13 +177,15 @@ class PaymentServiceTest {
         Long userId = 1L;
         CreatePaymentRequest request = createPaymentRequest();
         Order mockOrder = mock(Order.class);
+        Game mockGame = mock(Game.class);
 
+        when(mockGame.isOnSale()).thenReturn(true);
         when(mockOrder.isClosed()).thenReturn(false);
         when(mockOrder.getMemberId()).thenReturn(userId);
         when(mockOrder.getTotalAmount()).thenReturn(request.getAmount());
 
-        when(orderRepository.findByIdWithLock(anyLong()))
-                .thenReturn(Optional.of(mockOrder));
+        when(gameRepository.findById(anyLong())).thenReturn(Optional.of(mockGame));
+        when(orderRepository.findByIdWithLock(anyLong())).thenReturn(Optional.of(mockOrder));
 
         when(paymentRepository.findByIdempotencyKey("IDEMPOTENCY_KEY_123"))
                 .thenReturn(Optional.empty());
