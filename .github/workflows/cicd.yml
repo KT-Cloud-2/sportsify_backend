@@ -164,8 +164,8 @@ jobs:
             IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG \
               docker compose -f ~/docker-compose.prod.yml up -d --no-deps was-$NEXT
 
-            # 헬스체크 대기 (최대 120초)
-            for i in $(seq 1 24); do
+            # 헬스체크 대기 (최대 90초)
+            for i in $(seq 1 18); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' sportsify-was-$NEXT 2>/dev/null)
               if [ "$STATUS" = "healthy" ]; then
                 break
@@ -182,12 +182,19 @@ jobs:
             # active 포인터 전환 (nginx.conf는 include로 이 파일을 참조)
             sed -i "s|was-$ACTIVE:8080|was-$NEXT:8080|" ~/nginx/active-upstream.conf
 
-            # nginx가 떠있으면 reload, 없으면 기동
+            # nginx 적용 (떠있으면 검증 후 reload, 없으면 기동)
             if docker ps --format '{{.Names}}' | grep -q sportsify-nginx; then
-              docker exec sportsify-nginx nginx -s reload
+              APPLY="docker exec sportsify-nginx nginx -t && docker exec sportsify-nginx nginx -s reload"
             else
-              IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG \
-                docker compose -f ~/docker-compose.prod.yml up -d nginx
+              APPLY="IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG docker compose -f ~/docker-compose.prod.yml up -d nginx"
+            fi
+
+            # 실패 시 active 포인터 복구 + 새 컨테이너 종료 후 배포 취소 (이전 컨테이너 유지)
+            if ! eval "$APPLY"; then
+              echo "nginx 적용 실패. 롤백."
+              sed -i "s|was-$NEXT:8080|was-$ACTIVE:8080|" ~/nginx/active-upstream.conf
+              docker compose -f ~/docker-compose.prod.yml stop was-$NEXT
+              exit 1
             fi
 
             # 이전 컨테이너 중단
