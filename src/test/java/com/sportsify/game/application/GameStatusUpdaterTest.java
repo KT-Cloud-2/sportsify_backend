@@ -7,13 +7,16 @@ import com.sportsify.game.application.scheduler.GameStatusUpdater;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameStatus;
 import com.sportsify.game.domain.repository.GameRepository;
+import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.TaskScheduler;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +34,12 @@ class GameStatusUpdaterTest {
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
 
+    @Mock
+    private OrderExpirationScheduler orderExpirationScheduler;
+
+    @Mock
+    private TaskScheduler gameTaskScheduler;
+
     @Test
     @DisplayName("openSale 호출 시 SCHEDULED 상태인 경기가 ON_SALE로 변경된다.")
     void openSale_changesStatusToOnSale() {
@@ -40,6 +49,7 @@ class GameStatusUpdaterTest {
 
         gameStatusUpdater.openSale(1L);
 
+        verify(orderExpirationScheduler).onSaleStarted();
         verify(game).updateStatus(GameStatus.ON_SALE);
         verify(notificationEventPublisher).publish(eq(NotificationEventType.TICKET_OPEN), any(TicketOpenPayload.class));
     }
@@ -75,6 +85,8 @@ class GameStatusUpdaterTest {
 
         gameStatusUpdater.closeSale(1L);
 
+        verify(orderExpirationScheduler).onSaleEnded();
+        verify(gameTaskScheduler).schedule(any(Runnable.class), any(Instant.class));
         verify(game).updateStatus(GameStatus.SALE_CLOSED);
     }
 
