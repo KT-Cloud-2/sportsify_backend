@@ -13,7 +13,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"   # 내부 IP만 바인딩 — 외부 노출 금지
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
