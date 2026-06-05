@@ -39,6 +39,8 @@ public interface ChatRoomMemberRepository {
 
     boolean existsJoinedByRoomAndMember(ChatRoomId roomId, MemberId memberId);
 
+    boolean existsJoinedByRoomAndMemberForUpdate(ChatRoomId roomId, MemberId memberId);
+
     void leaveAllMembersByRoom(ChatRoomId roomId, LocalDateTime now);
 
     Optional<ChatRoomMember> findByRoomAndMemberForUpdate(ChatRoomId roomId, MemberId memberId);

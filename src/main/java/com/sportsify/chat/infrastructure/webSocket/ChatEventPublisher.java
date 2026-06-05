@@ -3,13 +3,19 @@ package com.sportsify.chat.infrastructure.webSocket;
 import com.sportsify.chat.domain.model.event.ErrorEventType;
 import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import java.security.Principal;
 import java.util.Map;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ChatEventPublisher {
 
@@ -37,6 +43,12 @@ public class ChatEventPublisher {
 
     @EventListener
     public void onRoomSubscriptionRevoked(RoomSubscriptionRevokedEvent event) {
+        log.info(
+                "[BAN SEND] memberId={}, sessionId={}, destination={}",
+                event.memberId(),
+                event.sessionId(),
+                event.roomId()
+        );
         publishToUser(event.memberId(), Map.of("type", ErrorEventType.KICKED_FROM_ROOM, "roomId", event.roomId()), "/queue/session-errors");
     }
 }

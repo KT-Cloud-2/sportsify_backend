@@ -63,6 +63,7 @@ public class WebSocketSessionRegistry {
         SessionInfo old = sessions.put(sid, newInfo);
         if (old != null) {
             removeFromIndexes(old);
+            old.subscribedRooms().forEach((subId, roomId) -> forceUnsubscribeFromBroker(sid, subId));
         }
         try {
             wsSessions.put(sid, ws);
@@ -72,6 +73,10 @@ public class WebSocketSessionRegistry {
             wsSessions.remove(sid);
             throw e;
         }
+    }
+
+    public Optional<WebSocketSession> getWsSession(String sid) {
+        return Optional.ofNullable(wsSessions.get(sid));
     }
 
     public void subscribeRoom(String sid, String subscriptionId, Long roomId) {
