@@ -7,6 +7,8 @@ import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.PaymentCompletedPayload;
+import com.sportsify.game.domain.model.Game;
+import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
@@ -46,10 +48,11 @@ public class PaymentService {
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationEventPublisher notificationEventPublisher;
     private final OrderRepository orderRepository;
+    private final GameRepository gameRepository;
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
-        validateOrder(request.getOrderId(), userId, request.getAmount());
+        validateOrder(request, userId);
 
         return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
                 .map(existingPayment -> {
@@ -278,19 +281,26 @@ public class PaymentService {
                 .build();
     }
 
-    private void validateOrder(Long orderId, Long userId, Long amount) {
-        Order order = orderRepository.findByIdWithLock(orderId)
+    private void validateOrder(CreatePaymentRequest request, Long userId) {
+        Order order = orderRepository.findByIdWithLock(request.getOrderId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
+        Game game = gameRepository.findById(request.getMatchId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.GAME_NOT_FOUND));
+
+        if (!game.isOnSale()) {
+            throw new BusinessException(ErrorCode.GAME_NOT_ON_SALE);
+        }
+
         if (order.isClosed()) {
-            log.warn("결제 시작 불가 상태: orderId={}, status={}", orderId, order.getStatus());
+            log.warn("결제 시작 불가 상태: orderId={}, status={}", request.getOrderId(), order.getStatus());
             throw new BusinessException(ErrorCode.ORDER_CLOSED, "status: " + order.getStatus());
         }
 
         if (!(order.getMemberId().equals(userId)))
             throw new BusinessException(ErrorCode.ORDER_MEMBER_MISMATCH);
 
-        if (!(order.getTotalAmount().equals(amount)))
+        if (!(order.getTotalAmount().equals(request.getAmount())))
             throw new BusinessException(ErrorCode.AMOUNT_MISMATCH);
     }
 }

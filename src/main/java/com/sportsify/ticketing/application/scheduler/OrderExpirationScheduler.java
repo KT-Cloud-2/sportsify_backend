@@ -6,15 +6,30 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OrderExpirationScheduler {
 
     private final OrderService orderService;
+    private final AtomicInteger activeSaleCount = new AtomicInteger(0);
+
+    public void onSaleStarted() {
+        activeSaleCount.incrementAndGet();
+    }
+
+    public void onSaleEnded() {
+        activeSaleCount.decrementAndGet();
+    }
 
     @Scheduled(fixedDelay = 1000)
     public void releaseUnpaidOrders() {
+        if (activeSaleCount.get() <= 0) {
+            return;
+        }
+
         try {
             orderService.expireUnpaidOrdersBulk();
         } catch (RuntimeException e) {
