@@ -148,8 +148,13 @@ jobs:
 
             docker pull $IMAGE_NAME:$IMAGE_TAG
 
-            # nginx.conf의 sportsify-active upstream에서 현재 라우팅 대상 확인
-            ACTIVE_SERVER=$(awk '/upstream sportsify-active/,/}/' ~/nginx/nginx.conf | grep server | awk '{print $2}')
+            # active 포인터 파일이 없으면 기본값(was-blue)으로 생성 (초기 배포)
+            if [ ! -f ~/nginx/active-upstream.conf ]; then
+              printf 'upstream sportsify-active {\n    server was-blue:8080 max_fails=3 fail_timeout=30s;\n}\n' > ~/nginx/active-upstream.conf
+            fi
+
+            # active 포인터에서 현재 라우팅 대상 확인 (nginx가 실제 트래픽 보내는 컨테이너)
+            ACTIVE_SERVER=$(grep server ~/nginx/active-upstream.conf | awk '{print $2}')
 
             if echo "$ACTIVE_SERVER" | grep -q "was-blue"; then
               ACTIVE=blue
@@ -178,8 +183,8 @@ jobs:
               exit 1
             fi
 
-            # nginx upstream 전환
-            sed -i "s|was-$ACTIVE:8080|was-$NEXT:8080|" ~/nginx/nginx.conf
+            # active 포인터 전환 (nginx.conf는 include로 이 파일을 참조)
+            sed -i "s|was-$ACTIVE:8080|was-$NEXT:8080|" ~/nginx/active-upstream.conf
             docker exec sportsify-nginx nginx -s reload
 
             # 이전 컨테이너 중단
