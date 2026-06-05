@@ -72,6 +72,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     void beforeEach() {
         member = fixture.createMember("t1@test.com", "n1");
         game = fixture.createGame();
+        scheduler.onSaleStarted();
     }
 
     @AfterEach
