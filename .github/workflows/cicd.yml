@@ -163,8 +163,8 @@ jobs:
             IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG \
               docker compose -f ~/docker-compose.prod.yml up -d --no-deps was-$NEXT
 
-            # 헬스체크 대기 (최대 60초)
-            for i in $(seq 1 12); do
+            # 헬스체크 대기 (최대 120초)
+            for i in $(seq 1 24); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' sportsify-was-$NEXT 2>/dev/null)
               if [ "$STATUS" = "healthy" ]; then
                 break
