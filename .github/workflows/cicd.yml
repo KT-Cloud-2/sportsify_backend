@@ -185,7 +185,14 @@ jobs:
 
             # active 포인터 전환 (nginx.conf는 include로 이 파일을 참조)
             sed -i "s|was-$ACTIVE:8080|was-$NEXT:8080|" ~/nginx/active-upstream.conf
-            docker exec sportsify-nginx nginx -s reload
+
+            # nginx가 떠있으면 reload, 없으면 기동
+            if docker ps --format '{{.Names}}' | grep -q sportsify-nginx; then
+              docker exec sportsify-nginx nginx -s reload
+            else
+              IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG \
+                docker compose -f ~/docker-compose.prod.yml up -d nginx
+            fi
 
             # 이전 컨테이너 중단
             docker compose -f ~/docker-compose.prod.yml stop was-$ACTIVE

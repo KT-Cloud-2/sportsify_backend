@@ -55,9 +55,6 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/active-upstream.conf:/etc/nginx/active-upstream.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      was-blue:
-        condition: service_healthy
     restart: unless-stopped
     logging:
       driver: awslogs
