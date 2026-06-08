@@ -1,6 +1,8 @@
 package com.sportsify.game.domain.model;
 
 
+import com.sportsify.common.exception.BusinessException;
+import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import jakarta.persistence.*;
@@ -98,6 +100,15 @@ public class Game {
                               LocalDateTime startAt, Integer durationMinutes, GameStatus status,
                               DayType dayType, GameGrade gameGrade, Integer maxTicketPerUser,
                               LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
+
+        if ((saleStartAt == null) != (saleEndAt == null)) {
+            throw new BusinessException(ErrorCode.SALE_PERIOD_BOTH_REQUIRED);
+        }
+
+        if (saleStartAt != null && !saleEndAt.isAfter(saleStartAt)) {
+            throw new BusinessException(ErrorCode.SALE_END_BEFORE_START);
+        }
+
         return Game.builder()
                 .stadium(stadium)
                 .homeTeam(homeTeam)
@@ -116,6 +127,10 @@ public class Game {
 
     public boolean isOnSale() {
         return this.status == GameStatus.ON_SALE;
+    }
+
+    public boolean hasSaleSchedule() {
+        return this.getSaleStartAt() != null && this.getSaleEndAt() != null;
     }
 
     public void updateStatus(GameStatus status) {

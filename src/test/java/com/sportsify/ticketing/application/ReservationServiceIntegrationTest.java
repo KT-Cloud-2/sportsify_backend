@@ -6,6 +6,7 @@ import com.sportsify.member.domain.model.Member;
 import com.sportsify.support.RepositoryTestSupport;
 import com.sportsify.ticketing.application.service.ReservationService;
 import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderConstants;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
@@ -74,7 +75,7 @@ class ReservationServiceIntegrationTest extends RepositoryTestSupport {
 
         LocalDateTime now = LocalDateTime.now();
 
-        assertThat(createdOrder.getExpiresAt()).isAfter(now).isBefore(now.plusMinutes(10));
+        assertThat(createdOrder.getExpiresAt()).isAfter(now).isBefore(now.plusMinutes(OrderConstants.EXPIRATION_MINUTES));
         assertThat(createdOrder.getCreatedAt()).isNotNull();
     }
 
