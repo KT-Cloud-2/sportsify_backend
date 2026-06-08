@@ -92,7 +92,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf,monitoring/prometheus.yml"
+          source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf,nginx/proxy_headers.conf,monitoring/prometheus.yml"
           target: "~/"
           overwrite: true
 
@@ -118,7 +118,7 @@ jobs:
             # 인프라 기동
             if ! docker compose -f ~/docker-compose.infra.yml --env-file ~/.env up -d; then
               echo "인프라 기동 실패"
-              docker compose -f ~/docker-compose.infra.yml --env-file ~/.env down -v --rmi all
+              docker compose -f ~/docker-compose.infra.yml --env-file ~/.env down
               exit 1
             fi
 

@@ -54,6 +54,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/active-upstream.conf:/etc/nginx/active-upstream.conf:ro
+      - ./nginx/proxy_headers.conf:/etc/nginx/proxy_headers.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     restart: unless-stopped
     logging:
