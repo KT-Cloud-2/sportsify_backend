@@ -164,6 +164,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     @DisplayName("동시성 테스트: 결제가 락 보유 중이면 스케줄러는 SKIP LOCKED로 PendingOrder의 해당 행을 건너뛴다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void paymentLocksFirst_schedulerSkips(int skipCount) throws InterruptedException {
+        scheduler.onSaleEnded();
         List<Long> skipIds = new ArrayList<>();
 
         transactionTemplate.executeWithoutResult(status -> {
