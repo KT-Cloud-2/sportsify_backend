@@ -25,6 +25,7 @@ import {stomp} from './lib/stomp.js';
 const stompConnectTime = new Trend('stomp_connect_ms', true);
 const readSent = new Counter('stomp_read_sent');
 const readRoundtripTime = new Trend('stomp_read_roundtrip_ms', true);
+const readReceiptTimeout = new Counter('stomp_read_receipt_timeout');
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const WS_URL = BASE_URL.replace(/^http/, 'ws') + '/ws/chat';
@@ -47,7 +48,8 @@ export const options = {
         http_req_failed: ['rate<0.01'],
         ws_connecting: ['p(95)<3000'],
         stomp_read_sent: ['count>0'],
-        stomp_read_roundtrip_ms: ['p(95)<3000'],
+        stomp_read_roundtrip_ms: ['p(95)<8000'],
+        stomp_read_receipt_timeout: ['count<10'],
         iteration_duration: ['p(95)<3000'],
     },
 };
@@ -123,13 +125,23 @@ export default function (data) {
                     }));
                     readSent.add(1);
 
-                    
+                    // flush-interval(5s) 이후에도 READ_RECEIPT가 없으면 유실로 카운팅
                     socket.setTimeout(() => {
                         if (state.pendingRead) {
-                            readRoundtripTime.add(Date.now() - state.pendingRead.sentAt);
+                            readReceiptTimeout.add(1);
                             state.pendingRead = null;
                         }
-                    }, 3000);
+                    }, 8000);
+                }
+
+                if (body?.event === 'READ_RECEIPT') {
+                    if (
+                        state.pendingRead &&
+                        body.payload.lastReadMessageId === state.pendingRead.messageId
+                    ) {
+                        readRoundtripTime.add(Date.now() - state.pendingRead.sentAt);
+                        state.pendingRead = null;
+                    }
                 }
 
             } else if (cmd === 'ERROR') {

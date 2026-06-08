@@ -130,8 +130,8 @@ class MessageTest {
     }
 
     @Test
-    @DisplayName("이미 DELETED 메시지를 softDelete해도 도메인 이벤트가 추가되지 않는다")
-    void softDelete_DELETED_멱등() {
+    @DisplayName("이미 DELETED 메시지를 softDelete해도 도메인 이벤트가 추가되지 않으며 예외를 터트린다")
+    void softDelete_DELETED_예외발생() {
         Message msg = restored(MessageStatus.DELETED);
 
         msg.softDelete(INSTANT_NOW);

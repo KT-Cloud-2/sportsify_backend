@@ -40,7 +40,11 @@ public class ChatStompController {
     @MessageMapping("/chat.send")
     public void send(@Payload ChatSendPayload payload, Principal principal) {
         long id = Long.parseLong(principal.getName());
-        messageService.send(MessageCreateRequest.from(payload), id);
+        try {
+            messageService.send(MessageCreateRequest.from(payload), id);
+        } catch (Exception e) {
+            throw new MessageSendException(e, payload.clientMessageId());
+        }
     }
 
 
@@ -68,6 +72,15 @@ public class ChatStompController {
         chatEventPublisher.publishToRoomTyping(payload.roomId(), MessageTypingEvent.from(
                 payload, memberId, payload.typing(), Instant.now(clock)
         ));
+    }
+
+    @MessageExceptionHandler(MessageSendException.class)
+    @SendToUser("/queue/errors")
+    public ErrorResponse handleMessageSendException(MessageSendException e) {
+        if (e.getCause() instanceof BusinessException be) {
+            return ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, be, e.clientMessageId());
+        }
+        return ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, "메시지 전송에 실패했습니다.", e.clientMessageId());
     }
 
     @MessageExceptionHandler(BusinessException.class)

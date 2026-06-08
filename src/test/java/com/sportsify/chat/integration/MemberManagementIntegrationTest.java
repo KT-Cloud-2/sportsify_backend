@@ -10,6 +10,7 @@ import com.sportsify.chat.infrastructure.persistence.chatRoom.ChatRoomJpaReposit
 import com.sportsify.chat.infrastructure.persistence.chatRoomMember.ChatRoomMemberJpaRepository;
 import com.sportsify.chat.infrastructure.persistence.message.MessageJpaRepository;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import com.sportsify.chat.domain.model.chatRoomMember.MemberStatus;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.config.TestContainersConfig;
 import org.junit.jupiter.api.AfterEach;
@@ -92,7 +93,7 @@ class MemberManagementIntegrationTest {
         chatRoomMemberService.join(room.getId(), MEMBER_ID);
 
         assertThat(chatRoomMemberJpaRepo
-                .existsByRoomIdAndMemberIdAndStatus(room.getId(), MEMBER_ID, "JOINED")).isTrue();
+                .existsByRoomIdAndMemberIdAndStatus(room.getId(), MEMBER_ID, MemberStatus.JOINED.name())).isTrue();
     }
 
     @Test
@@ -142,9 +143,9 @@ class MemberManagementIntegrationTest {
 
         chatRoomMemberService.ban(room.getId(), BAN_CREATOR_ID, BAN_TARGET_ID);
 
-        String status = chatRoomMemberJpaRepo.findByRoomIdAndMemberId(room.getId(), BAN_TARGET_ID, List.of("BANNED"))
+        String status = chatRoomMemberJpaRepo.findByRoomIdAndMemberId(room.getId(), BAN_TARGET_ID, List.of(MemberStatus.BANNED.name()))
                 .orElseThrow().getStatus();
-        assertThat(status).isEqualTo("BANNED");
+        assertThat(status).isEqualTo(MemberStatus.BANNED.name());
 
         assertThatThrownBy(() -> chatRoomMemberService.join(room.getId(), BAN_TARGET_ID))
                 .isInstanceOf(BusinessException.class);
@@ -165,7 +166,7 @@ class MemberManagementIntegrationTest {
         chatRoomMemberService.invite(room.getId(), OWNER_ID, MEMBER_ID);
 
         assertThat(chatRoomMemberJpaRepo
-                .existsByRoomIdAndMemberIdAndStatus(room.getId(), MEMBER_ID, "INVITED")).isTrue();
+                .existsByRoomIdAndMemberIdAndStatus(room.getId(), MEMBER_ID, MemberStatus.INVITED.name())).isTrue();
     }
 
     @Test
@@ -178,7 +179,7 @@ class MemberManagementIntegrationTest {
         chatRoomMemberService.join(room.getId(), MEMBER_ID);
 
         assertThat(chatRoomMemberJpaRepo
-                .existsByRoomIdAndMemberIdAndStatus(room.getId(), MEMBER_ID, "JOINED")).isTrue();
+                .existsByRoomIdAndMemberIdAndStatus(room.getId(), MEMBER_ID, MemberStatus.JOINED.name())).isTrue();
     }
 
     @Test
@@ -191,9 +192,9 @@ class MemberManagementIntegrationTest {
         chatRoomMemberService.rejectInvite(MEMBER_ID, room.getId());
 
         String status = chatRoomMemberJpaRepo
-                .findByRoomIdAndMemberId(room.getId(), MEMBER_ID, List.of("REJECT"))
+                .findByRoomIdAndMemberId(room.getId(), MEMBER_ID, List.of(MemberStatus.REJECT.name()))
                 .orElseThrow().getStatus();
-        assertThat(status).isEqualTo("REJECT");
+        assertThat(status).isEqualTo(MemberStatus.REJECT.name());
     }
 
 

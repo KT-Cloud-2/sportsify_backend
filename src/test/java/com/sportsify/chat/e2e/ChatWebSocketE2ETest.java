@@ -13,6 +13,7 @@ import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 
 import java.util.List;
@@ -103,19 +104,19 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
                 }
         );
 
-        boolean connectionFailed = false;
+        ExecutionException rejection = null;
         try {
             future.get(TIMEOUT_SEC, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            connectionFailed = true;
+            rejection = e;
         } catch (TimeoutException e) {
-            connectionFailed = true;
             future.cancel(true);
+            throw new AssertionError("서버가 응답하지 않음: 인증 거부가 아닌 가용성 장애", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        assertThat(connectionFailed).as("잘못된 JWT로는 연결이 거부되어야 한다").isTrue();
+        assertThat(rejection).as("잘못된 JWT로는 연결이 거부되어야 한다").isNotNull();
     }
 
     @Test
@@ -245,7 +246,8 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
                 .map(m -> (String) ((Map<?, ?>) m).get("event"))
                 .toList();
 
-        assertThat(events.subList(0, events.size() - 1)).containsOnly("REPLAY_MESSAGE");
+        assertThat(events).hasSize(10);
+        assertThat(events.subList(0, 9)).containsOnly("REPLAY_MESSAGE");
         assertThat(events.getLast()).isEqualTo("REPLAY_OVERFLOW");
     }
 
@@ -493,7 +495,7 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
         fixture.createMember(room.getId(), MEMBER_A, "JOINED");
 
         long expiryMs = 3000L;
-        long expireAt = System.currentTimeMillis() + expiryMs;
+        long tokenCreatedAt = System.currentTimeMillis();
         StompSession sessionA = connectWithJwt(MEMBER_A, createShortLivedToken(MEMBER_A, "USER", expiryMs));
 
         BlockingQueue<Map<String, Object>> queueA = subscribeRoom(sessionA, room.getId());
@@ -501,7 +503,7 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
         sendMessage(sessionA, room.getId(), "만료 전 메시지");
         assertThat(queueA.poll(TIMEOUT_SEC, TimeUnit.SECONDS)).isNotNull();
 
-        long remaining = expireAt - System.currentTimeMillis();
+        long remaining = (tokenCreatedAt + expiryMs) - System.currentTimeMillis();
         if (remaining > 0) Thread.sleep(remaining + 100);
 
         sendMessage(sessionA, room.getId(), "만료 후 메시지");
@@ -530,8 +532,8 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
         ChatRoomJpaEntity room = fixture.createRoom("만료테스트방", "GAME", "ACTIVE", MEMBER_A);
         fixture.createMember(room.getId(), MEMBER_A, "JOINED");
 
-        long expiryMs = 1000L;
-        long expireAt = System.currentTimeMillis() + expiryMs;
+        long expiryMs = 3000L;
+        long tokenCreatedAt = System.currentTimeMillis();
         StompSession sessionA = connectWithJwt(MEMBER_A, createShortLivedToken(MEMBER_A, "USER", expiryMs));
         BlockingQueue<Map<String, Object>> errorQueue = subscribeError(sessionA);
 
@@ -539,7 +541,7 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
         sendMessage(sessionA, room.getId(), "만료 전 메시지");
         assertThat(queueA.poll(TIMEOUT_SEC, TimeUnit.SECONDS)).isNotNull();
 
-        long remaining = expireAt - System.currentTimeMillis();
+        long remaining = (tokenCreatedAt + expiryMs) - System.currentTimeMillis();
         if (remaining > 0) Thread.sleep(remaining + 100);
         sendMessage(sessionA, room.getId(), "만료 후 메시지");
         long graceEnteredAt = System.currentTimeMillis();
@@ -574,9 +576,11 @@ class ChatWebSocketE2ETest extends ChatE2ETestBase {
         assertThat(sendError.get("event")).isEqualTo(ErrorEventType.MESSAGE_FAILED.name());
 
         assertThatThrownBy(() -> restDelete("/api/chat/messages/" + message.getId(), MEMBER_B))
-                .isInstanceOf(Exception.class);
+                .isInstanceOfSatisfying(HttpClientErrorException.class, e ->
+                        assertThat(e.getStatusCode().value()).isIn(404, 422));
 
         assertThatThrownBy(() -> restPatch("/api/chat/rooms/" + room.getId(), Map.of("name", "수정시도"), MEMBER_A))
-                .isInstanceOf(Exception.class);
+                .isInstanceOfSatisfying(HttpClientErrorException.class, e ->
+                        assertThat(e.getStatusCode().value()).isIn(404, 422));
     }
 }

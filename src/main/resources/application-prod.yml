@@ -1,5 +1,9 @@
 server:
   port: 8080
+<<<<<<< HEAD
+=======
+  forward-headers-strategy: framework
+>>>>>>> 50dadd1720f45bb29623db2c591523ffa222ae31
 
 spring:
   datasource:
@@ -22,6 +26,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
 
   data:
     redis:

@@ -182,8 +182,8 @@ class ChatSseE2ETest extends ChatE2ETestBase {
         Thread sseThread = new Thread(() -> {
             try {
                 httpClient.send(request, responseInfo ->
-                                HttpResponse.BodyHandlers.ofLines().apply(responseInfo)
-                        ).body()
+                        HttpResponse.BodyHandlers.ofLines().apply(responseInfo)
+                ).body()
                         .filter(line -> line.startsWith("data:"))
                         .map(line -> line.substring(5).trim())
                         .forEach(events::offer);
@@ -204,6 +204,12 @@ class ChatSseE2ETest extends ChatE2ETestBase {
                 throw new IllegalStateException("SSE 연결 timeout: memberId=" + memberId);
             }
             Thread.sleep(50);
+        }
+
+        // 인증 실패·연결 거부로 스레드가 즉시 종료된 경우
+        if (sseThread.getState() == Thread.State.TERMINATED) {
+            httpClient.close();
+            throw new IllegalStateException("SSE 연결 실패 (즉시 종료): memberId=" + memberId);
         }
 
         return new SseConnection(sseThread, httpClient, events);
