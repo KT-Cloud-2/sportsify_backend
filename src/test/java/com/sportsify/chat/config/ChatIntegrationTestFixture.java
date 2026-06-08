@@ -74,8 +74,25 @@ public class ChatIntegrationTestFixture {
     }
 
     @Transactional
+    public Long createGameRecord() {
+        em.createNativeQuery(
+                "INSERT INTO stadiums (id, name, address, total_seats) " +
+                        "VALUES (9001, '테스트 경기장', '서울', 50000) " +
+                        "ON CONFLICT DO NOTHING"
+        ).executeUpdate();
+
+        return ((Number) em.createNativeQuery(
+                "INSERT INTO games (stadium_id, sport_type, start_at, status, created_at) " +
+                        "VALUES (9001, 'BASEBALL', NOW(), 'SCHEDULED', NOW()) " +
+                        "RETURNING id"
+        ).getSingleResult()).longValue();
+    }
+
+    @Transactional
     public void deleteAll() {
         em.createNativeQuery("TRUNCATE TABLE notification_history, notifications, notification_events, chat_room_members, chat_messages, chat_rooms").executeUpdate();
+        em.createNativeQuery("DELETE FROM games").executeUpdate();
+        em.createNativeQuery("DELETE FROM stadiums WHERE id = 9001").executeUpdate();
         em.createNativeQuery("DELETE FROM members WHERE id >= 1000").executeUpdate();
     }
 }

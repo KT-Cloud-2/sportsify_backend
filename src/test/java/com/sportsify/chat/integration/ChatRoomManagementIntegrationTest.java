@@ -61,7 +61,7 @@ class ChatRoomManagementIntegrationTest {
     @Test
     @DisplayName("GAME 채팅방 생성")
     void GAME_채팅방_생성_DB_저장() {
-        long gameId = 42L;
+        long gameId = fixture.createGameRecord();
         fixture.createMemberRecord(CREATOR_ID);
         CreateChatRoomRequest request =
                 new CreateChatRoomRequest("GAME", "테스트 방", null, gameId, null);
