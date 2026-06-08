@@ -78,6 +78,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     @AfterEach
     void tearDown() {
         fixture.deleteAll();
+        scheduler.onSaleEnded();
     }
 
     @Test
@@ -165,62 +166,66 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void paymentLocksFirst_schedulerSkips(int skipCount) throws InterruptedException {
         scheduler.onSaleEnded();
-        List<Long> skipIds = new ArrayList<>();
+        try {
+            List<Long> skipIds = new ArrayList<>();
 
-        transactionTemplate.executeWithoutResult(status -> {
-            for (int i = 0; i < skipCount * 2; i++) {
-                Order order = Order.create(member);
-                fixture.createGameSeatsWithCount(game, 1)
-                        .forEach(gameSeatId -> {
-                            GameSeat gameSeat = gameSeatRepository.getReferenceById(gameSeatId);
-                            OrderSeat orderSeat = OrderSeat.create(order, gameSeat, 10000);
-                            order.addOrderSeat(orderSeat);
-                        });
+            transactionTemplate.executeWithoutResult(status -> {
+                for (int i = 0; i < skipCount * 2; i++) {
+                    Order order = Order.create(member);
+                    fixture.createGameSeatsWithCount(game, 1)
+                            .forEach(gameSeatId -> {
+                                GameSeat gameSeat = gameSeatRepository.getReferenceById(gameSeatId);
+                                OrderSeat orderSeat = OrderSeat.create(order, gameSeat, 10000);
+                                order.addOrderSeat(orderSeat);
+                            });
 
-                order.calculateTotalAmount();
-                order.updateExpiresAt(LocalDateTime.now().minusMinutes(1));
+                    order.calculateTotalAmount();
+                    order.updateExpiresAt(LocalDateTime.now().minusMinutes(1));
 
-                Order saveOrder = orderRepository.save(order);
-                if (i < skipCount) skipIds.add(saveOrder.getId());
-            }
-        });
-
-        CountDownLatch paymentLocked = new CountDownLatch(skipCount);
-        CountDownLatch testDone = new CountDownLatch(1);
-
-        ExecutorService executor = Executors.newFixedThreadPool(skipCount);
-
-        for (Long skipId : skipIds) {
-            executor.submit(() -> {
-                transactionTemplate.execute(status -> {
-                    orderRepository.findByIdWithLock(skipId);
-                    paymentLocked.countDown();
-
-                    try {
-                        // Test가 끝날 때까지 Thread A 락 유지
-                        testDone.await(5, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                    return null;
-                });
+                    Order saveOrder = orderRepository.save(order);
+                    if (i < skipCount) skipIds.add(saveOrder.getId());
+                }
             });
+
+            CountDownLatch paymentLocked = new CountDownLatch(skipCount);
+            CountDownLatch testDone = new CountDownLatch(1);
+
+            ExecutorService executor = Executors.newFixedThreadPool(skipCount);
+
+            for (Long skipId : skipIds) {
+                executor.submit(() -> {
+                    transactionTemplate.execute(status -> {
+                        orderRepository.findByIdWithLock(skipId);
+                        paymentLocked.countDown();
+
+                        try {
+                            // Test가 끝날 때까지 Thread A 락 유지
+                            testDone.await(5, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return null;
+                    });
+                });
+            }
+
+            // Thread들이 각 skipId를 결제 시작할 때까지(락을 획득할 때까지) 대기
+            paymentLocked.await(5, TimeUnit.SECONDS);
+
+            // when - Thread B: 스케줄러 (SKIP LOCKED)
+            List<Long> expiredOrderIds = transactionTemplate.execute(status ->
+                    orderRepository.findExpiredPendingOrderIdsWithoutPayment(LocalDateTime.now())
+            );
+
+            // then - 락 걸린 행 skip
+            assertThat(expiredOrderIds).doesNotContainAnyElementsOf(skipIds);
+            assertThat(expiredOrderIds).hasSize(skipCount);
+
+            testDone.countDown(); // 락 잡은 Thread 해제
+            executor.shutdown();
+        } finally {
+            scheduler.onSaleStarted();
         }
-
-        // Thread들이 각 skipId를 결제 시작할 때까지(락을 획득할 때까지) 대기
-        paymentLocked.await(5, TimeUnit.SECONDS);
-
-        // when - Thread B: 스케줄러 (SKIP LOCKED)
-        List<Long> expiredOrderIds = transactionTemplate.execute(status ->
-                orderRepository.findExpiredPendingOrderIdsWithoutPayment(LocalDateTime.now())
-        );
-
-        // then - 락 걸린 행 skip
-        assertThat(expiredOrderIds).doesNotContainAnyElementsOf(skipIds);
-        assertThat(expiredOrderIds).hasSize(skipCount);
-
-        testDone.countDown(); // 락 잡은 Thread 해제
-        executor.shutdown();
     }
 
 }
