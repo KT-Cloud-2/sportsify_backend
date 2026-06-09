@@ -104,11 +104,15 @@ management:
       application: sportsify
     distribution:
       percentiles-histogram:
-        http.server.requests: true     # P50/P95/P99 히스토그램
+        "[http.server.requests]": true
       percentiles:
-        http.server.requests: 0.5, 0.95, 0.99
+        "[http.server.requests]": 0.5, 0.95, 0.99 # P50/P95/P99 히스토그램
       slo:
-        http.server.requests: 50ms, 100ms, 200ms, 500ms
+        "[http.server.requests]":
+          - 50ms
+          - 100ms
+          - 200ms
+          - 500ms
 
 springdoc:
   api-docs:
