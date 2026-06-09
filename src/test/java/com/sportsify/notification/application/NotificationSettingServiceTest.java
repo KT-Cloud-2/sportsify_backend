@@ -6,10 +6,12 @@ import com.sportsify.notification.application.service.NotificationSettingService
 import com.sportsify.notification.domain.model.*;
 import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.infrastructure.config.NotificationProperties;
+import com.sportsify.notification.support.NotificationIntegrationTestSupport;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,7 +25,6 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class NotificationSettingServiceTest {
 
-    @InjectMocks
     private NotificationSettingService settingService;
 
     @Mock
@@ -31,6 +32,12 @@ class NotificationSettingServiceTest {
 
     @Mock
     private NotificationChannelRepository channelRepository;
+
+    @BeforeEach
+    void setUp() {
+        NotificationProperties properties = NotificationIntegrationTestSupport.defaultProperties();
+        settingService = new NotificationSettingService(settingRepository, channelRepository, properties);
+    }
 
     @Test
     @DisplayName("알림 설정이 없으면 NOTIFICATION_SETTING_NOT_FOUND 예외가 발생한다")
@@ -82,11 +89,24 @@ class NotificationSettingServiceTest {
     void registerChannel_성공() {
         NotificationChannel channel = NotificationChannel.create(1L, NotificationChannelType.EMAIL, "a@test.com");
         given(channelRepository.existsByMemberIdAndChannelType(1L, NotificationChannelType.EMAIL)).willReturn(false);
+        given(channelRepository.countByMemberIdForUpdate(1L)).willReturn(0);
         given(channelRepository.save(any())).willReturn(channel);
 
         var result = settingService.registerChannel(1L, NotificationChannelType.EMAIL, "a@test.com");
 
         assertThat(result.channelType()).isEqualTo(NotificationChannelType.EMAIL);
         assertThat(result.channelTarget()).isEqualTo("a@test.com");
+    }
+
+    @Test
+    @DisplayName("채널이 이미 2개 등록된 경우 NOTIFICATION_CHANNEL_LIMIT_EXCEEDED 예외가 발생한다")
+    void registerChannel_최대개수초과_예외() {
+        given(channelRepository.existsByMemberIdAndChannelType(1L, NotificationChannelType.SLACK)).willReturn(false);
+        given(channelRepository.countByMemberIdForUpdate(1L)).willReturn(2);
+
+        assertThatThrownBy(() -> settingService.registerChannel(1L, NotificationChannelType.SLACK, "webhook"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOTIFICATION_CHANNEL_LIMIT_EXCEEDED);
     }
 }

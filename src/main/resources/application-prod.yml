@@ -1,3 +1,7 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
@@ -19,6 +23,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
 
   data:
     redis:
@@ -61,6 +66,10 @@ spring:
           starttls:
             enable: true
 
+toss:
+  payments:
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY}
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiry-ms: 900000
@@ -70,14 +79,14 @@ app:
   oauth2:
     redirect-uri: ${FRONTEND_URL}/oauth2/callback
   cors:
-    allowed-origins:
-      - https://api.sportsify.com
+    allowed-origins: ${FRONTEND_URL}
 
 mqtt:
-  broker-url: ssl://${MQTT_HOST}:8883
-  client-id: ${MQTT_CLIENT_ID:sportsify-server}
-  username: ${MQTT_USERNAME:}
-  password: ${MQTT_PASSWORD:}
+  enabled: false
+  broker-url: tcp://localhost:1883
+  client-id: sportsify-local
+  username: ""
+  password: ""
 
 management:
   endpoints:

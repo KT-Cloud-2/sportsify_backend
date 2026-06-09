@@ -52,6 +52,9 @@ public class NotificationEvent {
     @Column(name = "retry_count", nullable = false)
     private int retryCount = 0;
 
+    @Column(name = "stuck_retry_count", nullable = false)
+    private int stuckRetryCount = 0;
+
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
@@ -111,17 +114,17 @@ public class NotificationEvent {
         this.status = NotificationEventStatus.FAILED;
     }
 
-    public boolean isExhausted(int maxRetry) {
-        return this.retryCount >= maxRetry;
-    }
-
     public void incrementRetry() {
         this.retryCount++;
     }
 
-    public boolean incrementRetryAndCheckExhausted(int maxRetry) {
+    public void incrementStuckRetry() {
+        this.stuckRetryCount++;
+    }
+
+    public boolean incrementRetryAndCheckExhausted(int backoffSize) {
         this.retryCount++;
-        return this.retryCount >= maxRetry;
+        return this.retryCount >= backoffSize;
     }
 
     public void markPermanentlyFailed() {

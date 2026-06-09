@@ -1,11 +1,11 @@
 # EC2-2 전용: PostgreSQL + Redis + Prometheus + Grafana
-# 실행: docker compose -f docker-compose.infra.yml --env-file .env.prod up -d
+# 실행: docker compose -f docker-compose.infra.yml --env-file .env up -d
 
 services:
   postgres:
     image: postgres:18
     container_name: sportsify-postgres
-    env_file: .env.prod
+    env_file: .env
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
@@ -13,13 +13,15 @@ services:
     ports:
       - "127.0.0.1:5432:5432"   # 내부 IP만 바인딩 — 외부 노출 금지
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - sportsify-net
 
   redis:
     image: redis:8-alpine
@@ -35,6 +37,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - sportsify-net
 
   prometheus:
     image: prom/prometheus:latest
@@ -48,6 +52,8 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.retention.time=15d"
     restart: unless-stopped
+    networks:
+      - sportsify-net
 
   grafana:
     image: grafana/grafana:latest
@@ -65,9 +71,15 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    networks:
+      - sportsify-net
 
 volumes:
   postgres_data:
   redis_data:
   prometheus_data:
   grafana_data:
+
+networks:
+  sportsify-net:
+    external: true

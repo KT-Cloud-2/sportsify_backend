@@ -2,6 +2,7 @@ package com.sportsify.game.application.scheduler;
 
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.repository.GameRepository;
+import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,6 +21,7 @@ public class GameScheduleInitializer {
     private final GameRepository gameRepository;
     private final GameSaleTaskScheduler gameSaleTaskScheduler;
     private final GameStatusUpdater gameStatusUpdater;
+    private final OrderExpirationScheduler orderExpirationScheduler;
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
@@ -55,6 +57,7 @@ public class GameScheduleInitializer {
         List<Game> onSaleGames = gameRepository.findOnSaleGamesWithFutureSaleEnd(now);
         for (Game game : onSaleGames) {
             gameSaleTaskScheduler.scheduleSaleEnd(game.getId(), game.getSaleEndAt());
+            orderExpirationScheduler.onSaleStarted();
         }
         log.info("[GAME_SCHEDULE_INIT] 판매 종료 예약 등록 - {}건", onSaleGames.size());
     }

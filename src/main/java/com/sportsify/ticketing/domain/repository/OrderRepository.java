@@ -13,11 +13,15 @@ public interface OrderRepository {
 
     Optional<Order> findById(Long id);
 
-    Optional<Order> findByIdWithOrderSeats(Long orderId);
+    Optional<Order> findByIdWithLock(Long id);
+
+    Long findGameIdByOrderId(@Param("orderId") Long orderId);
 
     List<Long> findExpiredPendingOrderIdsWithoutPayment(LocalDateTime now);
 
-    List<Long> findPayingOrderIdsWithFailedPayment();
+    List<Long> findPendingOrderIdsWithFailedPayment();
 
     void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
+
+    Optional<Order> findByIdWithAll(Long id);
 }

@@ -1,7 +1,6 @@
 package com.sportsify.notification.application.service;
 
 import com.sportsify.notification.domain.model.NotificationEvent;
-import com.sportsify.notification.infrastructure.publisher.RedisStreamNotificationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,7 +15,7 @@ public class ScheduledNotificationProcessor {
 
     private final ScheduledEventClaimService claimService;
     private final FanoutService fanoutService;
-    private final RedisStreamNotificationEventPublisher streamPublisher;
+    private final EventStatusService eventStatusService;
 
     // 매 5분 단위 정각 실행 (0, 5, 10, 15 ... 분)
     // saleStartAt이 과거 시각이면 다음 tick에 최대 5분 지연 발송됨 — 의도된 동작
@@ -28,16 +27,20 @@ public class ScheduledNotificationProcessor {
         }
         log.info("예약 알림 처리 시작 count={}", claimed.size());
         for (NotificationEvent event : claimed) {
-            try {
-                boolean failed = fanoutService.fanout(event, event.getEventType(), event.getPayload());
-                if (failed) {
-                    streamPublisher.republish(event.getEventType(), event.getPayload());
-                    log.warn("예약 알림 fanout 실패, PEL로 재발행 eventId={}", event.getId());
-                }
-            } catch (Exception e) {
-                log.error("예약 알림 처리 실패 eventId={}", event.getId(), e);
-                streamPublisher.republish(event.getEventType(), event.getPayload());
+            processOne(event);
+        }
+    }
+
+    private void processOne(NotificationEvent event) {
+        try {
+            boolean failed = fanoutService.fanout(event, event.getEventType(), event.getPayload());
+            eventStatusService.markEventStatus(event.getId(), failed);
+            if (failed) {
+                log.warn("예약 알림 fanout 실패, 재시도 대기 eventId={}", event.getId());
             }
+        } catch (Exception e) {
+            log.error("예약 알림 처리 실패 eventId={}", event.getId(), e);
+            eventStatusService.markEventStatus(event.getId(), true);
         }
     }
 }

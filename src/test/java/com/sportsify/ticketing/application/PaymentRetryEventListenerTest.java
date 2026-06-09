@@ -2,7 +2,6 @@ package com.sportsify.ticketing.application;
 
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
-import com.sportsify.common.event.PaymentStartedEvent;
 import com.sportsify.ticketing.application.listener.PaymentEventListener;
 import com.sportsify.ticketing.application.listener.PaymentRetryEventListener;
 import com.sportsify.ticketing.fixture.PaymentEventListenerTestFixture;
@@ -62,12 +61,14 @@ class PaymentRetryEventListenerTest {
 
     @Test
     @DisplayName("onPaymentSuccess나 onPaymentCancelled가 아니면 리턴한다.")
-    void eventIsNotTarget() throws NoSuchMethodException {
+    void eventIsNotTarget() {
         MethodRetryEvent mockEvent = mock(MethodRetryEvent.class);
-        Method targetMethod = PaymentEventListener.class.getMethod("onPaymentStarted", PaymentStartedEvent.class);
+        Method mockMethod = mock(Method.class);
+        when(mockMethod.getDeclaringClass()).thenReturn((Class) PaymentEventListener.class);
+        when(mockMethod.getName()).thenReturn("nonExistentMethod");
 
         when(mockEvent.isRetryAborted()).thenReturn(true);
-        when(mockEvent.getMethod()).thenReturn(targetMethod);
+        when(mockEvent.getMethod()).thenReturn(mockMethod);
 
         paymentRetryEventListener.onRetryEvent(mockEvent);
 
