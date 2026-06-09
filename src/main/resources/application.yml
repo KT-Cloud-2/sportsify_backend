@@ -1,6 +1,9 @@
 spring:
   application:
     name: sportsify
+  datasource:
+    hikari:
+      connection-timeout: 5000
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
