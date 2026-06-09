@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -23,18 +24,26 @@ public class PaymentEventListener {
     private final OrderPaymentService orderPaymentService;
     private final TicketService ticketService;
 
-    @Retryable(maxRetries = 3, delayString = "1000ms")
+    @Retryable(
+            maxRetries = 1,
+            delayString = "500ms",
+            excludes = CannotCreateTransactionException.class
+    )
     @TransactionalEventListener(phase = AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 2)
     public void onPaymentSuccess(PaymentCompletedEvent event) {
 
         Order completedOrder = orderPaymentService.completePayment(event);
         ticketService.createTickets(completedOrder);
     }
 
-    @Retryable(maxRetries = 3, delayString = "1000ms")
+    @Retryable(
+            maxRetries = 1,
+            delayString = "500ms",
+            excludes = CannotCreateTransactionException.class
+    )
     @TransactionalEventListener(phase = AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 2)
     public void onPaymentCancelled(PaymentCancelledEvent event) {
         orderPaymentService.cancelPayment(event);
     }
