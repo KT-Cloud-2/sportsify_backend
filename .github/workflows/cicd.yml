@@ -199,7 +199,10 @@ jobs:
 
             # Prometheus 스크랩 타겟을 신규 active 슬롯으로 업데이트
             sed -i "s|was-$ACTIVE:8090|was-$NEXT:8090|" ~/monitoring/prometheus.yml
-            docker exec sportsify-prometheus kill -HUP 1
+            if ! docker exec sportsify-prometheus kill -HUP 1; then
+              echo "WARNING: Prometheus 리로드 실패. prometheus.yml을 이전 타겟으로 롤백합니다."
+              sed -i "s|was-$NEXT:8090|was-$ACTIVE:8090|" ~/monitoring/prometheus.yml
+            fi
 
             # 이전 컨테이너 중단
             docker compose -f ~/docker-compose.prod.yml stop was-$ACTIVE
