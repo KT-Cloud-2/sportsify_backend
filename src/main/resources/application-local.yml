@@ -4,8 +4,6 @@ spring:
     username: ${DB_USERNAME:sportsify}
     password: ${DB_PASSWORD:sportsify}
     driver-class-name: org.postgresql.Driver
-    hikari:
-      connection-timeout: 5000
 
   flyway:
     enabled: true
