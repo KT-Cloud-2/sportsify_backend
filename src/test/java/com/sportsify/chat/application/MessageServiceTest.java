@@ -221,6 +221,7 @@ class MessageServiceTest {
         Message msg = message(100L, 10L, 1L, "삭제할 메시지", MessageStatus.ACTIVE);
 
         given(messageRepo.findByIdForUpdate(MessageId.of(100L))).willReturn(Optional.of(msg));
+        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
         given(messageRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         MessageDeleteResponse result = messageService.delete(100L, 1L);

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChatRoomMemberTest {
 
@@ -41,6 +42,27 @@ class ChatRoomMemberTest {
         assertThat(member.getStatus()).isEqualTo(MemberStatus.INVITED);
         assertThat(member.isNotificationEnabled()).isTrue();
         assertThat(member.getJoinedAt()).isEqualTo(NOW);
+    }
+
+    // ──────────────────────── assignId ────────────────────────
+
+    @Test
+    @DisplayName("새 멤버에 id를 부여한다")
+    void assignId_부여성공() {
+        ChatRoomMember member = ChatRoomMember.newJoin(ROOM_ID, INVITED_MEMBER_ID, NOW);
+
+        member.assignId(99L);
+
+        assertThat(member.getId()).isEqualTo(99L);
+    }
+
+    @Test
+    @DisplayName("이미 id가 부여된 멤버에 재부여하면 예외가 발생한다")
+    void assignId_중복_예외() {
+        ChatRoomMember member = restored(MemberStatus.JOINED);
+
+        assertThatThrownBy(() -> member.assignId(99L))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     // ──────────────────────── accept ────────────────────────
@@ -78,6 +100,15 @@ class ChatRoomMemberTest {
         assertThat(member.getUpdatedAt()).isEqualTo(NOW);
     }
 
+    @Test
+    @DisplayName("BANNED 멤버가 수락하면 예외가 발생한다")
+    void accept_BANNED_예외() {
+        ChatRoomMember member = restored(MemberStatus.BANNED);
+
+        assertThatThrownBy(() -> member.accept(LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     // ──────────────────────── leave ────────────────────────
 
     @Test
@@ -100,6 +131,24 @@ class ChatRoomMemberTest {
 
         assertThat(member.getStatus()).isEqualTo(MemberStatus.LEFT);
         assertThat(member.getUpdatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("BANNED 멤버가 퇴장하면 예외가 발생한다")
+    void leave_BANNED_예외() {
+        ChatRoomMember member = restored(MemberStatus.BANNED);
+
+        assertThatThrownBy(() -> member.leave(LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("DELETED 멤버가 퇴장하면 예외가 발생한다")
+    void leave_DELETED_예외() {
+        ChatRoomMember member = restored(MemberStatus.DELETED);
+
+        assertThatThrownBy(() -> member.leave(LATER))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     // ──────────────────────── delete ────────────────────────
@@ -207,6 +256,15 @@ class ChatRoomMemberTest {
         assertThat(member.getUpdatedAt()).isEqualTo(NOW);
     }
 
+    @Test
+    @DisplayName("JOINED가 아닌 멤버가 읽음 처리를 하면 예외가 발생한다")
+    void updateLastReadMessage_비JOINED_예외() {
+        ChatRoomMember member = restored(MemberStatus.INVITED);
+
+        assertThatThrownBy(() -> member.updateLastReadMessage(MessageId.of(100L), LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     // ──────────────────────── changeStatusToInvite ────────────────────────
 
     @Test
@@ -229,6 +287,24 @@ class ChatRoomMemberTest {
 
         assertThat(member.getStatus()).isEqualTo(MemberStatus.INVITED);
         assertThat(member.getUpdatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("BANNED 멤버를 재초대하면 예외가 발생한다")
+    void changeStatusToInvite_BANNED_예외() {
+        ChatRoomMember member = restored(MemberStatus.BANNED);
+
+        assertThatThrownBy(() -> member.changeStatusToInvite(LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("이미 JOINED 멤버를 초대하면 예외가 발생한다")
+    void changeStatusToInvite_JOINED_예외() {
+        ChatRoomMember member = restored(MemberStatus.JOINED);
+
+        assertThatThrownBy(() -> member.changeStatusToInvite(LATER))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     // ──────────────────────── rejectInvite ────────────────────────
@@ -256,16 +332,40 @@ class ChatRoomMemberTest {
         assertThat(member.getUpdatedAt()).isEqualTo(NOW);
     }
 
-    // ──────────────────────── assignId ────────────────────────
+    @Test
+    @DisplayName("BANNED 멤버가 초대를 거부하면 예외가 발생한다")
+    void rejectInvite_BANNED_예외() {
+        ChatRoomMember member = restored(MemberStatus.BANNED);
+
+        assertThatThrownBy(() -> member.rejectInvite(LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
 
     @Test
-    @DisplayName("새 멤버에 id를 부여한다")
-    void assignId_부여성공() {
-        ChatRoomMember member = ChatRoomMember.newJoin(ROOM_ID, INVITED_MEMBER_ID, NOW);
+    @DisplayName("LEFT 멤버가 초대를 거부하면 예외가 발생한다")
+    void rejectInvite_LEFT_예외() {
+        ChatRoomMember member = restored(MemberStatus.LEFT);
 
-        member.assignId(99L);
+        assertThatThrownBy(() -> member.rejectInvite(LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
 
-        assertThat(member.getId()).isEqualTo(99L);
+    @Test
+    @DisplayName("DELETED 멤버가 초대를 거부하면 예외가 발생한다")
+    void rejectInvite_DELETED_예외() {
+        ChatRoomMember member = restored(MemberStatus.DELETED);
+
+        assertThatThrownBy(() -> member.rejectInvite(LATER))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("JOINED 멤버가 초대를 거부하면 예외가 발생한다")
+    void rejectInvite_JOINED_예외() {
+        ChatRoomMember member = restored(MemberStatus.JOINED);
+
+        assertThatThrownBy(() -> member.rejectInvite(LATER))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     // ──────────────────────── 상태 체크 메서드 ────────────────────────

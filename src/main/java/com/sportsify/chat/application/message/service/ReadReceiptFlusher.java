@@ -30,6 +30,8 @@ public class ReadReceiptFlusher {
     public void flush() {
         try {
             readCache.drainAll().forEach(this::flushOne);
+        } catch (IllegalStateException e) {
+            log.debug("Read receipt flush skipped: connection unavailable ({})", e.getMessage());
         } catch (Exception e) {
             log.error("Read receipt flush failed", e);
         }

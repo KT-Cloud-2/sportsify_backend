@@ -1,4 +1,4 @@
-package com.sportsify.chat.infrastructure.webSocket;
+package com.sportsify.chat.infrastructure.config;
 
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.WebSocketSessionDecorator;

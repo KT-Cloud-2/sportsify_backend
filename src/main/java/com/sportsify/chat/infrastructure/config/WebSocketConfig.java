@@ -1,6 +1,5 @@
 package com.sportsify.chat.infrastructure.config;
 
-import com.sportsify.chat.infrastructure.webSocket.PrincipalWebSocketSession;
 import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import lombok.RequiredArgsConstructor;
@@ -23,14 +22,14 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-    
+
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     @Value("${app.cors.allowed-origins}")
     String[] allowedOrigins;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/chat").setAllowedOrigins(allowedOrigins).withSockJS();
+        registry.addEndpoint("/ws/chat").setAllowedOrigins(allowedOrigins);
     }
 
 

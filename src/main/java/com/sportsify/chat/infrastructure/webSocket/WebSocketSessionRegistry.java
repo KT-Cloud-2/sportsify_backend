@@ -1,5 +1,6 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
+import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,7 @@ public class WebSocketSessionRegistry {
         SessionInfo old = sessions.put(sid, newInfo);
         if (old != null) {
             removeFromIndexes(old);
+            old.subscribedRooms().forEach((subId, roomId) -> forceUnsubscribeFromBroker(sid, subId));
         }
         try {
             wsSessions.put(sid, ws);
@@ -71,6 +73,10 @@ public class WebSocketSessionRegistry {
             wsSessions.remove(sid);
             throw e;
         }
+    }
+
+    public Optional<WebSocketSession> getWsSession(String sid) {
+        return Optional.ofNullable(wsSessions.get(sid));
     }
 
     public void subscribeRoom(String sid, String subscriptionId, Long roomId) {
@@ -169,7 +175,10 @@ public class WebSocketSessionRegistry {
 
         toNotify.forEach(sid -> {
             enterGracePeriod(sid);
-            eventPublisher.publishEvent(new TokenExpiredEvent(sid));
+            SessionInfo info = sessions.get(sid);
+            if (info != null) {
+                eventPublisher.publishEvent(new TokenExpiredEvent(sid, info.memberId()));
+            }
         });
         toDisconnect.forEach(sid -> {
             SessionInfo current = sessions.get(sid);
@@ -194,7 +203,7 @@ public class WebSocketSessionRegistry {
             unsubscribeRoom(sid, subId);             // registry 즉시 정리
             forceUnsubscribeFromBroker(sid, subId);  // broker 구독 해제
         });
-        eventPublisher.publishEvent(new RoomSubscriptionRevokedEvent(sid, roomId));
+        eventPublisher.publishEvent(new RoomSubscriptionRevokedEvent(sid, roomId, info.memberId()));
     }
 
     private void forceUnsubscribeFromBroker(String sid, String subscriptionId) {
