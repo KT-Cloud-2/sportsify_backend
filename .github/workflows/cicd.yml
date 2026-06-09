@@ -197,5 +197,9 @@ jobs:
               exit 1
             fi
 
+            # Prometheus 스크랩 타겟을 신규 active 슬롯으로 업데이트
+            sed -i "s|was-$ACTIVE:8090|was-$NEXT:8090|" ~/monitoring/prometheus.yml
+            docker exec sportsify-prometheus kill -HUP 1
+
             # 이전 컨테이너 중단
             docker compose -f ~/docker-compose.prod.yml stop was-$ACTIVE
