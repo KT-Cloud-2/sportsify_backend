@@ -62,10 +62,11 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
     @Query("""
-                SELECT DISTINCT gs.id FROM Order o
-                JOIN o.orderSeats os
+                SELECT DISTINCT g.id
+                FROM OrderSeat os
                 JOIN os.gameSeat gs
-                WHERE o.id = :orderId
+                JOIN gs.game g
+                WHERE os.order.id = :orderId
             """)
     Long findGameIdByOrderId(@Param("orderId") Long orderId);
 
