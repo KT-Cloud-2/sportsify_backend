@@ -26,6 +26,7 @@ services:
   redis:
     image: redis:8-alpine
     container_name: sportsify-redis
+    env_file: .env
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "127.0.0.1:6379:6379"   # 내부 IP만 바인딩 — 외부 노출 금지
