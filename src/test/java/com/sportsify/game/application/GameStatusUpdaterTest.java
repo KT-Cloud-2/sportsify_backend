@@ -7,7 +7,7 @@ import com.sportsify.game.application.scheduler.GameStatusUpdater;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameStatus;
 import com.sportsify.game.domain.repository.GameRepository;
-import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
+import com.sportsify.ticketing.application.scheduler.OrderMaintenanceScheduler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +35,7 @@ class GameStatusUpdaterTest {
     private NotificationEventPublisher notificationEventPublisher;
 
     @Mock
-    private OrderExpirationScheduler orderExpirationScheduler;
+    private OrderMaintenanceScheduler orderMaintenanceScheduler;
 
     @Mock
     private TaskScheduler gameTaskScheduler;
@@ -49,7 +49,7 @@ class GameStatusUpdaterTest {
 
         gameStatusUpdater.openSale(1L);
 
-        verify(orderExpirationScheduler).onSaleStarted();
+        verify(orderMaintenanceScheduler).onSaleStarted();
         verify(game).updateStatus(GameStatus.ON_SALE);
         verify(notificationEventPublisher).publish(eq(NotificationEventType.TICKET_OPEN), any(TicketOpenPayload.class));
     }
@@ -85,7 +85,7 @@ class GameStatusUpdaterTest {
 
         gameStatusUpdater.closeSale(1L);
 
-        verify(orderExpirationScheduler).onSaleEnded();
+        verify(orderMaintenanceScheduler).onSaleEnded();
         verify(gameTaskScheduler).schedule(any(Runnable.class), any(Instant.class));
         verify(game).updateStatus(GameStatus.SALE_CLOSED);
     }

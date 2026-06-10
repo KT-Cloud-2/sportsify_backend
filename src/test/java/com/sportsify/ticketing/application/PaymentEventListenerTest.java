@@ -15,6 +15,8 @@ import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.TicketJpaRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
+import com.zaxxer.hikari.HikariDataSource;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +33,15 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +50,7 @@ import static org.awaitility.Awaitility.await;
 
 @EnableAsync
 @ExtendWith(OutputCaptureExtension.class)
+@Slf4j
 class PaymentEventListenerTest extends RepositoryTestSupport {
 
     @Autowired
@@ -66,6 +77,8 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
     @Autowired
     private PaymentEventListener paymentEventListener;
 
+    @Autowired
+    private DataSource dataSource;
 
     private Member member;
     private Game game;
@@ -112,76 +125,124 @@ class PaymentEventListenerTest extends RepositoryTestSupport {
             eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
         });
 
-        await().atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    Order result = orderRepository.findById(orderId).orElseThrow();
+        Order result = orderRepository.findById(orderId).orElseThrow();
 
-                    assertThat(result.getExpiresAt()).isNotNull();
-                    assertThat(output.getOut()).contains("결제 완료 불가 상태");
-                });
+        assertThat(result.getExpiresAt()).isNotNull();
+        assertThat(output.getOut()).contains("결제 완료 불가 상태");
     }
 
     @Test
-    @DisplayName("결제 완료 이벤트 수신 시, 주문과 좌석이 확정된다.")
+    @DisplayName("결제 완료 이벤트 수신 시, 주문과 좌석이 확정되고 티켓이 생성된다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void onSuccessPaymentEvent() {
+    void onSuccessPaymentEvent_success() {
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
         transactionTemplate.executeWithoutResult(s -> {
             eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
         });
+        transactionTemplate.executeWithoutResult(s -> {
+            List<Ticket> tickets = ticketRepository.findAll();
+            Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
+            List<Long> orderSeatIds = updatedOrder.getOrderSeats().stream().map(OrderSeat::getId).toList();
 
-        await().atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    transactionTemplate.executeWithoutResult(status -> {
-                        Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
-                        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-                        assertThat(updatedOrder.getExpiresAt()).isNull();
+            assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            assertThat(updatedOrder.getExpiresAt()).isNull();
 
-                        assertThat(updatedOrder.getOrderSeats())
-                                .extracting(OrderSeat::getStatus)
-                                .containsOnly(OrderSeatStatus.CONFIRMED);
+            assertThat(updatedOrder.getOrderSeats())
+                    .extracting(OrderSeat::getStatus)
+                    .containsOnly(OrderSeatStatus.CONFIRMED);
 
-                        assertThat(updatedOrder.getOrderSeats())
-                                .extracting(OrderSeat::getGameSeat)
-                                .extracting(GameSeat::getSeatStatus)
-                                .containsOnly(SeatStatus.SOLD);
-                    });
-                });
+            assertThat(updatedOrder.getOrderSeats())
+                    .extracting(OrderSeat::getGameSeat)
+                    .extracting(GameSeat::getSeatStatus)
+                    .containsOnly(SeatStatus.SOLD);
+
+            assertThat(tickets).hasSize(gameSeatIds.size());
+            assertThat(tickets)
+                    .extracting(ticket -> ticket.getOrderSeat().getId())
+                    .containsExactlyInAnyOrderElementsOf(orderSeatIds);
+
+            assertThat(tickets)
+                    .extracting(Ticket::getStatus)
+                    .containsOnly(TicketStatus.CONFIRMED);
+        });
     }
 
-
     @Test
-    @DisplayName("결제 완료 이벤트 수신 시, 좌석별 티켓이 생성된다.")
+    @DisplayName("결제 완료 이벤트 수신 시, 풀 고갈이면 5초 이내로 실패한다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void onSuccessPaymentEvent_createTickets() {
+    void onSuccessPaymentEvent_poolExhaustionFails_within5s() throws SQLException {
         ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
         Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
 
-        transactionTemplate.executeWithoutResult(s -> {
-            eventPublisher.publishEvent(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
+        HikariDataSource hikariDS = (HikariDataSource) dataSource;
+        List<Connection> held = new ArrayList<>();
+        for (int i = 0; i < hikariDS.getMaximumPoolSize(); i++) {
+            held.add(hikariDS.getConnection());
+        }
+
+        long start = System.currentTimeMillis();
+        try {
+            paymentEventListener.onPaymentSuccess(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
+        } catch (Exception e) {
+            long elapsed = System.currentTimeMillis() - start;
+            assertThat(elapsed).isBetween(4_000L, 6_000L);
+        } finally {
+            held.forEach(c -> {
+                try {
+                    c.close();
+                } catch (Exception ignored) {
+                }
+            });
+        }
+    }
+
+    @Test
+    @DisplayName("결제 완료 이벤트 수신 시, 락 대기가 발생하면 트랜잭션 타임아웃으로 5초 이내 실패한다.")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void onSuccessPaymentEvent_lockContention_under5s() throws Exception {
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
+        Long orderId = reservationService.reserveSeat(member.getId(), reqDto).orderId();
+
+        HikariDataSource hikariDS = (HikariDataSource) dataSource;
+        CountDownLatch lockAcquired = new CountDownLatch(1);
+        CountDownLatch testDone = new CountDownLatch(1);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            try (Connection conn = hikariDS.getConnection()) {
+                conn.setAutoCommit(false);
+                try (PreparedStatement stmt = conn.prepareStatement(
+                        "SELECT * FROM orders WHERE id = ? FOR UPDATE")) {
+                    stmt.setLong(1, orderId);
+                    stmt.executeQuery();
+                    lockAcquired.countDown();
+
+                    testDone.await(30, TimeUnit.SECONDS);
+                }
+                conn.rollback();
+            } catch (Exception e) {
+                log.error("락 스레드 에러", e);
+            }
         });
 
+        boolean acquired = lockAcquired.await(5, TimeUnit.SECONDS);
+        assertThat(acquired).isTrue();
 
-        await().atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    transactionTemplate.executeWithoutResult(status -> {
-                        List<Ticket> tickets = ticketRepository.findAll();
-                        Order order = orderRepository.findById(orderId).orElseThrow();
-                        List<Long> orderSeatIds = order.getOrderSeats().stream().map(OrderSeat::getId).toList();
-                        assertThat(tickets).hasSize(gameSeatIds.size());
-                        assertThat(tickets)
-                                .extracting(ticket -> ticket.getOrderSeat().getId())
-                                .containsExactlyInAnyOrderElementsOf(orderSeatIds);
+        long start = System.currentTimeMillis();
 
-                        assertThat(tickets)
-                                .extracting(ticket -> ticket.getStatus())
-                                .containsOnly(TicketStatus.CONFIRMED);
+        try {
+            paymentEventListener.onPaymentSuccess(eventFixture.createCompletedEventByOrderId(orderId, member.getId()));
+        } catch (Exception e) {
+            long elapsed = System.currentTimeMillis() - start;
 
-                    });
-                });
-
+            assertThat(elapsed).isLessThan(5_000);
+        } finally {
+            testDone.countDown();
+            executor.shutdown();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
     }
 
     @Test

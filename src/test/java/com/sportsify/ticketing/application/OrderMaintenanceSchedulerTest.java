@@ -9,13 +9,11 @@ import com.sportsify.payment.domain.entity.Payment;
 import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import com.sportsify.support.RepositoryTestSupport;
-import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
+import com.sportsify.ticketing.application.scheduler.OrderMaintenanceScheduler;
 import com.sportsify.ticketing.application.service.ReservationService;
-import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeat;
-import com.sportsify.ticketing.domain.model.OrderSeatStatus;
-import com.sportsify.ticketing.domain.model.OrderStatus;
+import com.sportsify.ticketing.domain.model.*;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
+import com.sportsify.ticketing.domain.repository.TicketRepository;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
@@ -28,6 +26,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -43,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Slf4j
-public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
+public class OrderMaintenanceSchedulerTest extends RepositoryTestSupport {
     private Member member;
     private Game game;
 
@@ -57,10 +59,13 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     private GameSeatRepository gameSeatRepository;
 
     @Autowired
+    private TicketRepository ticketRepository;
+
+    @Autowired
     private ReservationService reservationService;
 
     @Autowired
-    private OrderExpirationScheduler scheduler;
+    private OrderMaintenanceScheduler scheduler;
 
     @Autowired
     private TicketingTestFixture fixture;
@@ -83,46 +88,81 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
 
     @Test
     @DisplayName("만료된 주문의 좌석이 AVAILABLE로 복구된다")
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void expiredOrder_seatBecomesAvailable() {
-        Long orderId = transactionTemplate.execute(txStatus -> {
-            List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
+        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
-            ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-            ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
-            Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
+        Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
-            order.updateExpiresAt(LocalDateTime.now().minusMinutes(1));
-            return orderRepository.save(order).getId();
-        });
+        order.updateExpiresAt(LocalDateTime.now().minusMinutes(1));
+        Long orderId = orderRepository.save(order).getId();
 
-        scheduler.releaseUnpaidOrders();
+        scheduler.processOrderMaintenance();
 
-        transactionTemplate.executeWithoutResult(txStatus -> {
-            Order savedOrder = orderRepository.findByIdWithAll(orderId).orElseThrow();
-            List<OrderSeat> orderSeats = savedOrder.getOrderSeats();
+        Order updatedOrder = orderRepository.findByIdWithAll(orderId).orElseThrow();
+        List<OrderSeat> orderSeats = updatedOrder.getOrderSeats();
 
-            assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.EXPIRED);
-            assertThat(orderSeats)
-                    .extracting(OrderSeat::getStatus)
-                    .containsOnly(OrderSeatStatus.EXPIRED);
-            assertThat(orderSeats)
-                    .extracting(OrderSeat::getGameSeat)
-                    .extracting(GameSeat::getSeatStatus)
-                    .containsOnly(SeatStatus.AVAILABLE);
-        });
+        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.EXPIRED);
+        assertThat(orderSeats)
+                .extracting(OrderSeat::getStatus)
+                .containsOnly(OrderSeatStatus.EXPIRED);
+        assertThat(orderSeats)
+                .extracting(OrderSeat::getGameSeat)
+                .extracting(GameSeat::getSeatStatus)
+                .containsOnly(SeatStatus.AVAILABLE);
     }
 
     @ParameterizedTest
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("결제 실패/취소/환불한 주문의 좌석이 AVAILABLE로 복구된다")
     @EnumSource(value = PaymentStatus.class, names = {"FAILED", "CANCELED", "REFUNDED"})
-    void payingOrderWithFailedPayment_seatBecomesAvailable(PaymentStatus status) {
-        Long orderId = transactionTemplate.execute(txStatus -> {
-            List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
+    void pendingOrderWithFailedPayment_seatBecomesAvailable(PaymentStatus status) {
+        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
 
+        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
+        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
+        Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
+
+        Payment payment = Payment.builder()
+                .userId(member.getId())
+                .matchId(game.getId())
+                .seatId(gameSeatIds.get(0))
+                .orderId(order.getId())
+                .tossOrderId("TEST_TOSS_ORDER_" + order.getId())
+                .idempotencyKey("TEST_IDEMPOTENCY_" + order.getId())
+                .amount(order.getTotalAmount())
+                .paymentMethod("PAY")
+                .status(status)
+                .requestedAt(LocalDateTime.now())
+                .build();
+
+        paymentRepository.save(payment);
+        Long orderId = order.getId();
+
+        scheduler.processOrderMaintenance();
+
+        Order updatedOrder = orderRepository.findByIdWithAll(orderId).orElseThrow();
+        List<OrderSeat> orderSeats = updatedOrder.getOrderSeats();
+
+        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(orderSeats)
+                .extracting(OrderSeat::getStatus)
+                .containsOnly(OrderSeatStatus.CANCELLED);
+        assertThat(orderSeats)
+                .extracting(OrderSeat::getGameSeat)
+                .extracting(GameSeat::getSeatStatus)
+                .containsOnly(SeatStatus.AVAILABLE);
+    }
+
+    @Test
+    @DisplayName("결제완료면서 미처리된 주문의 좌석이 Confirmed되고 티켓이 생성된다.")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void pendingOrderWithConfirmedPayment_confirmsOrderAndSeat_createTickets() {
+        Long orderId = transactionTemplate.execute(tx -> {
+            Long memberId = fixture.createMember("t2@test.com", "n2").getId();
+            List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
             ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-            ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
+            ReservationSeatsResponseDto resDto = reservationService.reserveSeat(memberId, reqDto);
             Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
             Payment payment = Payment.builder()
@@ -134,7 +174,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
                     .idempotencyKey("TEST_IDEMPOTENCY_" + order.getId())
                     .amount(order.getTotalAmount())
                     .paymentMethod("PAY")
-                    .status(status)
+                    .status(PaymentStatus.COMPLETED)
                     .requestedAt(LocalDateTime.now())
                     .build();
 
@@ -142,27 +182,23 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
             return order.getId();
         });
 
-        scheduler.releaseUnpaidOrders();
+        scheduler.processOrderMaintenance();
 
-        transactionTemplate.executeWithoutResult(txStatus -> {
-            Order savedOrder = orderRepository.findByIdWithAll(orderId).orElseThrow();
-            List<OrderSeat> orderSeats = savedOrder.getOrderSeats();
+        transactionTemplate.executeWithoutResult(tx -> {
+            Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
+            assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            Pageable pageable = PageRequest.of(0, 10, Sort.by("id").descending());
 
-            assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-            assertThat(orderSeats)
-                    .extracting(OrderSeat::getStatus)
-                    .containsOnly(OrderSeatStatus.CANCELLED);
-            assertThat(orderSeats)
-                    .extracting(OrderSeat::getGameSeat)
-                    .extracting(GameSeat::getSeatStatus)
-                    .containsOnly(SeatStatus.AVAILABLE);
+            Page<Ticket> tickets = ticketRepository.findByMemberId(updatedOrder.getMemberId(), pageable);
+            assertThat(tickets.get()).hasSize(updatedOrder.getOrderSeats().size());
+            assertThat(tickets.get().allMatch(ticket -> ticket.getStatus() == TicketStatus.CONFIRMED)).isTrue();
         });
     }
 
 
     @ParameterizedTest
     @ValueSource(ints = {3, 5, 8})
-    @DisplayName("동시성 테스트: 결제가 락 보유 중이면 스케줄러는 SKIP LOCKED로 PendingOrder의 해당 행을 건너뛴다.")
+    @DisplayName("결제가 락 보유 중이면 스케줄러는 SKIP LOCKED로 PendingOrder의 해당 행을 건너뛴다.")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void paymentLocksFirst_schedulerSkips(int skipCount) throws InterruptedException {
         List<Long> skipIds = new ArrayList<>();
