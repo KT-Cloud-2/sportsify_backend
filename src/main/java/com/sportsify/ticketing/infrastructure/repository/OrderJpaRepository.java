@@ -22,6 +22,7 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             JOIN FETCH o.member
             WHERE o.id = :orderId
             """)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Order> findByIdWithAll(@Param("orderId") Long orderId);
 
     @Query(value = """
@@ -45,6 +46,15 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             """
     )
     List<Long> findPendingOrderIdsWithFailedPayment();
+
+
+    @Query("""
+                SELECT o.id FROM Order o
+                JOIN Payment p ON p.orderId = o.id
+                WHERE p.status = "COMPLETED" AND o.status = "PENDING"
+            """)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Long> findPendingOrderIdsWithCompletedPayment();
 
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

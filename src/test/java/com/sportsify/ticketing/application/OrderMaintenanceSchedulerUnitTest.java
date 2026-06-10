@@ -1,6 +1,6 @@
 package com.sportsify.ticketing.application;
 
-import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
+import com.sportsify.ticketing.application.scheduler.OrderMaintenanceScheduler;
 import com.sportsify.ticketing.application.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,10 +17,10 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @ExtendWith(OutputCaptureExtension.class)
-class OrderExpirationSchedulerUnitTest {
+class OrderMaintenanceSchedulerUnitTest {
 
     @InjectMocks
-    private OrderExpirationScheduler scheduler;
+    private OrderMaintenanceScheduler scheduler;
 
     @Mock
     private OrderService orderService;
@@ -31,10 +31,11 @@ class OrderExpirationSchedulerUnitTest {
     void schedulerSkipsWhenNoActiveSale() {
         scheduler.onSaleStarted();
         scheduler.onSaleEnded();
-        scheduler.releaseUnpaidOrders();
+        scheduler.processOrderMaintenance();
 
         verify(orderService, never()).expireUnpaidOrdersBulk();
         verify(orderService, never()).cancelFailedPaymentOrdersBulk();
+        verify(orderService, never()).completeStuckOrders();
     }
 
     @Test
@@ -42,21 +43,22 @@ class OrderExpirationSchedulerUnitTest {
     void schedulerRunsWhenSaleActive() {
         scheduler.onSaleStarted();
 
-        scheduler.releaseUnpaidOrders();
+        scheduler.processOrderMaintenance();
 
         verify(orderService).expireUnpaidOrdersBulk();
         verify(orderService).cancelFailedPaymentOrdersBulk();
+        verify(orderService).completeStuckOrders();
     }
 
     @Test
-    @DisplayName("미결제 만료 처리에서 오류가 발생하면 예외를 삼키고 로그만 남긴다.")
+    @DisplayName("미결제 만료 처리에서 오류가 발생하면 로그를 남기고 예외를 삼킨다")
     void expireUnpaidOrders_catchesException(CapturedOutput output) {
         scheduler.onSaleStarted();
 
         doThrow(new RuntimeException("DB 에러"))
                 .when(orderService).expireUnpaidOrdersBulk();
 
-        assertThatCode(() -> scheduler.releaseUnpaidOrders())
+        assertThatCode(() -> scheduler.processOrderMaintenance())
                 .doesNotThrowAnyException();
 
         assertThat(output.getOut()).contains("[ORDER_SCHEDULER] 미결제 만료 처리 실패");
@@ -65,14 +67,14 @@ class OrderExpirationSchedulerUnitTest {
     }
 
     @Test
-    @DisplayName("결제 실패 취소 처리에서 오류가 발생해도 예외를 삼킨다")
+    @DisplayName("결제 실패 취소 처리에서 오류가 발생해면 로그를 남기고 예외를 삼킨다")
     void cancelFailedPayment_catchesException(CapturedOutput output) {
         scheduler.onSaleStarted();
 
         doThrow(new RuntimeException("DB 에러"))
                 .when(orderService).cancelFailedPaymentOrdersBulk();
 
-        assertThatCode(() -> scheduler.releaseUnpaidOrders())
+        assertThatCode(() -> scheduler.processOrderMaintenance())
                 .doesNotThrowAnyException();
 
         assertThat(output.getOut()).contains("[ORDER_SCHEDULER] 결제 실패 건 취소 처리 실패");
@@ -80,19 +82,37 @@ class OrderExpirationSchedulerUnitTest {
     }
 
     @Test
-    @DisplayName("둘 다 실패해도 예외를 삼킨다")
+    @DisplayName("결제완료 주문 재처리에서 오류가 발생하면 로그를 남기고 예외를 삼킨다")
+    void completeStuckOrders_catchesException(CapturedOutput output) {
+        scheduler.onSaleStarted();
+
+        doThrow(new RuntimeException())
+                .when(orderService).completeStuckOrders();
+
+        assertThatCode(() -> scheduler.processOrderMaintenance())
+                .doesNotThrowAnyException();
+
+        assertThat(output.getOut()).contains("[ORDER_SCHEDULER] 결제완료 주문 재처리 실패");
+        verify(orderService).completeStuckOrders();
+    }
+
+    @Test
+    @DisplayName("모두 다 실패해도 예외를 삼킨다")
     void bothFail_catchesException(CapturedOutput output) {
         scheduler.onSaleStarted();
-        
+
         doThrow(new RuntimeException("expire 에러"))
                 .when(orderService).expireUnpaidOrdersBulk();
         doThrow(new RuntimeException("cancel 에러"))
                 .when(orderService).cancelFailedPaymentOrdersBulk();
+        doThrow(new RuntimeException("complete 에러"))
+                .when(orderService).completeStuckOrders();
 
-        assertThatCode(() -> scheduler.releaseUnpaidOrders())
+        assertThatCode(() -> scheduler.processOrderMaintenance())
                 .doesNotThrowAnyException();
 
         assertThat(output.getOut()).contains("[ORDER_SCHEDULER] 미결제 만료 처리 실패");
         assertThat(output.getOut()).contains("[ORDER_SCHEDULER] 결제 실패 건 취소 처리 실패");
+        assertThat(output.getOut()).contains("[ORDER_SCHEDULER] 결제완료 주문 재처리 실패");
     }
 }

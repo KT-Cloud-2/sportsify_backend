@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OrderExpirationScheduler {
+public class OrderMaintenanceScheduler {
 
     private final OrderService orderService;
     private final AtomicInteger activeSaleCount = new AtomicInteger(0);
@@ -25,7 +25,7 @@ public class OrderExpirationScheduler {
     }
 
     @Scheduled(fixedDelay = 1000)
-    public void releaseUnpaidOrders() {
+    public void processOrderMaintenance() {
         if (activeSaleCount.get() <= 0) {
             return;
         }
@@ -40,6 +40,12 @@ public class OrderExpirationScheduler {
             orderService.cancelFailedPaymentOrdersBulk();
         } catch (RuntimeException e) {
             log.error("[ORDER_SCHEDULER] 결제 실패 건 취소 처리 실패", e);
+        }
+
+        try {
+            orderService.completeStuckOrders();
+        } catch (RuntimeException e) {
+            log.error("[ORDER_SCHEDULER] 결제완료 주문 재처리 실패", e);
         }
     }
 }
