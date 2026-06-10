@@ -97,7 +97,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: mkdir -p ~/nginx ~/monitoring
+          script: mkdir -p ~/nginx ~/monitoring/grafana/provisioning ~/monitoring/grafana/dashboards
 
       - name: Copy compose and nginx files to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -105,7 +105,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf,nginx/proxy_headers.conf,monitoring/prometheus.yml"
+          source: "docker-compose.prod.yml,docker-compose.infra.yml,nginx/nginx.conf,nginx/proxy_headers.conf,monitoring/prometheus.yml,monitoring/grafana/provisioning,monitoring/grafana/dashboards"
           target: "~/"
           overwrite: true
 
