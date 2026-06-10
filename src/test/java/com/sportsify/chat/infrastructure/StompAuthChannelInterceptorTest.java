@@ -23,6 +23,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -91,6 +92,7 @@ class StompAuthChannelInterceptorTest {
             attrs.put(WebSocketSessionRegistry.WS_SESSION_ATTR, wsSession);
             accessor.setSessionAttributes(attrs);
         }
+        accessor.setLeaveMutable(true);
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
@@ -177,7 +179,7 @@ class StompAuthChannelInterceptorTest {
 
         assertThatThrownBy(() -> interceptor.preSend(connectMessage(true, false), channel))
                 .isInstanceOf(MessageDeliveryException.class);
-        verifyNoInteractions(registry);
+        verify(registry, never()).register(any(), any(), any(), any(), any(), any());
     }
 
     // ── SUBSCRIBE 성공 ────────────────────────────────────────
@@ -256,6 +258,70 @@ class StompAuthChannelInterceptorTest {
         // registry.get(SID) 기본값 Optional.empty() → resolveAuthenticatedMemberId 에서 예외
         assertThatThrownBy(() -> interceptor.preSend(sendMessage(), channel))
                 .isInstanceOf(MessageDeliveryException.class);
+    }
+
+    // ── onRoomSubscribed ──────────────────────────────────────
+
+    @Test
+    @DisplayName("JOINED 멤버가 구독하면 revoke를 호출하지 않는다")
+    void onRoomSubscribed_JOINED멤버_revoke없음() {
+        given(registry.getWsSession(SID)).willReturn(Optional.of(wsSession));
+        stubAuthenticatedSession(MEMBER_ID);
+        given(accessChecker.canSubscribeForUpdate(any(), any())).willReturn(true);
+
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/1"));
+
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("BAN된 멤버가 구독하면 revokeRoomSubscriptionByMember를 호출한다")
+    void onRoomSubscribed_BAN된멤버_revoke호출() {
+        given(registry.getWsSession(SID)).willReturn(Optional.of(wsSession));
+        stubAuthenticatedSession(MEMBER_ID);
+        given(accessChecker.canSubscribeForUpdate(any(), any())).willReturn(false);
+
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/1"));
+
+        verify(registry).revokeRoomSubscriptionByMember(MEMBER_ID, 1L);
+    }
+
+    @Test
+    @DisplayName("익명 유저(memberId 없음)는 접근 체크를 생략한다")
+    void onRoomSubscribed_익명유저_체크생략() {
+        given(registry.getWsSession(SID)).willReturn(Optional.of(wsSession));
+
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/1"));
+
+        verifyNoInteractions(accessChecker);
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("방 topic이 아닌 destination은 체크를 생략한다")
+    void onRoomSubscribed_비방destination_체크생략() {
+        interceptor.onRoomSubscribed(subscribeEvent("/user/queue/errors"));
+
+        verifyNoInteractions(accessChecker);
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("roomId 파싱이 불가능한 destination은 체크를 생략한다")
+    void onRoomSubscribed_잘못된destination형식_체크생략() {
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/not-a-number"));
+
+        verifyNoInteractions(accessChecker);
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    private SessionSubscribeEvent subscribeEvent(String destination) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setSessionId(SID);
+        accessor.setSubscriptionId("sub-1");
+        accessor.setDestination(destination);
+        return new SessionSubscribeEvent(new Object(),
+                MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders()));
     }
 
     // ── 기타 커맨드 ───────────────────────────────────────────

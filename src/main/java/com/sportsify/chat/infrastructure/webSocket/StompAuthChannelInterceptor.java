@@ -5,24 +5,35 @@ import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
+import com.sportsify.chat.infrastructure.config.PrincipalWebSocketSession;
 import com.sportsify.infrastructure.security.JwtProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompEncoder;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.util.MimeTypeUtils;
+
+import java.nio.charset.StandardCharsets;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -34,7 +45,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
-    
+
     private static final String BLACKLIST_KEY_PREFIX = "auth:blacklist:";
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
@@ -49,8 +60,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        if (accessor.getCommand() == null) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null || accessor.getCommand() == null) {
             return message;
         }
         try {
@@ -58,27 +69,33 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 case CONNECT -> handleConnect(accessor);
                 case SUBSCRIBE -> handleSubscribe(accessor);
                 case UNSUBSCRIBE -> handleUnsubscribe(accessor);
-                case SEND -> handleSend(accessor);
+                case SEND -> {
+                    if (!handleSend(accessor)) return null;
+                }
                 default -> {
                 }
             }
         } catch (MessageDeliveryException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error in STOMP interceptor: {}", e.getMessage());
+            log.error("Error in STOMP interceptor", e);
             throw new MessageDeliveryException("Internal authentication error");
         }
         populateUserFromRegistry(accessor);
-        return MessageBuilder.createMessage(message.getPayload(), accessor.getMessageHeaders());
+        return message;
     }
 
     private void populateUserFromRegistry(StompHeaderAccessor accessor) {
         if (accessor.getUser() != null) return;
+        if (!accessor.isMutable()) return;
         String sessionId = accessor.getSessionId();
         if (sessionId == null) return;
-        webSocketSessionRegistry.get(sessionId)
-                .map(WebSocketSessionRegistry.SessionInfo::toAuthentication)
-                .ifPresent(accessor::setUser);
+        var info = webSocketSessionRegistry.get(sessionId);
+        if (info.isPresent()) {
+            accessor.setUser(info.get().toAuthentication());
+        } else {
+            accessor.setUser(() -> "guest:" + sessionId);
+        }
     }
 
     // 토큰 없으면 익명 연결 허용
@@ -96,6 +113,11 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             throw new MessageDeliveryException("Invalid or Missing Token");
         }
         long memberId = Long.parseLong(parsed.getSubject());
+        webSocketSessionRegistry.get(accessor.getSessionId()).ifPresent(old -> {
+            if (old.memberId() != memberId) {
+                throw new MessageDeliveryException("Session already authenticated as different user");
+            }
+        });
         String role = parsed.get("role", String.class);
         Authentication auth = new UsernamePasswordAuthenticationToken(memberId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
@@ -135,18 +157,18 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         webSocketSessionRegistry.unsubscribeRoom(accessor.getSessionId(), subscriptionId);
     }
 
-    private void handleSend(StompHeaderAccessor accessor) {
+    private boolean handleSend(StompHeaderAccessor accessor) {
         String sid = accessor.getSessionId();
         WebSocketSessionRegistry.SessionInfo info = webSocketSessionRegistry.get(sid)
                 .orElseThrow(() -> new MessageDeliveryException("SEND on unknown session"));
 
-        if (!info.tokenExpiresAt().isBefore(Instant.now(clock))) return;
+        if (!info.tokenExpiresAt().isBefore(Instant.now(clock))) return true;
 
-        if (tryRefreshExpiry(sid, info, accessor)) return;
+        if (tryRefreshExpiry(sid, info, accessor)) return true;
 
         webSocketSessionRegistry.enterGracePeriod(sid);
-        eventPublisher.publishEvent(new TokenExpiredEvent(sid));
-        throw new MessageDeliveryException("Token expired");
+        eventPublisher.publishEvent(new TokenExpiredEvent(sid, info.memberId()));
+        return false;
     }
 
 
@@ -162,6 +184,52 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         if (info.memberId() != Long.parseLong(parsed.getSubject())) return false;
         webSocketSessionRegistry.updateExpiry(sid, parsed.getExpiration().toInstant());
         return true;
+    }
+
+    @Async
+    @EventListener
+    public void onRoomSubscribed(SessionSubscribeEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        String destination = accessor.getDestination();
+        String subscriptionId = accessor.getSubscriptionId();
+        String sessionId = accessor.getSessionId();
+        log.info("[SUBSCRIBE EVENT] sessionId={}, destination={}", sessionId, destination);
+        webSocketSessionRegistry.getWsSession(sessionId).ifPresent(ws -> {
+            try {
+                if (destination != null && destination.startsWith(ChatEventPublisher.ROOM_TOPIC_PREFIX)) {
+                    String[] parts = destination.split("/");
+                    if (parts.length < 4) return;
+                    long roomId;
+                    try {
+                        roomId = Long.parseLong(parts[3]);
+                    } catch (NumberFormatException e) {
+                        return;
+                    }
+                    Optional<MemberId> memberId = resolveAuthenticatedMemberId(sessionId);
+                    if (memberId.isEmpty()) return;
+                    if (!accessChecker.canSubscribeForUpdate(ChatRoomId.of(roomId), memberId)) {
+                        sendSubscribeFrame(ws, subscriptionId, destination, "SUBSCRIBE_FAILED");
+                        webSocketSessionRegistry.revokeRoomSubscriptionByMember(memberId.get().value(), roomId);
+                        return;
+                    }
+                }
+                sendSubscribeFrame(ws, subscriptionId, destination, "SUBSCRIBED");
+            } catch (Exception e) {
+                log.debug("Failed to send ack, session may have closed sid={}", sessionId);
+            }
+        });
+    }
+
+    private void sendSubscribeFrame(WebSocketSession ws, String subscriptionId, String destination, String type) throws Exception {
+        byte[] body = ("{\"type\":\"%s\",\"destination\":\"%s\"}".formatted(type, destination))
+                .getBytes(StandardCharsets.UTF_8);
+        StompHeaderAccessor ack = StompHeaderAccessor.create(StompCommand.MESSAGE);
+        ack.setSubscriptionId(subscriptionId);
+        ack.setDestination(destination);
+        ack.setContentType(MimeTypeUtils.APPLICATION_JSON);
+        ack.setContentLength(body.length);
+        byte[] frame = new StompEncoder().encode(MessageBuilder.createMessage(body, ack.getMessageHeaders()));
+        ws.sendMessage(new TextMessage(frame));
     }
 
     private Optional<MemberId> resolveAuthenticatedMemberId(String sessionId) {

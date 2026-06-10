@@ -1,4 +1,4 @@
-package com.sportsify.chat.integration;
+package com.sportsify.chat.config;
 
 import com.sportsify.chat.infrastructure.persistence.chatRoom.ChatRoomJpaEntity;
 import com.sportsify.chat.infrastructure.persistence.chatRoom.ChatRoomJpaRepository;
@@ -15,18 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
-/**
- * 채팅 통합 테스트용 픽스처 컴포넌트.
- * <p>
- * 서비스 계층을 통하지 않고 JPA Entity를 직접 저장해
- * 원하는 DB 상태(예: ARCHIVED, BANNED, EMPTY)를 자유롭게 세팅한다.
- * 각 메서드는 독립적인 @Transactional을 가지므로, 외부 트랜잭션이 없는 경우에도 커밋된다.
- * <p>
- * FK 처리:
- * - chat_rooms.game_id → games.id: 테스트에서 실제 game 레코드가 불필요하므로 null 사용
- * - chat_room_members.member_id → members.id: createMember 호출 시 members 레코드를 함께 삽입
- * - chat_messages.sender_id → members.id: createMessage 호출 시 members 레코드를 함께 삽입
- */
 @Component
 public class ChatIntegrationTestFixture {
 
@@ -60,16 +48,18 @@ public class ChatIntegrationTestFixture {
     }
 
     @Transactional
+    public ChatRoomMemberJpaEntity updateNotification(ChatRoomMemberJpaEntity member, boolean notification) {
+        member.setNotificationEnabled(notification);
+        return memberJpaRepo.save(member);
+    }
+
+    @Transactional
     public MessageJpaEntity createMessage(Long roomId, Long senderId) {
         createMemberRecord(senderId);
         return messageJpaRepo.save(new MessageJpaEntity(
                 null, roomId, senderId, "테스트 메시지", "TEXT", "ACTIVE", Instant.now()));
     }
 
-    /**
-     * 테스트용 members 레코드를 지정 ID로 삽입한다.
-     * 이미 존재하면 아무 작업도 하지 않는다
-     */
     @Transactional
     public void createMemberRecord(Long memberId) {
         em.createNativeQuery(
@@ -84,12 +74,25 @@ public class ChatIntegrationTestFixture {
     }
 
     @Transactional
+    public Long createGameRecord() {
+        em.createNativeQuery(
+                "INSERT INTO stadiums (id, name, address, total_seats) " +
+                        "VALUES (9001, '테스트 경기장', '서울', 50000) " +
+                        "ON CONFLICT DO NOTHING"
+        ).executeUpdate();
+
+        return ((Number) em.createNativeQuery(
+                "INSERT INTO games (stadium_id, sport_type, start_at, status, created_at) " +
+                        "VALUES (9001, 'BASEBALL', NOW(), 'SCHEDULED', NOW()) " +
+                        "RETURNING id"
+        ).getSingleResult()).longValue();
+    }
+
+    @Transactional
     public void deleteAll() {
-        // TRUNCATE를 하나의 구문에 묶어 AccessExclusiveLock을 동시에 획득.
-        // 비동기 ChatEventHandler(AFTER_COMMIT + REQUIRES_NEW)가 chat_messages에
-        // INSERT 중이어도 TRUNCATE가 해당 트랜잭션 완료를 기다린 뒤 일괄 제거하므로
-        // "DELETE 후 INSERT"로 인한 FK 위반 레이스 컨디션이 발생하지 않는다.
-        em.createNativeQuery("TRUNCATE TABLE chat_room_members, chat_messages, chat_rooms").executeUpdate();
+        em.createNativeQuery("TRUNCATE TABLE notification_history, notifications, notification_events, chat_room_members, chat_messages, chat_rooms").executeUpdate();
+        em.createNativeQuery("DELETE FROM games").executeUpdate();
+        em.createNativeQuery("DELETE FROM stadiums WHERE id = 9001").executeUpdate();
         em.createNativeQuery("DELETE FROM members WHERE id >= 1000").executeUpdate();
     }
 }

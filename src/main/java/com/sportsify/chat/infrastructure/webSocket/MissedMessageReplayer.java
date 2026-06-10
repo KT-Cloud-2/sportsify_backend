@@ -6,6 +6,7 @@ import com.sportsify.chat.domain.model.event.EventType;
 import com.sportsify.chat.domain.model.event.message.MessageSentPayload;
 import com.sportsify.chat.domain.model.message.Message;
 import com.sportsify.chat.domain.repository.MessageRepository;
+import com.sportsify.chat.infrastructure.webSocket.dto.ReplayBatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -14,6 +15,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import java.security.Principal;
 import java.util.List;
 
 @Slf4j
@@ -36,7 +38,9 @@ public class MissedMessageReplayer {
         String lastMessageIdHeader = accessor.getFirstNativeHeader("lastMessageId");
         if (lastMessageIdHeader == null) return;
 
-        String sid = accessor.getSessionId();
+        Principal user = accessor.getUser();
+        if (user == null || user.getName().startsWith("guest:")) return;
+        long memberId = Long.parseLong(user.getName());
 
         String[] parts = destination.split("/");
         if (parts.length < 4) return;
@@ -63,8 +67,8 @@ public class MissedMessageReplayer {
                 })
                 .toList();
 
-        chatEventPublisher.publishReplayToSession(sid, new ReplayBatch(envelopes));
+        chatEventPublisher.publishToUser(memberId, new ReplayBatch(envelopes), "/queue/replay");
 
-        log.debug("Replayed {} messages to sid={} for roomId={}", toSend.size(), sid, roomId);
+        log.debug("Replayed {} messages to memberId={} for roomId={}", toSend.size(), memberId, roomId);
     }
 }

@@ -7,5 +7,5 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - host.docker.internal:8080   # local (IDE에서 Spring Boot 실행 시)
+          - was-blue:8090               # active 슬롯 — CI/CD가 active-upstream.conf 읽어서 교체
           # - 10.0.0.x:8090             # prod (EC2-1 내부 IP, management port)

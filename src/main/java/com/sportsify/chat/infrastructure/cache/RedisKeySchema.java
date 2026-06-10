@@ -1,4 +1,4 @@
-package com.sportsify.chat.application.message.config;
+package com.sportsify.chat.infrastructure.cache;
 
 public final class RedisKeySchema {
 

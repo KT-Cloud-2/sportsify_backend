@@ -610,7 +610,6 @@
             margin-bottom: 0;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@6/bundles/stomp.umd.min.js"></script>
 </head>
 <body>
@@ -842,7 +841,7 @@
                 <button class="btn-success" onclick="connectWS()">연결</button>
                 <button class="btn-danger" onclick="disconnectWS()">끊기</button>
             </div>
-            <p class="hint">현재 토큰으로 /ws/chat SockJS 연결</p>
+            <p class="hint">현재 토큰으로 /ws/chat WebSocket 연결</p>
             <hr>
             <label>구독 중인 방</label>
             <div id="wsSubscribedRooms" style="font-size:12px;color:#94a3b8;padding:4px 0;min-height:20px">없음</div>
@@ -1701,7 +1700,7 @@
         }
 
         stompClient = new StompJs.Client({
-            webSocketFactory: () => new SockJS(`${window.location.origin}/ws/chat`),
+            brokerURL: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/chat`,
             connectHeaders: token ? {Authorization: `Bearer ${token}`} : null,
             reconnectDelay: 0,
             debug: () => {

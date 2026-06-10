@@ -78,6 +78,7 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
     @AfterEach
     void tearDown() {
         fixture.deleteAll();
+        scheduler.onSaleEnded();
     }
 
     @Test

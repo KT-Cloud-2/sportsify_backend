@@ -75,6 +75,10 @@ public interface ChatRoomMemberJpaRepository extends JpaRepository<ChatRoomMembe
 
     boolean existsByRoomIdAndMemberIdAndStatus(Long roomId, Long memberId, String status);
 
+    default boolean existsJoinedByRoomAndMemberForUpdate(Long roomId, Long memberId) {
+        return findByRoomIdAndMemberIdInternalForUpdate(roomId, memberId, List.of("JOINED")).isPresent();
+    }
+
     @Query("SELECT m.roomId, COUNT(m) FROM ChatRoomMemberJpaEntity m " +
             "WHERE m.roomId IN :roomIds " +
             "AND m.status IN ('JOINED', 'INVITED') " +
