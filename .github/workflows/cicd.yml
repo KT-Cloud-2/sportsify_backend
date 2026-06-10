@@ -54,11 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
 
-    # 배포 정상 테스트로 임시로 pr전 수정 필수 코드리뷰 불필요
-    if: >
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' && !github.event.pull_request)
-    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
