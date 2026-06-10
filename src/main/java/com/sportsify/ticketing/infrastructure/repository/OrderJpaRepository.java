@@ -53,7 +53,6 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
                 JOIN Payment p ON p.orderId = o.id
                 WHERE p.status = "COMPLETED" AND o.status = "PENDING"
             """)
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Long> findPendingOrderIdsWithCompletedPayment();
 
 

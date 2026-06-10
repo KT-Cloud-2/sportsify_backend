@@ -156,39 +156,43 @@ public class OrderMaintenanceSchedulerTest extends RepositoryTestSupport {
 
     @Test
     @DisplayName("결제완료면서 미처리된 주문의 좌석이 Confirmed되고 티켓이 생성된다.")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void pendingOrderWithConfirmedPayment_confirmsOrderAndSeat_createTickets() {
-        Long memberId = fixture.createMember("t2@test.com", "n2").getId();
-        List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
+        Long orderId = transactionTemplate.execute(tx -> {
+            Long memberId = fixture.createMember("t2@test.com", "n2").getId();
+            List<Long> gameSeatIds = fixture.createGameSeatsWithCount(game, 2);
+            ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
+            ReservationSeatsResponseDto resDto = reservationService.reserveSeat(memberId, reqDto);
+            Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
-        ReservationSeatsRequestDto reqDto = new ReservationSeatsRequestDto(game.getId(), gameSeatIds);
-        ReservationSeatsResponseDto resDto = reservationService.reserveSeat(memberId, reqDto);
-        Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
+            Payment payment = Payment.builder()
+                    .userId(member.getId())
+                    .matchId(game.getId())
+                    .seatId(gameSeatIds.get(0))
+                    .orderId(order.getId())
+                    .tossOrderId("TEST_TOSS_ORDER_" + order.getId())
+                    .idempotencyKey("TEST_IDEMPOTENCY_" + order.getId())
+                    .amount(order.getTotalAmount())
+                    .paymentMethod("PAY")
+                    .status(PaymentStatus.COMPLETED)
+                    .requestedAt(LocalDateTime.now())
+                    .build();
 
-        Payment payment = Payment.builder()
-                .userId(member.getId())
-                .matchId(game.getId())
-                .seatId(gameSeatIds.get(0))
-                .orderId(order.getId())
-                .tossOrderId("TEST_TOSS_ORDER_" + order.getId())
-                .idempotencyKey("TEST_IDEMPOTENCY_" + order.getId())
-                .amount(order.getTotalAmount())
-                .paymentMethod("PAY")
-                .status(PaymentStatus.COMPLETED)
-                .requestedAt(LocalDateTime.now())
-                .build();
-
-        paymentRepository.save(payment);
-        Long orderId = order.getId();
+            paymentRepository.save(payment);
+            return order.getId();
+        });
 
         scheduler.processOrderMaintenance();
 
-        Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
-        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("id").descending());
+        transactionTemplate.executeWithoutResult(tx -> {
+            Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
+            assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            Pageable pageable = PageRequest.of(0, 10, Sort.by("id").descending());
 
-        Page<Ticket> tickets = ticketRepository.findByMemberId(updatedOrder.getMemberId(), pageable);
-        assertThat(tickets.get()).hasSize(updatedOrder.getOrderSeats().size());
-        assertThat(tickets.get().allMatch(ticket -> ticket.getStatus() == TicketStatus.CONFIRMED)).isTrue();
+            Page<Ticket> tickets = ticketRepository.findByMemberId(updatedOrder.getMemberId(), pageable);
+            assertThat(tickets.get()).hasSize(updatedOrder.getOrderSeats().size());
+            assertThat(tickets.get().allMatch(ticket -> ticket.getStatus() == TicketStatus.CONFIRMED)).isTrue();
+        });
     }
 
 
