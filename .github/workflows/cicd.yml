@@ -97,7 +97,9 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: mkdir -p ~/nginx ~/monitoring/grafana/provisioning ~/monitoring/grafana/dashboards
+          script: |
+            mkdir -p ~/nginx ~/monitoring/grafana/provisioning/datasources ~/monitoring/grafana/provisioning/dashboards ~/monitoring/grafana/dashboards
+            sudo chown -R $USER:$USER ~/monitoring ~/nginx
 
       - name: Copy compose and nginx files to EC2
         uses: appleboy/scp-action@v0.1.7
