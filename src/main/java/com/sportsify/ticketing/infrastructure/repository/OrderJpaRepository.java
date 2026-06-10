@@ -49,9 +49,13 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
 
 
     @Query("""
-                SELECT o.id FROM Order o
-                JOIN Payment p ON p.orderId = o.id
-                WHERE p.status = "COMPLETED" AND o.status = "PENDING"
+            SELECT o.id FROM Order o
+             WHERE o.status = 'PENDING'
+             AND EXISTS (
+                 SELECT p FROM Payment p
+                 WHERE p.orderId = o.id
+                 AND p.status = 'COMPLETED'
+             )
             """)
     List<Long> findPendingOrderIdsWithCompletedPayment();
 

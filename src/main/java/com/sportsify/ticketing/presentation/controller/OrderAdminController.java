@@ -15,7 +15,7 @@ public class OrderAdminController {
     private final OrderService orderService;
 
     @PostMapping("/complete-sync")
-    public ResponseEntity<String> SyncCompleteStuckOrders(
+    public ResponseEntity<String> syncCompleteStuckOrders(
             @AuthenticationPrincipal Long memberId
     ) {
         int successCount = orderService.completeStuckOrders();
