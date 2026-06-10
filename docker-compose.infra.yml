@@ -58,8 +58,6 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: sportsify-grafana
-    ports:
-      - "3001:3000"   # 외부 접근 허용 — AWS 보안 그룹에서 3001 포트 제어
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
