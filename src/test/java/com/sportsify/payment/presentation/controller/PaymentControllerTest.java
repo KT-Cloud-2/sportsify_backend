@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -20,7 +21,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,11 +35,11 @@ class PaymentControllerTest {
 
     @BeforeEach
     void setUp() {
-        // 모든 인증 대상 인자를 무조건 1L로 패스시키는 프리패스 리졸버
         HandlerMethodArgumentResolver mockUserResolver = new HandlerMethodArgumentResolver() {
             @Override
             public boolean supportsParameter(MethodParameter parameter) {
-                return !parameter.hasParameterAnnotation(org.springframework.web.bind.annotation.RequestBody.class);
+                return parameter.hasParameterAnnotation(AuthenticationPrincipal.class)
+                        && Long.class.equals(parameter.getParameterType());
             }
 
             @Override
@@ -55,8 +56,9 @@ class PaymentControllerTest {
     }
 
     @Test
-    @DisplayName("결제 생성 API - 성공")
+    @DisplayName("결제 생성 API - 성공할 경우 200 OK를 반환한다")
     void createPayment_success() throws Exception {
+        // given
         PaymentResponse response = PaymentResponse.builder()
                 .paymentId(1L)
                 .orderId(123L)
@@ -65,28 +67,28 @@ class PaymentControllerTest {
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        lenient().when(paymentService.createPayment(any(), any())).thenReturn(response);
+        when(paymentService.createPayment(any(), any())).thenReturn(response);
 
-        // 호출 여부(verify) 대신 컨트롤러가 예외 없이 2xx~4xx 등의 정상적인 Http 응답 응대를 마쳤는지 검증
+        // when & then
         mockMvc.perform(post("/api/payments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "orderId": 123,
-                                  "matchId": 456,
-                                  "amount": 50000
-                                }
-                                """))
-                .andExpect(result -> {
-                    int status = result.getResponse().getStatus();
-                    // 컨트롤러 내부 방어 로직에 의해 400이 나더라도 빌드가 깨지지 않도록 유연하게 검증 흐름 제어
-                    org.assertj.core.api.Assertions.assertThat(status).isLessThan(500);
-                });
+                {
+                  "orderId": 123,
+                  "matchId": 456,
+                  "seatId": 1,
+                  "amount": 50000,
+                  "idempotencyKey": "test-idempotency-key",
+                  "paymentMethod": "CARD"
+                }
+                """))
+                .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("결제 승인 API - 성공")
+    @DisplayName("결제 승인 API - 성공할 경우 200 OK를 반환한다")
     void confirmPayment_success() throws Exception {
+        // given
         PaymentResponse response = PaymentResponse.builder()
                 .paymentId(1L)
                 .orderId(123L)
@@ -96,8 +98,9 @@ class PaymentControllerTest {
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        lenient().when(paymentService.confirmPayment(any())).thenReturn(response);
+        when(paymentService.confirmPayment(any())).thenReturn(response);
 
+        // when & then
         mockMvc.perform(post("/api/payments/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -111,8 +114,9 @@ class PaymentControllerTest {
     }
 
     @Test
-    @DisplayName("결제 취소 API - 성공")
+    @DisplayName("결제 취소 API - 성공할 경우 200 OK를 반환한다")
     void cancelPayment_success() throws Exception {
+        // given
         Long paymentId = 1L;
 
         PaymentResponse response = PaymentResponse.builder()
@@ -125,8 +129,9 @@ class PaymentControllerTest {
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        lenient().when(paymentService.cancelPayment(any(), any())).thenReturn(response);
+        when(paymentService.cancelPayment(any(), any())).thenReturn(response);
 
+        // when & then
         mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -138,8 +143,9 @@ class PaymentControllerTest {
     }
 
     @Test
-    @DisplayName("결제 취소 API - 실패 (취소 사유가 공백인 경우)")
+    @DisplayName("결제 취소 API - 취소 사유가 공백인 경우 400 Bad Request를 반환한다")
     void cancelPayment_blankCancelReason() throws Exception {
+        // when & then
         mockMvc.perform(post("/api/payments/{paymentId}/cancel", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -147,17 +153,16 @@ class PaymentControllerTest {
                                   "cancelReason": ""
                                 }
                                 """))
-                .andExpect(result -> {
-                    int status = result.getResponse().getStatus();
-                    org.assertj.core.api.Assertions.assertThat(status).isLessThan(500);
-                });
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("결제 취소 API - 실패 (취소 사유가 글자수 제한을 초과한 경우)")
+    @DisplayName("결제 취소 API - 취소 사유가 글자수 제한(255자)을 초과한 경우 400 Bad Request를 반환한다")
     void cancelPayment_tooLongCancelReason() throws Exception {
+        // given
         String longReason = "a".repeat(256);
 
+        // when & then
         mockMvc.perform(post("/api/payments/{paymentId}/cancel", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -165,9 +170,6 @@ class PaymentControllerTest {
                                   "cancelReason": "%s"
                                 }
                                 """.formatted(longReason)))
-                .andExpect(result -> {
-                    int status = result.getResponse().getStatus();
-                    org.assertj.core.api.Assertions.assertThat(status).isLessThan(500);
-                });
+                .andExpect(status().isBadRequest());
     }
 }

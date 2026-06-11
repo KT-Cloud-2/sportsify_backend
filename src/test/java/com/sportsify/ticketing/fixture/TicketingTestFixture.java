@@ -1,5 +1,8 @@
 package com.sportsify.ticketing.fixture;
 
+import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderSeat;
+import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.*;
 import com.sportsify.game.domain.repository.*;
 import com.sportsify.member.domain.model.Member;
@@ -59,7 +62,6 @@ public class TicketingTestFixture {
                         .build()
         );
 
-        // Team
         Team homeTeam = teamRepository.save(
                 Team.createForTest("Team1", "T1", SportType.BASEBALL)
         );
@@ -83,8 +85,8 @@ public class TicketingTestFixture {
         return gameRepository.save(game);
     }
 
+    // 괄호가 꼬여서 갇혀있던 메서드들을 정상 분리했습니다.
     public List<Long> createGameSeatsWithCount(Game game, int count) {
-
         Stadium stadium = game.getStadium();
 
         ZoneGrade zoneGrade = zoneGradeRepository.save(
@@ -118,8 +120,37 @@ public class TicketingTestFixture {
         return ids;
     }
 
-    public void createPricePoliciesWithGame(Game game, ZoneGrade zoneGrade) {
+    public Order createOrder(Member member, Long totalAmount) {
+        Order order = Order.create(member);
 
+        try {
+            java.lang.reflect.Field totalAmountField =
+                    Order.class.getDeclaredField("totalAmount");
+
+            totalAmountField.setAccessible(true);
+            totalAmountField.set(order, totalAmount);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return orderRepository.save(order);
+    }
+
+    public OrderSeat createOrderSeat(Order order, Long gameSeatId) {
+        GameSeat gameSeat = gameSeatRepository.findById(gameSeatId)
+                .orElseThrow();
+
+        OrderSeat orderSeat =
+                OrderSeat.create(order, gameSeat, gameSeat.getPrice());
+
+        order.addOrderSeat(orderSeat);
+        orderSeatRepository.save(orderSeat);
+
+        return orderSeat;
+    }
+
+    public void createPricePoliciesWithGame(Game game, ZoneGrade zoneGrade) {
         pricePolicyRepository.save(PricePolicy
                 .builder()
                 .stadium(game.getStadium())
@@ -155,5 +186,4 @@ public class TicketingTestFixture {
         stadiumRepository.deleteAll();
         memberRepository.deleteAll();
     }
-
 }

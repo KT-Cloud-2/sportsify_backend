@@ -1,5 +1,10 @@
 package com.sportsify.payment.application.service;
 
+import com.sportsify.common.notification.payload.NotificationPayload;
+import com.sportsify.payment.domain.exception.InvalidPaymentAmountException;
+import com.sportsify.payment.infrastructure.toss.dto.TossConfirmResponse;
+import com.sportsify.payment.domain.exception.InvalidPaymentStatusException;
+import com.sportsify.payment.domain.exception.PaymentNotFoundException;
 import com.sportsify.common.event.PaymentCancelledEvent;
 import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.exception.BusinessException;
@@ -14,7 +19,6 @@ import com.sportsify.payment.application.dto.ConfirmPaymentRequest;
 import com.sportsify.payment.application.dto.CreatePaymentRequest;
 import com.sportsify.payment.application.dto.PaymentResponse;
 import com.sportsify.payment.domain.entity.Payment;
-import com.sportsify.payment.domain.exception.PaymentNotFoundException;
 import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.payment.domain.type.PaymentStatus;
 import com.sportsify.payment.infrastructure.toss.TossPaymentClient;
@@ -37,6 +41,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -63,6 +68,10 @@ class PaymentServiceTest {
 
     @InjectMocks
     private PaymentService paymentService;
+
+    // ========================
+    // createPayment 테스트
+    // ========================
 
     @Test
     @DisplayName("주문이 존재하지 않으면 결제 생성에 실패한다")
@@ -223,7 +232,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    @DisplayName("동일한 멱등성 키로 완전히 같은 요청이 오면 기존 결제 정보를 그대로 반환한다")
+    @DisplayName("동일한 멱등성 키로 완전히 같은 요청이 오면 에러 없이 기존 결제 정보를 그대로 반환한다 (멱등성 성공)")
     void createPayment_idempotency_success() {
         Long userId = 1L;
         CreatePaymentRequest request = createPaymentRequest();
@@ -256,7 +265,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    @DisplayName("동일한 멱등성 키이지만 내부 요청 데이터가 상이하면 결제 생성에 실패한다")
+    @DisplayName("동일한 멱등성 키이지만 데이터가 상이하게 조작되면 결제 생성에 실패한다 (멱등성 검증)")
     void createPayment_idempotency_failDueToDataMismatch() {
         Long userId = 1L;
         CreatePaymentRequest request = createPaymentRequest();
@@ -281,8 +290,151 @@ class PaymentServiceTest {
                 .thenReturn(Optional.of(existingPayment));
 
         assertThatThrownBy(() -> paymentService.createPayment(userId, request))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("동일한 idempotencyKey");
     }
+
+    // ========================
+    // confirmPayment 테스트
+    // ========================
+
+    @Test
+    @DisplayName("실제 결제 승인 성공 - Toss API 호출 후 완료 이벤트 발행")
+    void confirmPayment_success() {
+        ConfirmPaymentRequest request = confirmPaymentRequest();
+        Payment payment = pendingPayment();
+
+        TossConfirmResponse tossResponse = mock(TossConfirmResponse.class);
+        when(tossResponse.getPaymentKey()).thenReturn("PAYMENT_KEY_123");
+        when(tossResponse.getOrderId()).thenReturn("ORDER_1_TEST");
+        when(tossResponse.getTotalAmount()).thenReturn(50000L);
+        when(tossResponse.getStatus()).thenReturn("DONE");
+        when(tossResponse.getApprovedAt()).thenReturn("2026-06-11T10:00:00+09:00");
+        when(tossResponse.getMethod()).thenReturn("CARD");
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.of(payment));
+        when(tossPaymentClient.confirm(any())).thenReturn(tossResponse);
+
+        PaymentResponse response = paymentService.confirmPayment(request);
+
+        assertThat(response.getStatus()).isEqualTo("COMPLETED");
+        assertThat(response.getPaymentKey()).isEqualTo("PAYMENT_KEY_123");
+        verify(tossPaymentClient).confirm(any());
+        verify(eventPublisher).publishEvent(any(PaymentCompletedEvent.class));
+        verify(notificationEventPublisher).publish(
+                eq(NotificationEventType.PAYMENT_COMPLETED),
+                any(NotificationPayload.class)
+        );
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - tossOrderId에 해당하는 결제가 없을 때")
+    void confirmPayment_paymentNotFound() {
+        ConfirmPaymentRequest request = confirmPaymentRequest();
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> paymentService.confirmPayment(request))
+                .isInstanceOf(PaymentNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - PENDING이 아닌 결제 승인 시도")
+    void confirmPayment_notPendingStatus() {
+        ConfirmPaymentRequest request = confirmPaymentRequest();
+        Payment completedPayment = completedPayment("PAYMENT_KEY_123");
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.of(completedPayment));
+
+        assertThatThrownBy(() -> paymentService.confirmPayment(request))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("PENDING");
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - 요청 금액과 결제 금액 불일치")
+    void confirmPayment_amountMismatch() {
+        ConfirmPaymentRequest request = new ConfirmPaymentRequest();
+        ReflectionTestUtils.setField(request, "paymentKey", "PAYMENT_KEY_123");
+        ReflectionTestUtils.setField(request, "tossOrderId", "ORDER_1_TEST");
+        ReflectionTestUtils.setField(request, "amount", 99999L);
+        Payment payment = pendingPayment();
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.confirmPayment(request))
+                .isInstanceOf(InvalidPaymentAmountException.class);
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - Toss 응답의 paymentKey가 다를 때")
+    void confirmPayment_tossPaymentKeyMismatch() {
+        ConfirmPaymentRequest request = confirmPaymentRequest();
+        Payment payment = pendingPayment();
+
+        TossConfirmResponse tossResponse = mock(TossConfirmResponse.class);
+        when(tossResponse.getPaymentKey()).thenReturn("DIFFERENT_KEY"); // 다른 키만 설정
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.of(payment));
+        when(tossPaymentClient.confirm(any())).thenReturn(tossResponse);
+
+        assertThatThrownBy(() -> paymentService.confirmPayment(request))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("결제 키");
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - Toss approvedAt이 null일 때")
+    void confirmPayment_approvedAtNull() {
+        ConfirmPaymentRequest request = confirmPaymentRequest();
+        Payment payment = pendingPayment();
+
+        TossConfirmResponse tossResponse = mock(TossConfirmResponse.class);
+        when(tossResponse.getPaymentKey()).thenReturn("PAYMENT_KEY_123");
+        when(tossResponse.getOrderId()).thenReturn("ORDER_1_TEST");
+        when(tossResponse.getTotalAmount()).thenReturn(50000L);
+        when(tossResponse.getStatus()).thenReturn("DONE");
+        when(tossResponse.getApprovedAt()).thenReturn(null);
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.of(payment));
+        when(tossPaymentClient.confirm(any())).thenReturn(tossResponse);
+
+        assertThatThrownBy(() -> paymentService.confirmPayment(request))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("승인 시간");
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - Toss approvedAt 형식이 잘못되었을 때")
+    void confirmPayment_approvedAtInvalidFormat() {
+        ConfirmPaymentRequest request = confirmPaymentRequest();
+        Payment payment = pendingPayment();
+
+        TossConfirmResponse tossResponse = mock(TossConfirmResponse.class);
+        when(tossResponse.getPaymentKey()).thenReturn("PAYMENT_KEY_123");
+        when(tossResponse.getOrderId()).thenReturn("ORDER_1_TEST");
+        when(tossResponse.getTotalAmount()).thenReturn(50000L);
+        when(tossResponse.getStatus()).thenReturn("DONE");
+        when(tossResponse.getApprovedAt()).thenReturn("잘못된-날짜-형식");
+
+        when(paymentRepository.findByTossOrderId("ORDER_1_TEST"))
+                .thenReturn(Optional.of(payment));
+        when(tossPaymentClient.confirm(any())).thenReturn(tossResponse);
+
+        assertThatThrownBy(() -> paymentService.confirmPayment(request))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("승인 시간");
+    }
+
+    // ========================
+    // confirmPaymentMock 테스트
+    // ========================
 
     @Test
     @DisplayName("모의 결제 승인 시 결제 완료 이벤트와 알림을 발행한다")
@@ -314,7 +466,6 @@ class PaymentServiceTest {
 
         ArgumentCaptor<PaymentCompletedPayload> payloadCaptor =
                 ArgumentCaptor.forClass(PaymentCompletedPayload.class);
-
         verify(notificationEventPublisher).publish(
                 eq(NotificationEventType.PAYMENT_COMPLETED),
                 payloadCaptor.capture()
@@ -325,6 +476,10 @@ class PaymentServiceTest {
         assertThat(payload.memberId()).isEqualTo(1L);
         assertThat(payload.amount()).isEqualTo(50000);
     }
+
+    // ========================
+    // cancelPayment 테스트
+    // ========================
 
     @Test
     @DisplayName("완료된 결제를 취소한다")
@@ -390,6 +545,63 @@ class PaymentServiceTest {
 
         verifyNoInteractions(notificationEventPublisher);
     }
+
+    @Test
+    @DisplayName("이미 취소된 결제는 다시 취소할 수 없다")
+    void cancelPayment_alreadyCanceled_fail() {
+        Long paymentId = 1L;
+        Payment payment = Payment.builder()
+                .userId(1L).matchId(1L).seatId(1L).orderId(1L)
+                .tossOrderId("ORDER_1_TEST").paymentKey("PAYMENT_KEY_123")
+                .idempotencyKey("IDEMPOTENCY_KEY_123").amount(50000L)
+                .paymentMethod("CARD").status(PaymentStatus.CANCELED)
+                .requestedAt(LocalDateTime.now()).approvedAt(OffsetDateTime.now())
+                .build();
+        ReflectionTestUtils.setField(payment, "id", 1L);
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, cancelRequest("취소")))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("이미 취소");
+    }
+
+    @Test
+    @DisplayName("PENDING 상태의 결제는 취소할 수 없다")
+    void cancelPayment_pendingStatus_fail() {
+        Long paymentId = 1L;
+        Payment payment = pendingPayment();
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, cancelRequest("취소")))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("완료된 결제만");
+    }
+
+    @Test
+    @DisplayName("paymentKey가 없는 결제는 취소할 수 없다")
+    void cancelPayment_noPaymentKey_fail() {
+        Long paymentId = 1L;
+        Payment payment = Payment.builder()
+                .userId(1L).matchId(1L).seatId(1L).orderId(1L)
+                .tossOrderId("ORDER_1_TEST").paymentKey(null)
+                .idempotencyKey("IDEMPOTENCY_KEY_123").amount(50000L)
+                .paymentMethod("CARD").status(PaymentStatus.COMPLETED)
+                .requestedAt(LocalDateTime.now()).approvedAt(OffsetDateTime.now())
+                .build();
+        ReflectionTestUtils.setField(payment, "id", 1L);
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.cancelPayment(paymentId, cancelRequest("취소")))
+                .isInstanceOf(InvalidPaymentStatusException.class)
+                .hasMessageContaining("결제 키");
+    }
+
+    // ========================
+    // 헬퍼 메서드
+    // ========================
 
     private Payment pendingPayment() {
         Payment payment = Payment.builder()

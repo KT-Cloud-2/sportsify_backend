@@ -52,14 +52,19 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse createPayment(Long userId, CreatePaymentRequest request) {
+        // 1. 비관적 락(findByIdWithLock)을 쥐고 선행 유효성 검증
         validateOrder(request, userId);
 
+        // 2. 멱등성 키 검증 및 동시성 중복 요청 방어 구역
         return paymentRepository.findByIdempotencyKey(request.getIdempotencyKey())
                 .map(existingPayment -> {
+                    // 동일한 키인데 내부 데이터(금액, 유저 등)가 상이하게 조작되었다면 예외 발생
                     validateSamePaymentRequest(existingPayment, userId, request);
+                    // 데이터가 완전히 똑같은 중복 연타 요청이라면 기존 결제(PENDING)를 그대로 안전하게 리턴!
                     return toResponse(existingPayment);
                 })
                 .orElseGet(() -> {
+                    // 3. 최초 요청인 경우 안전하게 새 결제 생성 후 저장
                     Payment payment = Payment.builder()
                             .userId(userId)
                             .matchId(request.getMatchId())
@@ -203,6 +208,8 @@ public class PaymentService {
                 || !Objects.equals(existingPayment.getSeatId(), request.getSeatId())
                 || !Objects.equals(existingPayment.getAmount(), request.getAmount())
                 || !Objects.equals(existingPayment.getPaymentMethod(), request.getPaymentMethod())) {
+
+            // 공통 에러코드 대신, 하영님이 커스텀으로 파놓으신 예외 클래스로 매핑해 컴파일 에러 근본적 해결!
             throw new InvalidPaymentStatusException("동일한 idempotencyKey로 다른 결제 요청을 생성할 수 없습니다.");
         }
     }
