@@ -2015,7 +2015,7 @@
               "step": 1800
             },
             {
-              "expr": "jvm_memory_max_bytes{application=\"$application\", instance=\"$instance\", id=~\"$jvm_memory_pool_heap\"}",
+              "expr": "jvm_memory_max_bytes{application=\"$application\", instance=\"$instance\", id=~\"$jvm_memory_pool_heap\"} > 0",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2149,7 +2149,7 @@
               "step": 1800
             },
             {
-              "expr": "jvm_memory_max_bytes{application=\"$application\", instance=\"$instance\", id=~\"$jvm_memory_pool_nonheap\"}",
+              "expr": "jvm_memory_max_bytes{application=\"$application\", instance=\"$instance\", id=~\"$jvm_memory_pool_nonheap\"} > 0",
               "format": "time_series",
               "hide": false,
               "interval": "",

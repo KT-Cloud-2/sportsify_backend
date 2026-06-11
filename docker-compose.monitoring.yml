@@ -29,6 +29,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: sportsify-grafana
+    restart: unless-stopped
     ports:
       - "3001:3000"
     environment:
@@ -50,7 +51,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 256M
+          memory: 512M
         reservations:
           cpus: "0.1"
           memory: 128M
