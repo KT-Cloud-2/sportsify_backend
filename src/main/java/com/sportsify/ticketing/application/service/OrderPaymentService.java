@@ -21,13 +21,17 @@ public class OrderPaymentService {
     private final OrderRepository orderRepository;
 
     public Order completePayment(PaymentCompletedEvent event) {
+        return completePayment(event.orderId());
+    }
 
-        Order order = orderRepository.findByIdWithAll(event.orderId())
+    public Order completePayment(Long orderId) {
+
+        Order order = orderRepository.findByIdWithAll(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new IllegalStateException(
-                    "결제 완료 불가 상태: orderId=" + event.orderId() + ", status=" + order.getStatus()
+                    "결제 완료 불가 상태: orderId=" + orderId + ", status=" + order.getStatus()
             );
         }
 
