@@ -10,6 +10,10 @@
 # 2) DB만 DROP & CREATE 후 재기동
 #    docker exec -it sportsify-postgres psql -U sportsify -c "DROP DATABASE sportsify;"
 #    docker exec -it sportsify-postgres psql -U sportsify -c "CREATE DATABASE sportsify;"
+#
+# 주의! grafana에서 query duration 측정을 위해 해당 table을 생성해야함
+# docker exec -it sportsify-postgres psql -U sportsify -d sportsify -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+# 이는 처음 실행에서만 추가하면 됨
 
 services:
   postgres:
@@ -20,6 +24,11 @@ services:
       POSTGRES_DB: ${DB_NAME:-sportsify}
       POSTGRES_USER: ${DB_USERNAME:-sportsify}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-sportsify}
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c pg_stat_statements.max=10000
     ports:
       - "5432:5432"
     volumes:
@@ -45,7 +54,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5

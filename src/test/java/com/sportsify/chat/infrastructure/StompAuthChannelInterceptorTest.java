@@ -4,6 +4,7 @@ import com.sportsify.chat.application.webSocket.ChatRoomAccessChecker;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import com.sportsify.infrastructure.security.JwtProvider;
 import io.jsonwebtoken.Claims;
@@ -69,6 +70,8 @@ class StompAuthChannelInterceptorTest {
     Claims claims;
     @Mock
     ApplicationEventPublisher eventPublisher;
+    @Mock
+    WebSocketMetrics webSocketMetrics;
 
     StompAuthChannelInterceptor interceptor;
 
@@ -76,7 +79,7 @@ class StompAuthChannelInterceptorTest {
     void setUp() {
         interceptor = new StompAuthChannelInterceptor(
                 jwtProvider, registry, redisTemplate,
-                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher);
+                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher, webSocketMetrics);
     }
 
     // ── 헬퍼 ─────────────────────────────────────────────────

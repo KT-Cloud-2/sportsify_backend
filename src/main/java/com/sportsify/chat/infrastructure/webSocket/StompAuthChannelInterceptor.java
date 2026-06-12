@@ -57,6 +57,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private final ChatRoomAccessChecker accessChecker;
     private final ChatRoomRepository chatRoomRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final WebSocketMetrics webSocketMetrics;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -66,7 +67,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         try {
             switch (accessor.getCommand()) {
-                case CONNECT -> handleConnect(accessor);
+                case CONNECT -> {
+                    try {
+                        handleConnect(accessor);
+                    } catch (MessageDeliveryException e) {
+                        webSocketMetrics.recordConnectError();
+                        throw e;
+                    }
+                }
                 case SUBSCRIBE -> handleSubscribe(accessor);
                 case UNSUBSCRIBE -> handleUnsubscribe(accessor);
                 case SEND -> {

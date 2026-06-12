@@ -23,9 +23,11 @@ public class ChatEventPublisher {
     public static final String TYPING_SUFFIX = "/typing";
 
     private final SimpMessagingTemplate template;
+    private final WebSocketMetrics webSocketMetrics;
 
     public void publishToRoom(long roomId, Object payload) {
         template.convertAndSend(ROOM_TOPIC_PREFIX + roomId, payload);
+        webSocketMetrics.recordMessageOut();
     }
 
     public void publishToRoomTyping(long roomId, Object payload) {

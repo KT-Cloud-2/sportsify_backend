@@ -41,14 +41,14 @@ const WS_URL = BASE_URL.replace(/^http/, 'ws') + '/ws/chat';
 
 const MAX_VUS = parseInt(__ENV.MAX_VUS || '500');
 const MEMBER_OFFSET = 20000;
-const MSG_INTERVAL_MS = 5000;
-const TOTAL_DURATION_MS = 10 * 60 * 1000;
+const MSG_INTERVAL_MS = 1000;
+const TOTAL_DURATION_MS = 5 * 60 * 1000;
 
 const ROOM_IDS = Array.from({length: 20}, (_, i) => 9021 + i);
 
-// 5 stages: (MAX_VUS-400) → (MAX_VUS-300) → ... → MAX_VUS, 각 2m
+// 5 stages: (MAX_VUS-400) → (MAX_VUS-300) → ... → MAX_VUS, 각 1m
 const stages = Array.from({length: 5}, (_, i) => ({
-    duration: '2m',
+    duration: '1m',
     target: Math.max(1, MAX_VUS - (4 - i) * 100),
 }));
 
@@ -92,7 +92,7 @@ export default function (data) {
         connectedAt: 0,
         subscribeSentAt: 0,
         subscribed: false,
-        pendingMsg: null,  // { sentAt }
+        pendingMsgs: new Map(),  // clientMessageId → sentAt
     };
 
     const res = ws.connect(WS_URL, {}, function (socket) {
@@ -123,10 +123,11 @@ export default function (data) {
                         state.subscribed = true;
 
                         socket.setInterval(() => {
-                            state.pendingMsg = {sentAt: Date.now()};
+                            const clientMessageId = `k6-ramp-${__VU}-${Date.now()}`;
+                            state.pendingMsgs.set(clientMessageId, Date.now());
                             msgSent.add(1);
                             socket.send(stomp.send('/app/chat.send', {
-                                clientMessageId: `k6-ramp-${__VU}-${Date.now()}`,
+                                clientMessageId,
                                 roomId: roomId,
                                 type: 'TEXT',
                                 content: 'ramping test msg',
@@ -137,9 +138,10 @@ export default function (data) {
                 }
 
                 if (body?.event === 'MESSAGE_SENT') {
-                    if (state.pendingMsg) {
-                        msgRoundtripTime.add(Date.now() - state.pendingMsg.sentAt);
-                        state.pendingMsg = null;
+                    const cid = body?.payload?.clientMessageId;
+                    if (cid && state.pendingMsgs.has(cid)) {
+                        msgRoundtripTime.add(Date.now() - state.pendingMsgs.get(cid));
+                        state.pendingMsgs.delete(cid);
                     }
                 }
 

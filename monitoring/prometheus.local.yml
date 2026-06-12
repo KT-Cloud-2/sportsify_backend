@@ -8,3 +8,8 @@ scrape_configs:
     static_configs:
       - targets:
           - host.docker.internal:8080   # local (IDE에서 Spring Boot 실행 시)
+
+  - job_name: postgres-exporter
+    static_configs:
+      - targets:
+          - postgres-exporter:9187

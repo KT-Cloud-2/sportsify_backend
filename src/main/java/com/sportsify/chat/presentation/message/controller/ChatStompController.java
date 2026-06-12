@@ -5,6 +5,7 @@ import com.sportsify.chat.application.message.service.MessageService;
 import com.sportsify.chat.domain.model.event.ErrorEventType;
 import com.sportsify.chat.domain.model.event.message.MessageTypingEvent;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.presentation.message.dto.ChatReadPayload;
 import com.sportsify.chat.presentation.message.dto.ChatSendPayload;
 import com.sportsify.chat.presentation.message.dto.ChatTypingPayload;
@@ -30,6 +31,7 @@ public class ChatStompController {
     private final MessageService messageService;
     private final ChatEventPublisher chatEventPublisher;
     private final Clock clock;
+    private final WebSocketMetrics webSocketMetrics;
 
     /**
      * 5-17-3-1. 메시지 전송
@@ -40,11 +42,14 @@ public class ChatStompController {
     @MessageMapping("/chat.send")
     public void send(@Payload ChatSendPayload payload, Principal principal) {
         long id = Long.parseLong(principal.getName());
-        try {
-            messageService.send(MessageCreateRequest.from(payload), id);
-        } catch (Exception e) {
-            throw new MessageSendException(e, payload.clientMessageId());
-        }
+        webSocketMetrics.recordMessageIn();
+        webSocketMetrics.recordMessageDuration(() -> {
+            try {
+                messageService.send(MessageCreateRequest.from(payload), id);
+            } catch (Exception e) {
+                throw new MessageSendException(e, payload.clientMessageId());
+            }
+        });
     }
 
 
