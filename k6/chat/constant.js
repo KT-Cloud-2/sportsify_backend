@@ -50,13 +50,13 @@ const WS_URL = BASE_URL.replace(/^http/, 'ws') + '/ws/chat';
 const MAX_VUS = parseInt(__ENV.MAX_VUS || '500');
 const MEMBER_OFFSET = 30000;
 const MSG_INTERVAL_MS = 5000;
-const TOTAL_DURATION_MS = 10 * 60 * 1000;
+const TOTAL_DURATION_MS = 5 * 60 * 1000;
 
 const ROOM_IDS = Array.from({length: 20}, (_, i) => 9001 + i);
 
-// 5 stages: (MAX_VUS-400) → (MAX_VUS-300) → ... → MAX_VUS, 각 2m
+// 5 stages: (MAX_VUS-400) → (MAX_VUS-300) → ... → MAX_VUS, 각 1m
 const stages = Array.from({length: 5}, (_, i) => ({
-    duration: '2m',
+    duration: '1m',
     target: Math.max(1, MAX_VUS - (4 - i) * 100),
 }));
 

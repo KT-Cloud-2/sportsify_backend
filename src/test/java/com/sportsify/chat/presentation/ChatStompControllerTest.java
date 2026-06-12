@@ -3,6 +3,7 @@ package com.sportsify.chat.presentation;
 import com.sportsify.chat.application.message.service.MessageService;
 import com.sportsify.chat.domain.model.event.ErrorEventType;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.presentation.message.controller.ChatStompController;
 import com.sportsify.chat.presentation.message.dto.ChatReadPayload;
 import com.sportsify.chat.presentation.message.dto.ChatSendPayload;
@@ -39,13 +40,17 @@ class ChatStompControllerTest {
     MessageService messageService;
     @Mock
     ChatEventPublisher chatEventPublisher;
+    @Mock
+    WebSocketMetrics webSocketMetrics;
 
     ChatStompController controller;
     Principal principal = () -> String.valueOf(MEMBER_ID);
 
     @BeforeEach
     void setUp() {
-        controller = new ChatStompController(messageService, chatEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC));
+        controller = new ChatStompController(messageService, chatEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC), webSocketMetrics);
+        lenient().doAnswer(inv -> { inv.getArgument(0, Runnable.class).run(); return null; })
+                .when(webSocketMetrics).recordMessageDuration(any());
     }
 
     // ── send ──────────────────────────────────────────────────

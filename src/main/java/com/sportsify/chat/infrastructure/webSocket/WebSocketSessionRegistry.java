@@ -134,6 +134,14 @@ public class WebSocketSessionRegistry {
         return Optional.ofNullable(sessions.get(sid));
     }
 
+    public int getSessionCount() {
+        return sessions.size();
+    }
+
+    public int getTotalSubscriptionCount() {
+        return roomSessions.values().stream().mapToInt(Set::size).sum();
+    }
+
     public Set<Long> getSubscribedMemberIds(Long roomId) {
         return roomSessions.getOrDefault(roomId, Set.of()).stream()
                 .map(sessions::get)
@@ -239,6 +247,7 @@ public class WebSocketSessionRegistry {
         try {
             wsSessions.remove(sid);
             removeFromIndexes(info);
+            eventPublisher.publishEvent(new WsSessionEndedEvent(sid));
         } catch (Exception e) {
             log.warn("Failed to clean up indexes for sid={}", sid, e);
         }

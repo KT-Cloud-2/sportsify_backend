@@ -2,11 +2,14 @@ package com.sportsify.notification.infrastructure;
 
 import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.support.NotificationIntegrationTestSupport;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -20,7 +23,13 @@ import static org.mockito.Mockito.verify;
 
 class SseEmitterManagerTest {
 
-    private final SseEmitterManager manager = new SseEmitterManager(NotificationIntegrationTestSupport.defaultProperties());
+    private SseEmitterManager manager;
+
+    @BeforeEach
+    void setUp() {
+        manager = new SseEmitterManager(NotificationIntegrationTestSupport.defaultProperties(), new SimpleMeterRegistry());
+        ReflectionTestUtils.invokeMethod(manager, "initMetrics");
+    }
 
     // ─── 연결 (subscribe) ────────────────────────────────────────────────
 
