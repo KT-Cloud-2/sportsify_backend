@@ -2847,11 +2847,11 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "ws_active_sessions{application=\"$application\", instance=\"$instance\"}",
+              "expr": "max_over_time((ws_active_sessions{application=\"$application\", instance=\"$instance\"}[$__range]))",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A",
-              "instant": true,
+              "instant": false,
               "legendFormat": "",
               "step": 60
             }
@@ -2926,11 +2926,11 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "ws_active_subscriptions{application=\"$application\", instance=\"$instance\"}",
+              "expr": "max_over_time((ws_active_subscriptions{application=\"$application\", instance=\"$instance\"}[$__range]))",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A",
-              "instant": true,
+              "instant": false,
               "legendFormat": "",
               "step": 60
             }
@@ -3267,11 +3267,11 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sse_active_connections{application=\"$application\", instance=\"$instance\"}",
+              "expr": "max_over_time((sse_active_connections{application=\"$application\", instance=\"$instance\"}[$__range]))",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A",
-              "instant": true,
+              "instant": false,
               "legendFormat": "",
               "step": 60
             }
