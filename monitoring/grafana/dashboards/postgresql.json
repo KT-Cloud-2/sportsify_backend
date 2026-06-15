@@ -1,8 +1,6 @@
 {
-  "annotations": {
-    "list": []
-  },
-  "description": "PostgreSQL \ubaa8\ub2c8\ud130\ub9c1 \u2014 \uc5f0\uacb0\u00b7\ud2b8\ub79c\uc7ad\uc158\u00b7\ucffc\ub9ac\u00b7\ud14c\uc774\ube14 \uc0c1\ud0dc\u00b7\ub9ac\uc18c\uc2a4 | Query Duration\u00b7Slow Query\ub294 pg_stat_statements + exporter \ucee4\uc2a4\ud140 \ucffc\ub9ac \uc124\uc815 \ud544\uc694",
+  "annotations": { "list": [] },
+  "description": "PostgreSQL 모니터링 — 연결·트랜잭션·쿼리·테이블 상태·리소스 | Query Duration·Slow Query는 pg_stat_statements + exporter 커스텀 쿼리 설정 필요",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -70,7 +68,7 @@
         "y": 0
       },
       "id": 1,
-      "title": "\uc5f0\uacb0 \uc0c1\ud0dc",
+      "title": "연결 상태",
       "type": "row"
     },
     {
@@ -479,7 +477,7 @@
         "y": 5
       },
       "id": 8,
-      "title": "\ud2b8\ub79c\uc7ad\uc158 & WAL",
+      "title": "트랜잭션 & WAL",
       "type": "row"
     },
     {
@@ -640,7 +638,7 @@
         "y": 14
       },
       "id": 11,
-      "title": "\ucffc\ub9ac \uc131\ub2a5 (pg_stat_statements \ud544\uc694)",
+      "title": "쿼리 성능 (pg_stat_statements 필요)",
       "type": "row"
     },
     {
@@ -770,7 +768,7 @@
           "refId": "A"
         }
       ],
-      "title": "Query Duration Top 10 (\ud3c9\uade0 \uc2e4\ud589\uc2dc\uac04)",
+      "title": "Query Duration Top 10 (평균 실행시간)",
       "transformations": [
         {
           "id": "filterFieldsByName",
@@ -864,7 +862,7 @@
         "y": 23
       },
       "id": 14,
-      "title": "\uccb4\ud06c\ud3ec\uc778\ud2b8 & \uc784\uc2dc\ud30c\uc77c",
+      "title": "체크포인트 & 임시파일",
       "type": "row"
     },
     {
@@ -1033,7 +1031,7 @@
         "y": 32
       },
       "id": 17,
-      "title": "\ud14c\uc774\ube14 \uc0c1\ud0dc",
+      "title": "테이블 상태",
       "type": "row"
     },
     {
@@ -1257,7 +1255,7 @@
         "y": 41
       },
       "id": 20,
-      "title": "Table Bloat (Dead Tuple \ube44\uc728)",
+      "title": "Table Bloat (Dead Tuple 비율)",
       "type": "row"
     },
     {
@@ -1371,7 +1369,7 @@
           "refId": "A"
         }
       ],
-      "title": "Table Bloat Ratio (Dead Tuple \uae30\ubc18, Top 15)",
+      "title": "Table Bloat Ratio (Dead Tuple 기반, Top 15)",
       "transformations": [
         {
           "id": "filterFieldsByName",
