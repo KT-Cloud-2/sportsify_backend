@@ -61,6 +61,10 @@ services:
     container_name: sportsify-postgres-exporter
     environment:
       DATA_SOURCE_NAME: postgresql://sportsify:sportsify@host.docker.internal:5432/sportsify?sslmode=disable
+    command:
+      - "--extend.query-path=/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./monitoring/postgres-exporter/queries.yaml:/etc/postgres_exporter/queries.yaml:ro
     ports:
       - "9187:9187"
     extra_hosts:

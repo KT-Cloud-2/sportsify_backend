@@ -298,7 +298,7 @@
           "decimals": 2,
           "editable": true,
           "error": false,
-          "format": "percent",
+          "format": "none",
           "gauge": {
             "maxValue": 100,
             "minValue": 0,
@@ -323,7 +323,7 @@
           "maxDataPoints": 100,
           "nullPointMode": "connected",
           "nullText": null,
-          "postfix": "",
+          "postfix": " MB",
           "postfixFontSize": "50%",
           "prefix": "",
           "prefixFontSize": "70%",
@@ -349,7 +349,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(jvm_memory_used_bytes{application=\"$application\", instance=\"$instance\", area=\"nonheap\"})*100/sum(jvm_memory_committed_bytes{application=\"$application\",instance=\"$instance\", area=\"nonheap\"})",
+              "expr": "sum(jvm_memory_used_bytes{application=\"$application\", instance=\"$instance\", area=\"nonheap\"}) / 1048576",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "",
@@ -358,7 +358,7 @@
             }
           ],
           "thresholds": "70,90",
-          "title": "Non-Heap used",
+          "title": "Non-Heap used (MB)",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -2847,7 +2847,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "max_over_time((ws_active_sessions{application=\"$application\", instance=\"$instance\"}[$__range]))",
+              "expr": "max_over_time(ws_active_sessions{application=\"$application\", instance=\"$instance\"}[$__range])",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A",
@@ -2926,7 +2926,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "max_over_time((ws_active_subscriptions{application=\"$application\", instance=\"$instance\"}[$__range]))",
+              "expr": "max_over_time(ws_active_subscriptions{application=\"$application\", instance=\"$instance\"}[$__range])",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A",
@@ -3267,7 +3267,7 @@
           "tableColumn": "",
           "targets": [
             {
-              "expr": "max_over_time((sse_active_connections{application=\"$application\", instance=\"$instance\"}[$__range]))",
+              "expr": "max_over_time(sse_active_connections{application=\"$application\", instance=\"$instance\"}[$__range])",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A",
