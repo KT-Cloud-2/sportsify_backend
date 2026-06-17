@@ -1,7 +1,5 @@
 package com.sportsify.payment.application.service;
 
-import com.sportsify.common.event.PaymentCancelledEvent;
-import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
@@ -238,17 +236,6 @@ class PaymentServiceTest {
         assertThat(payment.getPaymentKey()).isEqualTo("MOCK_ORDER_1_TEST");
         assertThat(payment.getApprovedAt()).isNotNull();
 
-        ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-
-        PaymentCompletedEvent event = eventCaptor.getValue();
-        assertThat(event.orderId()).isEqualTo(1L);
-        assertThat(event.memberId()).isEqualTo(1L);
-        assertThat(event.paymentId()).isEqualTo(1L);
-        assertThat(event.amount()).isEqualTo(50000L);
-        assertThat(event.paymentKey()).isEqualTo("MOCK_ORDER_1_TEST");
-        assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.COMPLETED);
-
         ArgumentCaptor<PaymentCompletedPayload> payloadCaptor =
                 ArgumentCaptor.forClass(PaymentCompletedPayload.class);
 
@@ -281,18 +268,6 @@ class PaymentServiceTest {
 
         verify(tossPaymentClient).cancel("PAYMENT_KEY_123", "cancel request");
 
-        ArgumentCaptor<PaymentCancelledEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCancelledEvent.class);
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-
-        PaymentCancelledEvent event = eventCaptor.getValue();
-        assertThat(event.orderId()).isEqualTo(1L);
-        assertThat(event.memberId()).isEqualTo(1L);
-        assertThat(event.paymentId()).isEqualTo(1L);
-        assertThat(event.amount()).isEqualTo(50000L);
-        assertThat(event.paymentKey()).isEqualTo("PAYMENT_KEY_123");
-        assertThat(event.paymentStatus()).isEqualTo(PaymentStatus.CANCELED);
-        assertThat(event.failureReason()).isEqualTo("cancel request");
-
         verifyNoInteractions(notificationEventPublisher);
     }
 
@@ -313,7 +288,6 @@ class PaymentServiceTest {
         assertThat(payment.getCanceledAt()).isNotNull();
 
         verify(tossPaymentClient, never()).cancel(anyString(), anyString());
-        verify(eventPublisher).publishEvent(any(PaymentCancelledEvent.class));
         verifyNoInteractions(notificationEventPublisher);
     }
 

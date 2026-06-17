@@ -16,7 +16,6 @@ import org.springframework.data.domain.*;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,11 +38,10 @@ class TicketServiceTest {
         when(orderSeat2.getPrice()).thenReturn(15000);
 
         when(order.getOrderSeats()).thenReturn(List.of(orderSeat1, orderSeat2));
-        when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ticketService.createTickets(order);
 
-        verify(ticketRepository, times(2)).save(any(Ticket.class));
+        verify(ticketRepository).saveAll(anyList());
     }
 
 

@@ -86,4 +86,25 @@ public class Order {
     public boolean isClosed() {
         return this.status == OrderStatus.CANCELLED || this.status == OrderStatus.EXPIRED;
     }
+
+    public void confirm() {
+        validateStatus("결제 완료");
+        this.status = OrderStatus.CONFIRMED;
+        this.expiresAt = null;
+        this.orderSeats.forEach(OrderSeat::confirm);
+    }
+
+    public void cancel() {
+        validateStatus("결제 취소");
+        this.status = OrderStatus.CANCELLED;
+        this.expiresAt = null;
+        this.orderSeats.forEach(OrderSeat::cancel);
+    }
+
+    private void validateStatus(String action) {
+        if (this.status != OrderStatus.PENDING) {
+            throw new IllegalStateException(action + " 불가 상태: orderId=" + id + ", status=" + status);
+        }
+    }
+
 }

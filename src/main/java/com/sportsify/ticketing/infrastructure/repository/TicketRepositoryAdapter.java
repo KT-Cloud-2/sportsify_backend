@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 @RequiredArgsConstructor
 public class TicketRepositoryAdapter implements TicketRepository {
@@ -17,6 +19,11 @@ public class TicketRepositoryAdapter implements TicketRepository {
     @Override
     public Ticket save(Ticket ticket) {
         return jpaRepository.save(ticket);
+    }
+
+    @Override
+    public List<Ticket> saveAll(List<Ticket> tickets) {
+        return jpaRepository.saveAll(tickets);
     }
 
     @Override

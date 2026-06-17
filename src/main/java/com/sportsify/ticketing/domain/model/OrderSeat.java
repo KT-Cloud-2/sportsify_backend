@@ -1,6 +1,7 @@
 package com.sportsify.ticketing.domain.model;
 
 import com.sportsify.game.domain.model.GameSeat;
+import com.sportsify.game.domain.model.SeatStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -53,10 +54,6 @@ public class OrderSeat {
         return new OrderSeat(order, gameSeat, price);
     }
 
-    public void updateStatus(OrderSeatStatus status) {
-        this.status = status;
-    }
-
     public Long getSeatId() {
         return gameSeat.getSeatId();
     }
@@ -95,5 +92,15 @@ public class OrderSeat {
 
     public String getStadiumName() {
         return gameSeat.getStadiumName();
+    }
+
+    public void confirm() {
+        this.status = OrderSeatStatus.CONFIRMED;
+        this.gameSeat.updateSeatStatus(SeatStatus.SOLD);
+    }
+
+    public void cancel() {
+        this.status = OrderSeatStatus.CANCELLED;
+        this.gameSeat.updateSeatStatus(SeatStatus.AVAILABLE);
     }
 }

@@ -1,7 +1,5 @@
 package com.sportsify.payment.application.service;
 
-import com.sportsify.common.event.PaymentCancelledEvent;
-import com.sportsify.common.event.PaymentCompletedEvent;
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.common.notification.NotificationEventPublisher;
@@ -102,7 +100,6 @@ public class PaymentService {
                 parseApprovedAt(tossResponse.getApprovedAt())
         );
 
-        publishPaymentCompletedEvent(payment);
         publishPaymentCompletedNotification(payment);
 
         return toResponse(payment);
@@ -123,7 +120,6 @@ public class PaymentService {
                 OffsetDateTime.now()
         );
 
-        publishPaymentCompletedEvent(payment);
         publishPaymentCompletedNotification(payment);
 
         return toResponse(payment);
@@ -151,7 +147,6 @@ public class PaymentService {
         }
 
         payment.markCanceled(request.getCancelReason(), LocalDateTime.now());
-        publishPaymentCancelledEvent(payment, request.getCancelReason());
 
         return toResponse(payment);
     }
@@ -226,18 +221,6 @@ public class PaymentService {
                 .substring(0, 20);
     }
 
-    private void publishPaymentCompletedEvent(Payment payment) {
-        eventPublisher.publishEvent(new PaymentCompletedEvent(
-                payment.getOrderId(),
-                payment.getUserId(),
-                payment.getId(),
-                payment.getAmount(),
-                payment.getPaymentKey(),
-                payment.getStatus(),
-                LocalDateTime.now()
-        ));
-    }
-
     private void publishPaymentCompletedNotification(Payment payment) {
         notificationEventPublisher.publish(
                 NotificationEventType.PAYMENT_COMPLETED,
@@ -252,19 +235,6 @@ public class PaymentService {
                 payment.getId(),
                 payment.getUserId()
         );
-    }
-
-    private void publishPaymentCancelledEvent(Payment payment, String cancelReason) {
-        eventPublisher.publishEvent(new PaymentCancelledEvent(
-                payment.getOrderId(),
-                payment.getUserId(),
-                payment.getId(),
-                payment.getAmount(),
-                payment.getPaymentKey(),
-                payment.getStatus(),
-                cancelReason,
-                LocalDateTime.now()
-        ));
     }
 
     private PaymentResponse toResponse(Payment payment) {

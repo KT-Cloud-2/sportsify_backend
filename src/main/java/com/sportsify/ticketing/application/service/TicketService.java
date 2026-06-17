@@ -13,6 +13,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -20,17 +22,17 @@ public class TicketService {
 
     final private TicketRepository ticketRepository;
 
-    @Transactional
     public void createTickets(Order order) {
-        order.getOrderSeats().forEach(orderSeat ->
-                ticketRepository.save(Ticket.create(orderSeat, order.getMember(), orderSeat.getPrice())));
+        List<Ticket> tickets = order.getOrderSeats().stream()
+                .map(seat -> Ticket.create(seat, order.getMember(), seat.getPrice()))
+                .toList();
+        ticketRepository.saveAll(tickets);
     }
 
     @Transactional(readOnly = true)
     public TicketListResponseDto getMyTickets(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<Ticket> ticketPage = ticketRepository.findByMemberId(memberId, pageable);
-
         return TicketListResponseDto.from(ticketPage);
     }
 }

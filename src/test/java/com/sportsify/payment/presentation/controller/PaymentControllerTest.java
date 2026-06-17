@@ -2,6 +2,7 @@ package com.sportsify.payment.presentation.controller;
 
 import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.PaymentResponse;
+import com.sportsify.payment.application.service.PaymentFacade;
 import com.sportsify.payment.application.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,13 +34,16 @@ class PaymentControllerTest {
     @Mock
     private PaymentService paymentService;
 
+    @Mock
+    private PaymentFacade paymentFacade;
+
     @BeforeEach
     void setUp() {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new PaymentController(paymentService))
+                .standaloneSetup(new PaymentController(paymentService, paymentFacade))
                 .setValidator(validator)
                 .build();
     }
@@ -59,7 +63,7 @@ class PaymentControllerTest {
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        given(paymentService.cancelPayment(eq(paymentId), any(CancelPaymentRequest.class)))
+        given(paymentFacade.cancelPayment(eq(paymentId), any(CancelPaymentRequest.class)))
                 .willReturn(response);
 
         mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
@@ -77,7 +81,7 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.paymentMethod").value("CARD"))
                 .andExpect(jsonPath("$.status").value("CANCELED"));
 
-        verify(paymentService).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
+        verify(paymentFacade).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 
     @Test
@@ -94,7 +98,7 @@ class PaymentControllerTest {
                                 """))
                 .andExpect(status().isBadRequest());
 
-        verify(paymentService, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
+        verify(paymentFacade, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 
     @Test
@@ -112,6 +116,6 @@ class PaymentControllerTest {
                                 """.formatted(longReason)))
                 .andExpect(status().isBadRequest());
 
-        verify(paymentService, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
+        verify(paymentFacade, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 }

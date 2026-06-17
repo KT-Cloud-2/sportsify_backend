@@ -1,8 +1,10 @@
 package com.sportsify.ticketing.presentation;
 
+import com.jayway.jsonpath.JsonPath;
 import com.sportsify.game.domain.model.*;
 import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.GameSeatRepository;
+import com.sportsify.notification.infrastructure.publisher.RedisStreamNotificationEventPublisher;
 import com.sportsify.support.ApiTestSupport;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.ticketing.fixture.TicketingTestFixture;
@@ -12,17 +14,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class ReservationApiIntegrationTest extends ApiTestSupport {
+class 소ReservationApiIntegrationTest extends ApiTestSupport {
     private Long memberId;
     private Game game;
 
@@ -34,6 +40,9 @@ class ReservationApiIntegrationTest extends ApiTestSupport {
 
     @Autowired
     private GameRepository gameRepository;
+
+    @MockitoBean
+    private RedisStreamNotificationEventPublisher redisStreamNotificationEventPublisher;
 
     @BeforeEach
     void beforeEach() {
@@ -89,7 +98,6 @@ class ReservationApiIntegrationTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.code").value("GAME_NOT_ON_SALE"));
     }
 
-
     @Test
     @DisplayName("예매 가능한 좌석수를 초과하면, 422 에러를 반환한다.")
     void exception_exceedTicketMax() throws Exception {
@@ -100,7 +108,6 @@ class ReservationApiIntegrationTest extends ApiTestSupport {
                 .andExpect(status().is(422))
                 .andExpect(jsonPath("$.code").value("TICKET_LIMIT_EXCEEDED"));
     }
-
 
     @Test
     @DisplayName("좌석이 중복되어 신청되면, 400 Bad Request 에러를 반환한다.")
@@ -168,6 +175,140 @@ class ReservationApiIntegrationTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.seats[0].seatId").value(seats.getFirst()));
     }
 
+    @Test
+    @DisplayName("동시 결제 확인 시 커넥션 풀 경합 상황에서도 200 반환")
+    void confirmPayment_concurrent_shouldAllReturn200() throws Exception {
+        int userCount = 20;
+        List<String> tossOrderIds = new ArrayList<>();
+        List<Integer> amounts = new ArrayList<>();
+        List<Long> memberIds = new ArrayList<>();
+
+        for (int i = 0; i < userCount; i++) {
+            Long mid = fixture.createMember("concurrent" + i + "@test.com", "user" + i).getId();
+            memberIds.add(mid);
+
+            List<Long> seatIds = fixture.createGameSeatsWithCount(game, 1);
+
+            String reservationResponse = mockMvc.perform(post("/api/seats/reservations")
+                            .header("Authorization", bearerToken(mid, "USER"))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"gameId": %d, "seatIds": %s}
+                                    """.formatted(game.getId(), seatIds)))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+
+            Long orderId = JsonPath.parse(reservationResponse).read("$.orderId", Long.class);
+            Integer amount = JsonPath.parse(reservationResponse).read("$.amount", Integer.class);
+            amounts.add(amount);
+
+            String paymentResponse = mockMvc.perform(post("/api/payments")
+                            .header("Authorization", bearerToken(mid, "USER"))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                        "orderId": %d,
+                                        "matchId": %d,
+                                        "seatId": %d,
+                                        "amount": %d,
+                                        "paymentMethod": "CARD",
+                                        "idempotencyKey": "idem-concurrent-%d"
+                                    }
+                                    """.formatted(orderId, game.getId(), seatIds.get(0), amount, mid)))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+
+            tossOrderIds.add(JsonPath.parse(paymentResponse).read("$.tossOrderId", String.class));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(userCount);
+        CountDownLatch latch = new CountDownLatch(userCount);
+        List<Future<Integer>> futures = new ArrayList<>();
+
+        for (int i = 0; i < userCount; i++) {
+            final int idx = i;
+            futures.add(executor.submit(() -> {
+                latch.countDown();
+                latch.await(); // 모든 스레드가 준비될 때까지 대기
+
+                String confirmRequest = """
+                        {
+                            "paymentKey": "mock_pk_concurrent_%d",
+                            "tossOrderId": "%s",
+                            "amount": %d
+                        }
+                        """.formatted(idx, tossOrderIds.get(idx), amounts.get(idx));
+
+                return mockMvc.perform(post("/api/payments/confirm")
+                                .header("Authorization", bearerToken(memberIds.get(idx), "USER"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(confirmRequest))
+                        .andReturn().getResponse().getStatus();
+            }));
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        for (Future<Integer> future : futures) {
+            assertThat(future.get()).isEqualTo(200);
+        }
+    }
+
+    @Test
+    @DisplayName("결제 확인 시 이벤트 리스너 실패가 HTTP 응답에 영향을 주는지 확인")
+    void confirmPayment_shouldReturn200_evenIfEventListenerFails() throws Exception {
+        List<Long> seatIds = fixture.createGameSeatsWithCount(game, 1);
+
+        String reservationRequest = """
+                {"gameId": %d, "seatIds": %s}
+                """.formatted(game.getId(), seatIds);
+
+        String reservationResponse = mockMvc.perform(post("/api/seats/reservations")
+                        .header("Authorization", bearerToken(memberId, "USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationRequest))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Long orderId = JsonPath.parse(reservationResponse).read("$.orderId", Long.class);
+        Integer amount = JsonPath.parse(reservationResponse).read("$.amount", Integer.class);
+
+        String createPaymentRequest = """
+                {
+                    "orderId": %d,
+                    "matchId": %d,
+                    "seatId": %d,
+                    "amount": %d,
+                    "paymentMethod": "CARD",
+                    "idempotencyKey": "test-idem-%d"
+                }
+                """.formatted(orderId, game.getId(), seatIds.get(0), amount, memberId);
+
+        String paymentResponse = mockMvc.perform(post("/api/payments")
+                        .header("Authorization", bearerToken(memberId, "USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createPaymentRequest))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        String tossOrderId = JsonPath.parse(paymentResponse).read("$.tossOrderId", String.class);
+
+        String confirmRequest = """
+                {
+                    "paymentKey": "mock_pk_test",
+                    "tossOrderId": "%s",
+                    "amount": %d
+                }
+                """.formatted(tossOrderId, amount);
+
+        mockMvc.perform(post("/api/payments/confirm")
+                        .header("Authorization", bearerToken(memberId, "USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(confirmRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+    }
 
     private ResultActions postAPIwithBody(Long gameId, List<Long> seats) throws Exception {
         String body = """

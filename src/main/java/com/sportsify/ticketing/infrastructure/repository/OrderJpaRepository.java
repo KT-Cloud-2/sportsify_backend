@@ -35,28 +35,29 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
     )
     List<Long> findExpiredPendingOrderIdsWithoutPayment(@Param("now") LocalDateTime now);
 
-    @Query("""
-             SELECT DISTINCT o.id FROM Order o
-             WHERE o.status = 'PENDING'
-             AND EXISTS (
-                     SELECT p FROM Payment p
-                     WHERE p.orderId = o.id
-                     AND p.status IN ('FAILED', 'CANCELED', 'REFUNDED')
-             )
-            """
-    )
+    @Query(value = """
+            SELECT o.id FROM orders o
+            WHERE o.status = 'PENDING'
+            AND EXISTS (
+                SELECT 1 FROM payments p
+                WHERE p.order_id = o.id
+                AND p.status IN ('FAILED', 'CANCELED', 'REFUNDED')
+            )
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
     List<Long> findPendingOrderIdsWithFailedPayment();
 
 
-    @Query("""
-            SELECT o.id FROM Order o
-             WHERE o.status = 'PENDING'
-             AND EXISTS (
-                 SELECT p FROM Payment p
-                 WHERE p.orderId = o.id
-                 AND p.status = 'COMPLETED'
-             )
-            """)
+    @Query(value = """
+            SELECT o.id FROM orders o
+            WHERE o.status = 'PENDING'
+            AND EXISTS (
+                SELECT 1 FROM payments p
+                WHERE p.order_id = o.id
+                AND p.status = 'COMPLETED'
+            )
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
     List<Long> findPendingOrderIdsWithCompletedPayment();
 
 
