@@ -46,13 +46,15 @@ public class OrderService {
         List<Long> orderIds = orderRepository.findPendingOrderIdsWithCompletedPayment();
         if (orderIds.isEmpty()) return 0;
 
-        int successSync = orderIds.size();
+        int successSync = 0;
         for (Long orderId : orderIds) {
             try {
                 orderTicketService.completeOrderAndIssueTickets(orderId);
+                successSync++;
+            } catch (IllegalStateException e) {
+                log.warn("[ORDER_SCHEDULER] 주문 ID {} 처리 불가: {}", orderId, e.getMessage());
             } catch (RuntimeException e) {
                 log.error("[ORDER_SCHEDULER_SYNC_FAIL] orderId={} 스킵", orderId, e);
-                successSync--;
             }
         }
 
