@@ -1,10 +1,12 @@
 package com.sportsify.notification.presentation.controller;
 
+import com.sportsify.infrastructure.security.JwtProvider;
 import com.sportsify.notification.application.dto.UpdateNotificationSettingCommand;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.application.service.NotificationSettingService;
 import com.sportsify.notification.presentation.api.NotificationApi;
 import com.sportsify.notification.presentation.dto.*;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -26,6 +29,7 @@ public class NotificationController implements NotificationApi {
 
     private final NotificationService notificationService;
     private final NotificationSettingService notificationSettingService;
+    private final JwtProvider jwtProvider;
 
     // ── 인박스 ──
 
@@ -55,7 +59,12 @@ public class NotificationController implements NotificationApi {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@AuthenticationPrincipal Long memberId) {
+    public SseEmitter subscribe(@RequestParam String token, HttpServletResponse response) throws IOException {
+        if (!jwtProvider.isValidIgnoringExpiry(token)) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return null;
+        }
+        Long memberId = jwtProvider.getMemberIdIgnoringExpiry(token);
         return notificationService.subscribe(memberId);
     }
 

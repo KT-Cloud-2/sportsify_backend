@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.List;
 
 import static com.sportsify.common.exception.ErrorCode.*;
@@ -41,7 +43,7 @@ public interface NotificationApi {
             const es = new EventSource('/api/notifications/stream?token={accessToken}');
             ```
             """)
-    SseEmitter subscribe(Long memberId);
+    SseEmitter subscribe(String token, HttpServletResponse response) throws IOException;
 
     // ── 설정 ──
 

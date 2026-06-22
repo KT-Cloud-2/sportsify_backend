@@ -53,7 +53,7 @@ public class SecurityConfig {
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
             "/dev/**", "/notification-test.html", "/dev-test.html", "/checkout.html", "/success.html", "/fail.html"
     );
-    private static final List<String> SSE_PATHS = List.of(
+    private static final List<String> SSE_PUBLIC_PATHS = List.of(
             "/api/notifications/stream"
     );
 
@@ -69,7 +69,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtProvider, redisTemplate, SSE_PATHS);
+        return new JwtAuthenticationFilter(jwtProvider, redisTemplate);
     }
 
     @Bean
@@ -79,6 +79,8 @@ public class SecurityConfig {
         if (isLocalProfile()) {
             publicPaths.addAll(LOCAL_ONLY_PATHS);
         }
+
+        publicPaths.addAll(SSE_PUBLIC_PATHS);
 
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
