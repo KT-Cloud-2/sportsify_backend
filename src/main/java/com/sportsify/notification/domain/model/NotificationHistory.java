@@ -17,7 +17,8 @@ import java.time.LocalDateTime;
 public class NotificationHistory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "notification_history_seq_gen")
+    @SequenceGenerator(name = "notification_history_seq_gen", sequenceName = "notification_history_seq", allocationSize = 50)
     private Long id;
 
     @Column(name = "notification_id", nullable = false)
@@ -53,5 +54,9 @@ public class NotificationHistory {
         history.status = NotificationSendStatus.FAILED;
         history.errorMessage = errorMessage;
         return history;
+    }
+
+    public boolean isFailed() {
+        return status == NotificationSendStatus.FAILED;
     }
 }

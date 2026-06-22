@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface NotificationChannelJpaRepository extends JpaRepository<NotificationChannel, Long> {
     Optional<NotificationChannel> findByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType);
     List<NotificationChannel> findByMemberIdAndEnabledTrue(Long memberId);
+    List<NotificationChannel> findByMemberIdInAndEnabledTrue(List<Long> memberIds);
     boolean existsByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM NotificationChannel c WHERE c.memberId = :memberId")
