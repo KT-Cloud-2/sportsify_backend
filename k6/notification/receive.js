@@ -17,7 +17,7 @@
 import { check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
-import { fetchTokens, getTokenFromCache, getMemberId } from '../helpers/token.js';
+import { fetchTokens, getTokenFromCache, getMemberId, preloadedTokens } from '../helpers/token.js';
 import { connectSseStream, classifySseResult, countNotificationEvents } from '../helpers/sse.js';
 import { publishPayment } from '../helpers/publish.js';
 
@@ -78,8 +78,10 @@ export const options = {
 
 export function setup() {
     const totalVus = CCU_NORMAL + CCU_PEAK + CCU_STRESS;
-    const tokens = fetchTokens(BASE_URL, SEED_OFFSET, totalVus);
-    console.log(`토큰 발급 완료: ${tokens.length}개`);
+    const tokens = preloadedTokens.length > 0
+        ? preloadedTokens
+        : fetchTokens(BASE_URL, SEED_OFFSET, totalVus);
+    console.log(`토큰 준비 완료: ${tokens.length}개`);
     return { tokens };
 }
 

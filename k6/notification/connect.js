@@ -15,7 +15,7 @@
 //   sustain — 연결을 길게 유지한다. CCU 수용량 측정.
 import { check } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { fetchTokens, getTokenFromCache } from '../helpers/token.js';
+import { fetchTokens, getTokenFromCache, preloadedTokens } from '../helpers/token.js';
 import { connectSseStream, classifySseResult } from '../helpers/sse.js';
 
 const BASE_URL    = __ENV.BASE_URL || 'https://localhost:8443';
@@ -57,8 +57,10 @@ export const options = {
 };
 
 export function setup() {
-    const tokens = fetchTokens(BASE_URL, SEED_OFFSET, PEAK_VUS);
-    console.log(`토큰 발급 완료: ${tokens.length}개`);
+    const tokens = preloadedTokens.length > 0
+        ? preloadedTokens
+        : fetchTokens(BASE_URL, SEED_OFFSET, PEAK_VUS);
+    console.log(`토큰 준비 완료: ${tokens.length}개`);
     return { tokens };
 }
 
