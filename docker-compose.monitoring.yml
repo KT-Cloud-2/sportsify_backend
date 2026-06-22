@@ -14,8 +14,8 @@ services:
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=2h"
-      - "--storage.tsdb.retention.size=256MB"
+      - "--storage.tsdb.retention.time=3d"
+      - "--storage.tsdb.retention.size=2GB"
       - "--storage.tsdb.wal-compression"
       - "--storage.tsdb.min-block-duration=5m"
       - "--storage.tsdb.max-block-duration=5m"
