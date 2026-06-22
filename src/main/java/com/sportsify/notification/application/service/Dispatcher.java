@@ -77,6 +77,20 @@ public class Dispatcher {
         });
     }
 
+    public NotificationHistory sendToChannelAndBuildHistory(Long notificationId, NotificationChannel channel, String subject, String body) {
+        NotificationSender sender = senderMap.get(channel.getChannelType());
+        if (sender == null) {
+            log.warn("지원하지 않는 채널 타입 channelType={} notificationId={}", channel.getChannelType(), notificationId);
+            return NotificationHistory.failed(notificationId, channel.getChannelType(), "지원하지 않는 채널 타입");
+        }
+        try {
+            sender.send(channel.getChannelTarget(), subject, body);
+            return NotificationHistory.sent(notificationId, channel.getChannelType());
+        } catch (Exception e) {
+            return NotificationHistory.failed(notificationId, channel.getChannelType(), e.getMessage());
+        }
+    }
+
     private boolean sendToChannel(Long notificationId, NotificationChannel channel, String subject, String body) {
         NotificationSender sender = senderMap.get(channel.getChannelType());
         if (sender == null) {
