@@ -3,8 +3,11 @@ package com.sportsify.common.exception;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.sportsify.common.response.ErrorDetail;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
+import java.io.IOException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -54,7 +58,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorDetail> handleException(Exception e) {
+    public ResponseEntity<ErrorDetail> handleException(Exception e, HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String accept = request.getHeader("Accept");
+        if (accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE)) {
+            log.warn("SSE 엔드포인트 예외 ({}): {}", request.getRequestURI(), e.getMessage());
+            if (!response.isCommitted()) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+            return null;
+        }
         log.error("Unhandled exception", e);
         return ResponseEntity.internalServerError()
                 .body(ErrorDetail.of(ErrorCode.INTERNAL_ERROR.getCode(), ErrorCode.INTERNAL_ERROR.getMessage(), null));
