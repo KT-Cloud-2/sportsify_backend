@@ -12,7 +12,6 @@
 //   .\run-windows.ps1 -Target all -Vus 3000
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 import { fetchTokens, getTokenFromCache, getMemberId, preloadedTokens } from '../helpers/token.js';
 import { connectSseStream, classifySseResult, countNotificationEvents } from '../helpers/sse.js';
 import { publishPayment, publishBroadcast } from '../helpers/publish.js';
@@ -29,7 +28,7 @@ const sseAcceptLatency  = new Trend('sse_accept_latency', true);
 // ── CCU 유지 메트릭 ──────────────────────────────────────────────────────────
 const sseSessionCompleted  = new Counter('sse_session_completed');
 const sseServerDisconnect  = new Counter('sse_server_disconnect');
-const sseSessionDuration   = new Trend('sse_session_duration', true);
+const sseDurationTotalMs   = new Counter('sse_duration_total_ms');
 
 // ── 발행 메트릭 ──────────────────────────────────────────────────────────────
 const notifyPublishSuccess     = new Counter('notify_publish_success');
@@ -173,10 +172,10 @@ export function sustainSse(data) {
 
     while (true) {
         const sessionStart = Date.now();
-        const res  = connectSseStream(token, randomIntBetween(25, 45));
+        const res  = connectSseStream(token, 25 + Math.floor(Math.random() * 21));
         const kind = classifySseResult(res);
 
-        sseSessionDuration.add(Date.now() - sessionStart);
+        sseDurationTotalMs.add(Date.now() - sessionStart);
 
         if (kind === 'completed') {
             sseSessionCompleted.add(1);

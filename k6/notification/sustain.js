@@ -20,14 +20,13 @@
 // completed(error_code 1050) = 정상 timeout → 재연결
 // failed = 서버 거부 → sseServerDisconnect 카운트 후 재연결
 import { sleep } from 'k6';
-import { Counter, Trend } from 'k6/metrics';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import { Counter } from 'k6/metrics';
 import { getTokenFromCache, preloadedTokens } from '../helpers/token.js';
 import { connectSseStream, classifySseResult } from '../helpers/sse.js';
 
 const BASE_URL    = __ENV.BASE_URL || 'https://localhost:8443';
 const MAX_VUS     = parseInt(__ENV.MAX_VUS || '20000', 10);
-const START_VUS   = parseInt(__ENV.START_VUS || '6000', 10);
+const START_VUS   = parseInt(__ENV.START_VUS || '8000', 10);
 const SEED_OFFSET = parseInt(__ENV.K6_SEED_OFFSET || '10000', 10);
 const STEP        = 1000;
 
@@ -42,12 +41,12 @@ function buildStepStages(start, max, step) {
 
 const stepStages = buildStepStages(START_VUS, MAX_VUS, STEP);
 
-const sseSessionCompleted = new Counter('sse_session_completed');
-const sseServerDisconnect = new Counter('sse_server_disconnect');
-const ssePoolExhausted    = new Counter('sse_pool_exhausted');
-const sseSessionDuration  = new Trend('sse_session_duration', true);
-const sseConnectAttempts  = new Counter('sse_connect_attempts');
-const sseConnectSuccess   = new Counter('sse_connect_success');
+const sseSessionCompleted    = new Counter('sse_session_completed');
+const sseServerDisconnect    = new Counter('sse_server_disconnect');
+const ssePoolExhausted       = new Counter('sse_pool_exhausted');
+const sseDurationTotalMs     = new Counter('sse_duration_total_ms');
+const sseConnectAttempts     = new Counter('sse_connect_attempts');
+const sseConnectSuccess      = new Counter('sse_connect_success');
 
 export const options = {
     insecureSkipTLSVerify: true,
@@ -70,7 +69,7 @@ export const options = {
         sse_server_disconnect: ['count<1'],
         sse_pool_exhausted:    ['count<10'],
     },
-    summaryTrendStats: ['avg', 'p(50)', 'p(90)', 'p(95)', 'p(99)', 'max'],
+    summaryTrendStats: ['avg', 'p(95)', 'max'],
 };
 
 export function setup() {
@@ -94,11 +93,10 @@ export default function () {
         const sessionStart = Date.now();
 
         sseConnectAttempts.add(1);
-        const res  = connectSseStream(token, randomIntBetween(190, 200));
+        const res  = connectSseStream(token, 190 + Math.floor(Math.random() * 11));
         const kind = classifySseResult(res);
-        const duration = Date.now() - sessionStart;
 
-        sseSessionDuration.add(duration);
+        sseDurationTotalMs.add(Date.now() - sessionStart);
 
         if (kind === 'completed') {
             sseConnectSuccess.add(1);

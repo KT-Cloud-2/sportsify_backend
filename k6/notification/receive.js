@@ -16,7 +16,6 @@
 //   .\run-windows.ps1 -Target receive -Vus 3000
 import { check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 import { fetchTokens, getTokenFromCache, getMemberId, preloadedTokens } from '../helpers/token.js';
 import { connectSseStream, classifySseResult, countNotificationEvents } from '../helpers/sse.js';
 import { publishPayment } from '../helpers/publish.js';
@@ -93,7 +92,7 @@ export function receiveSse(data) {
     }
 
     const connectTime = Date.now();
-    const res         = connectSseStream(token, randomIntBetween(25, 50), true);
+    const res         = connectSseStream(token, 25 + Math.floor(Math.random() * 26), true);
     const kind        = classifySseResult(res);
 
     if (kind === 'failed') {
