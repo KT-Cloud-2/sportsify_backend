@@ -68,15 +68,30 @@ class NotificationControllerApiTest extends WebMvcTestSupport {
     }
 
     @Test
-    @DisplayName("GET /api/notifications/stream — Content-Type이 text/event-stream이다")
+    @DisplayName("GET /api/notifications/stream — ?token=으로 구독 시 200 + text/event-stream 반환")
     void subscribe_SSE_contentType() throws Exception {
-        String token = bearerToken(1L, "USER");
+        String rawToken = jwtProvider.createAccessToken(1L, "USER");
         given(notificationService.subscribe(1L))
                 .willReturn(new SseEmitter());
 
         mockMvc.perform(get("/api/notifications/stream")
-                        .header("Authorization", token))
+                        .param("token", rawToken))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/event-stream"));
+    }
+
+    @Test
+    @DisplayName("GET /api/notifications/stream — 토큰 없이 요청 시 400 반환")
+    void subscribe_토큰없음_400() throws Exception {
+        mockMvc.perform(get("/api/notifications/stream"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /api/notifications/stream — 유효하지 않은 토큰으로 요청 시 401 반환")
+    void subscribe_유효하지않은토큰_401() throws Exception {
+        mockMvc.perform(get("/api/notifications/stream")
+                        .param("token", "invalid.token.value"))
+                .andExpect(status().isUnauthorized());
     }
 }

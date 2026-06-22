@@ -1,4 +1,8 @@
 spring:
+  config:
+    import:
+      - classpath:notification.yml
+      - classpath:payment.yml
   # datasource/redis는 TestContainersConfig의 @ServiceConnection이 동적으로 주입
   datasource:
     hikari:
