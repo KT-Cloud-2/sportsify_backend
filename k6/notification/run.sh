@@ -9,6 +9,7 @@
 #   ./k6/notification/run.sh receive                # 이벤트 수신 전파 테스트 — 3K CCU 전파 완전성
 #   ./k6/notification/run.sh connect 1000           # VU 수 직접 지정
 #   ./k6/notification/run.sh connect --noCleanUp    # 테스트 후 seed 데이터 유지 (디버깅용)
+#   ./k6/notification/run.sh prometheus-verify      # Prometheus 메트릭 적재 검증 (최대 100 VU)
 #
 # 환경 변수 (선택):
 #   BASE_URL      — 테스트 대상 서버          (기본: https://localhost:8443)
@@ -214,8 +215,6 @@ check_and_refresh_tokens 1350
 LOG_DIR="${SCRIPT_DIR}/logs"
 mkdir -p "$LOG_DIR"
 
-PROMETHEUS_RW_URL="${PROMETHEUS_RW_URL:-http://localhost:9090/api/v1/write}"
-
 # ── heap-guard 생명주기 관리 ──────────────────────────────────
 # 서버 JVM 힙 사용률 임계치 — 초과 시 서버와 k6를 함께 종료한다.
 # 변경 방법: HEAP_THRESHOLD=85 ./run.sh sustain
@@ -238,12 +237,9 @@ run_k6() {
     shift
     local log_file="${LOG_DIR}/$(basename "$script" .js)_$(date +%Y%m%d_%H%M%S).log"
     echo "▶ [k6] $script 실행 중... (로그: $log_file)"
-    K6_PROMETHEUS_RW_SERVER_URL="$PROMETHEUS_RW_URL" \
-    K6_PROMETHEUS_RW_PUSH_INTERVAL=15s \
     k6 run \
         --compatibility-mode=base \
         --no-usage-report \
-        --out experimental-prometheus-rw \
         -e BASE_URL="$BASE_URL" \
         -e K6_SEED_OFFSET="$SEED_OFFSET" \
         -e K6_TOKENS_FILE="$TOKENS_FILE" \
@@ -276,6 +272,11 @@ case "$TARGET" in
     all)
         run_k6 all.js --log-output=none
         ;;
+    prometheus-verify)
+        PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090}"
+        run_k6 prometheus-verify.js \
+            -e PROMETHEUS_URL="$PROMETHEUS_URL"
+        ;;
     sse-limit)
         LOG_FILE="${LOG_DIR}/sse-limit_$(date +%Y%m%d_%H%M%S).log"
         if command -v gtimeout &>/dev/null; then
@@ -286,7 +287,6 @@ case "$TARGET" in
             TIMEOUT_BIN=""
         fi
         $TIMEOUT_BIN k6 run \
-            --out experimental-prometheus-rw \
             -e BASE_URL="$BASE_URL" \
             -e K6_SEED_OFFSET="$SEED_OFFSET" \
             -e K6_TOKENS_FILE="$TOKENS_FILE" \
@@ -299,7 +299,7 @@ case "$TARGET" in
         stop_heap_guard
         ;;
     *)
-        echo "사용법: $0 [connect|send|receive|sustain|all|sse-limit] [VU수] [--noCleanUp]"
+        echo "사용법: $0 [connect|send|receive|sustain|all|sse-limit|prometheus-verify] [VU수] [--noCleanUp]"
         exit 1
         ;;
 esac
