@@ -19,6 +19,9 @@ THRESHOLD="${1:-${THRESHOLD:-90}}"
 INTERVAL="${INTERVAL:-5}"
 CONTAINER="${CONTAINER:-sportsify-app}"
 K6_PID="${K6_PID:-}"
+MAX_READ_FAILURES="${MAX_READ_FAILURES:-5}"
+
+_read_fail_count=0
 
 # 컨테이너 존재 확인
 if ! docker inspect "$CONTAINER" &>/dev/null; then
@@ -45,10 +48,20 @@ while true; do
         | python3 -c "import sys,json; d=json.load(sys.stdin); print(int(sum(m['value'] for m in d['measurements'])))" 2>/dev/null)"
 
     if [[ -z "$USED_BYTES" || -z "$MAX_BYTES" || "$MAX_BYTES" -le 0 ]]; then
-        echo "[heap-guard] heap 정보를 읽지 못했습니다. ${INTERVAL}s 후 재시도." >&2
+        (( _read_fail_count++ )) || true
+        echo "[heap-guard] heap 정보를 읽지 못했습니다. ${INTERVAL}s 후 재시도. (${_read_fail_count}/${MAX_READ_FAILURES})" >&2
+        if (( _read_fail_count >= MAX_READ_FAILURES )); then
+            echo "[heap-guard] 연속 ${MAX_READ_FAILURES}회 읽기 실패 — 부하테스트를 종료합니다." >&2
+            if [[ -n "$K6_PID" ]] && kill -0 "$K6_PID" 2>/dev/null; then
+                kill -15 "$K6_PID"
+            fi
+            exit 1
+        fi
         sleep "$INTERVAL"
         continue
     fi
+
+    _read_fail_count=0
 
     USED_M=$(( USED_BYTES / 1024 / 1024 ))
     MAX_M=$(( MAX_BYTES / 1024 / 1024 ))
