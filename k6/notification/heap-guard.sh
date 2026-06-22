@@ -42,14 +42,19 @@ while true; do
     fi
 
     # actuator metrics API로 JVM 힙 메트릭 읽기 (prometheus 전체보다 빠름)
-    USED_BYTES="$(curl -sf --max-time 10 "${APP_URL}/actuator/metrics/jvm.memory.used?tag=area:heap" 2>/dev/null \
-        | python3 -c "import sys,json; d=json.load(sys.stdin); print(int(sum(m['value'] for m in d['measurements'])))" 2>/dev/null)"
-    MAX_BYTES="$(curl -sf --max-time 10 "${APP_URL}/actuator/metrics/jvm.memory.max?tag=area:heap" 2>/dev/null \
-        | python3 -c "import sys,json; d=json.load(sys.stdin); print(int(sum(m['value'] for m in d['measurements'])))" 2>/dev/null)"
+    # --max-time 30: 고VU 부하 중 actuator 응답 지연 허용
+    _used_raw="$(curl -sf --max-time 30 "${APP_URL}/actuator/metrics/jvm.memory.used?tag=area:heap" 2>/dev/null)"
+    _curl_used_rc=$?
+    USED_BYTES="$(echo "$_used_raw" | python3 -c "import sys,json; d=json.load(sys.stdin); print(int(sum(m['value'] for m in d['measurements'])))" 2>/dev/null)"
+
+    _max_raw="$(curl -sf --max-time 30 "${APP_URL}/actuator/metrics/jvm.memory.max?tag=area:heap" 2>/dev/null)"
+    _curl_max_rc=$?
+    MAX_BYTES="$(echo "$_max_raw" | python3 -c "import sys,json; d=json.load(sys.stdin); print(int(sum(m['value'] for m in d['measurements'])))" 2>/dev/null)"
 
     if [[ -z "$USED_BYTES" || -z "$MAX_BYTES" || "$MAX_BYTES" -le 0 ]]; then
         (( _read_fail_count++ )) || true
-        echo "[heap-guard] heap 정보를 읽지 못했습니다. ${INTERVAL}s 후 재시도. (${_read_fail_count}/${MAX_READ_FAILURES})" >&2
+        # curl exit code 28=timeout, 7=connection refused
+        echo "[heap-guard] heap 정보를 읽지 못했습니다. ${INTERVAL}s 후 재시도. (${_read_fail_count}/${MAX_READ_FAILURES}) [curl_rc: used=${_curl_used_rc} max=${_curl_max_rc}]" >&2
         if (( _read_fail_count >= MAX_READ_FAILURES )); then
             echo "[heap-guard] 연속 ${MAX_READ_FAILURES}회 읽기 실패 — 부하테스트를 종료합니다." >&2
             if [[ -n "$K6_PID" ]] && kill -0 "$K6_PID" 2>/dev/null; then
