@@ -14,17 +14,24 @@ services:
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=3d"
+      - "--storage.tsdb.retention.time=2h"
+      - "--storage.tsdb.retention.size=256MB"
+      - "--storage.tsdb.wal-compression"
+      - "--storage.tsdb.min-block-duration=5m"
+      - "--storage.tsdb.max-block-duration=5m"
+      - "--query.max-concurrency=5"
+      - "--query.max-samples=5000000"
+      - "--web.enable-remote-write-receiver"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
           cpus: "0.5"
           memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
 
   grafana:
     image: grafana/grafana:latest
