@@ -22,12 +22,12 @@
 import { sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
-import { fetchTokens, getTokenFromCache } from '../helpers/token.js';
+import { getTokenFromCache, preloadedTokens } from '../helpers/token.js';
 import { connectSseStream, classifySseResult } from '../helpers/sse.js';
 
 const BASE_URL    = __ENV.BASE_URL || 'https://localhost:8443';
-const START_VUS   = 8000;
 const MAX_VUS     = parseInt(__ENV.MAX_VUS || '20000', 10);
+const START_VUS   = parseInt(__ENV.START_VUS || '6000', 10);
 const SEED_OFFSET = parseInt(__ENV.K6_SEED_OFFSET || '10000', 10);
 const STEP        = 1000;
 
@@ -58,7 +58,7 @@ export const options = {
             startVUs: 0,
             stages: [
                 { duration: '2m',  target: START_VUS },
-                { duration: '2m',  target: START_VUS },
+                { duration: '1m',  target: START_VUS },
                 ...stepStages,
                 { duration: '2m',  target: MAX_VUS },
                 { duration: '30s', target: 0 },
@@ -74,20 +74,23 @@ export const options = {
 };
 
 export function setup() {
-    const tokens = fetchTokens(BASE_URL, SEED_OFFSET, MAX_VUS);
-    console.log(`토큰 발급 완료: ${tokens.length}개`);
-    return { tokens };
+    console.log(`토큰 준비 완료: ${preloadedTokens.length}개`);
+    if (preloadedTokens.length === 0) {
+        throw new Error('토큰 없음: K6_TOKENS_FILE 확인 필요');
+    }
+    return {};
 }
 
-export default function (data) {
-    if (__VU > data.tokens.length) {
+export default function () {
+    if (__VU > preloadedTokens.length) {
         ssePoolExhausted.add(1);
         return;
     }
 
-    const token = getTokenFromCache(data.tokens, __VU);
+    const token = getTokenFromCache(preloadedTokens, __VU);
 
-    while (true) {
+    while (true
+            ) {
         const sessionStart = Date.now();
 
         sseConnectAttempts.add(1);
