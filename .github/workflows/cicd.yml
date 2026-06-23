@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/perf/ticketing-k6'
 
     steps:
       - uses: actions/checkout@v4
