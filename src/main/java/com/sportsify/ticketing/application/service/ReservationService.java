@@ -2,18 +2,18 @@ package com.sportsify.ticketing.application.service;
 
 import com.sportsify.common.exception.BusinessException;
 import com.sportsify.common.exception.ErrorCode;
+import com.sportsify.game.application.service.GameService;
 import com.sportsify.game.domain.model.Game;
 import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.SeatStatus;
-import com.sportsify.game.domain.repository.GameRepository;
 import com.sportsify.game.domain.repository.GameSeatRepository;
 import com.sportsify.member.domain.model.Member;
-import com.sportsify.member.domain.repository.MemberRepository;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.domain.repository.OrderRepository;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsRequestDto;
 import com.sportsify.ticketing.presentation.dto.ReservationSeatsResponseDto;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,16 +29,14 @@ public class ReservationService {
 
     private final GameSeatRepository gameSeatRepository;
     private final OrderRepository orderRepository;
-    private final MemberRepository memberRepository;
-    private final GameRepository gameRepository;
+    private final EntityManager entityManager;
+    private final GameService gameService;
 
     @Transactional
     public ReservationSeatsResponseDto reserveSeat(Long memberId, ReservationSeatsRequestDto reqDto) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member memberRef = entityManager.getReference(Member.class, memberId);
 
-        Game game = gameRepository.findById(reqDto.gameId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.GAME_NOT_FOUND));
+        Game game = gameService.findGameById(reqDto.gameId());
 
         if (!game.isOnSale())
             throw new BusinessException(ErrorCode.GAME_NOT_ON_SALE);
@@ -60,7 +58,7 @@ public class ReservationService {
         if (availableSeats.size() != reqDto.seatIds().size())
             throw new BusinessException(ErrorCode.SEAT_ALREADY_RESERVED);
 
-        Order createdOrder = Order.create(member);
+        Order createdOrder = Order.create(memberRef);
 
         availableSeats.forEach(seat -> {
             seat.updateSeatStatus(SeatStatus.RESERVED);

@@ -24,7 +24,7 @@ public class OrderMaintenanceScheduler {
         activeSaleCount.decrementAndGet();
     }
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelay = 2000)
     public void processOrderMaintenance() {
         if (activeSaleCount.get() <= 0) {
             return;

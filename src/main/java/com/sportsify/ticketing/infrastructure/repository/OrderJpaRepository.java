@@ -3,10 +3,8 @@ package com.sportsify.ticketing.infrastructure.repository;
 import com.sportsify.ticketing.domain.model.Order;
 import com.sportsify.ticketing.domain.model.OrderStatus;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import jakarta.persistence.QueryHint;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
@@ -23,6 +21,7 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             WHERE o.id = :orderId
             """)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "0"))
     Optional<Order> findByIdWithAll(@Param("orderId") Long orderId);
 
     @Query(value = """

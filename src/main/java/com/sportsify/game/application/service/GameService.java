@@ -18,6 +18,7 @@ import com.sportsify.game.presentation.dto.*;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.domain.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -158,5 +159,12 @@ public class GameService {
             gameSaleTaskScheduler.scheduleSaleStart(game.getId(), game.getSaleStartAt());
             gameSaleTaskScheduler.scheduleSaleEnd(game.getId(), game.getSaleEndAt());
         }
+    }
+
+
+    @Cacheable(value = "game", key = "#gameId")
+    public Game findGameById(Long gameId) {
+        return gameRepository.findById(gameId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.GAME_NOT_FOUND));
     }
 }
