@@ -76,6 +76,8 @@ app:
     allowed-origins: http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:8080
 
 management:
+  server:
+    port: 9091  # 메트릭 전용 포트
   endpoints:
     web:
       exposure:
