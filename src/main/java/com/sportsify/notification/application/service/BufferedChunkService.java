@@ -57,7 +57,7 @@ public class BufferedChunkService {
                 continue;
             }
             Notification notification = Notification.create(memberId, event.getId());
-            if (!sseNotificationPort.getCachedChannels(memberId).isEmpty()) {
+            if (sseNotificationPort.isConnected(memberId)) {
                 ssePending.add(notification);
             } else {
                 directPersist.add(notification);
@@ -70,7 +70,6 @@ public class BufferedChunkService {
 
         for (Notification notification : ssePending) {
             buffer.enqueue(NotificationBufferItem.of(notification, event.getTypeName(), payload, streamKey, recordId));
-            sseNotificationPort.send(notification.getMemberId(), event.getTypeName());
         }
     }
 }

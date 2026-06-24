@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -30,7 +30,7 @@ public class SseEmitterManager implements SseNotificationPort {
 
     private final NotificationProperties properties;
     private final MeterRegistry meterRegistry;
-    private final ExecutorService sseVirtualThreadExecutor;
+    private final Executor sseVirtualThreadExecutor;
 
     private final Map<Long, SseSession> sessions = new ConcurrentHashMap<>();
     private Counter sentCounter;

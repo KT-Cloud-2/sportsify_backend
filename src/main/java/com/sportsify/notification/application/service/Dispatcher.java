@@ -1,5 +1,6 @@
 package com.sportsify.notification.application.service;
 
+import com.sportsify.notification.application.dto.NotificationResult;
 import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.sender.NotificationSender;
 import com.sportsify.notification.domain.model.*;
@@ -7,6 +8,7 @@ import com.sportsify.notification.domain.repository.NotificationChannelRepositor
 import com.sportsify.notification.domain.repository.NotificationHistoryRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.presentation.dto.NotificationResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.concurrent.Executor;
 
 @Slf4j
 @Service
@@ -26,6 +29,7 @@ public class Dispatcher {
     private final NotificationHistoryRepository historyRepository;
     private final NotificationSettingRepository settingRepository;
     private final SseNotificationPort sseNotificationPort;
+    private final Executor sseVirtualThreadExecutor;
     private final Map<NotificationChannelType, NotificationSender> senderMap;
 
     public Dispatcher(
@@ -34,6 +38,7 @@ public class Dispatcher {
             NotificationHistoryRepository historyRepository,
             NotificationSettingRepository settingRepository,
             SseNotificationPort sseNotificationPort,
+            Executor sseVirtualThreadExecutor,
             List<NotificationSender> senders
     ) {
         this.notificationRepository = notificationRepository;
@@ -41,6 +46,7 @@ public class Dispatcher {
         this.historyRepository = historyRepository;
         this.settingRepository = settingRepository;
         this.sseNotificationPort = sseNotificationPort;
+        this.sseVirtualThreadExecutor = sseVirtualThreadExecutor;
         this.senderMap = senders.stream()
                 .collect(Collectors.toMap(NotificationSender::channelType, Function.identity()));
     }
@@ -53,26 +59,48 @@ public class Dispatcher {
         if (!enabled) return false;
 
         Notification notification = notificationRepository.save(Notification.create(memberId, event.getId()));
-        scheduleSse(memberId, event.getTypeName());
+        NotificationResponse ssePayload = NotificationResponse.from(NotificationResult.of(notification, event));
+
+        Map<Boolean, List<NotificationChannel>> partitioned = channelRepository.findByMemberIdAndEnabledTrue(memberId)
+                .stream()
+                .collect(Collectors.partitioningBy(c -> c.getChannelType() == NotificationChannelType.EMAIL));
+        List<NotificationChannel> nonEmailChannels = partitioned.get(false);
+        List<NotificationChannel> emailChannels = partitioned.get(true);
 
         boolean anyFailed = false;
-        for (NotificationChannel channel : channelRepository.findByMemberIdAndEnabledTrue(memberId)) {
+        for (NotificationChannel channel : nonEmailChannels) {
             if (!sendToChannel(notification.getId(), channel, event.getTypeName(), payload)) {
                 anyFailed = true;
             }
         }
+
+        scheduleSseAndEmail(memberId, ssePayload, notification.getId(), emailChannels, event.getTypeName(), payload);
         return anyFailed;
     }
 
-    private void scheduleSse(Long memberId, String eventTypeName) {
+    private void scheduleSseAndEmail(Long memberId, NotificationResponse ssePayload,
+                                     Long notificationId, List<NotificationChannel> emailChannels,
+                                     String subject, String body) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            sseNotificationPort.send(memberId, eventTypeName);
+            sseNotificationPort.send(memberId, ssePayload);
+            dispatchEmailsAsync(notificationId, emailChannels, subject, body);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                sseNotificationPort.send(memberId, eventTypeName);
+                sseNotificationPort.send(memberId, ssePayload);
+                dispatchEmailsAsync(notificationId, emailChannels, subject, body);
+            }
+        });
+    }
+
+    private void dispatchEmailsAsync(Long notificationId, List<NotificationChannel> emailChannels,
+                                     String subject, String body) {
+        if (emailChannels.isEmpty()) return;
+        sseVirtualThreadExecutor.execute(() -> {
+            for (NotificationChannel channel : emailChannels) {
+                sendToChannel(notificationId, channel, subject, body);
             }
         });
     }

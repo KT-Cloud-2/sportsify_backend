@@ -10,4 +10,5 @@ public interface SseNotificationPort {
     SseEmitter subscribe(Long memberId, NotificationSetting setting, List<NotificationChannel> channels);
     void send(Long memberId, Object data);
     List<NotificationChannel> getCachedChannels(Long memberId);
+    boolean isConnected(Long memberId);
 }
