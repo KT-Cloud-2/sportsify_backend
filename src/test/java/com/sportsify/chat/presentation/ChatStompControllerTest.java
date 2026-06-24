@@ -23,6 +23,7 @@ import java.security.Principal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,13 +43,17 @@ class ChatStompControllerTest {
     ChatEventPublisher chatEventPublisher;
     @Mock
     WebSocketMetrics webSocketMetrics;
+    @Mock
+    Executor virtualThreadExecutor;
 
     ChatStompController controller;
     Principal principal = () -> String.valueOf(MEMBER_ID);
 
     @BeforeEach
     void setUp() {
-        controller = new ChatStompController(messageService, chatEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC), webSocketMetrics);
+        controller = new ChatStompController(messageService, chatEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC), webSocketMetrics, virtualThreadExecutor);
+        lenient().doAnswer(inv -> { inv.getArgument(0, Runnable.class).run(); return null; })
+                .when(virtualThreadExecutor).execute(any());
         lenient().doAnswer(inv -> { inv.getArgument(0, Runnable.class).run(); return null; })
                 .when(webSocketMetrics).recordMessageDuration(any());
     }

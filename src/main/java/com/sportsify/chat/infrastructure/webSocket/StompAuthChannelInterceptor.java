@@ -11,30 +11,33 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
-import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompEncoder;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.util.MimeTypeUtils;
-
-import java.nio.charset.StandardCharsets;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.WebSocketSessionDecorator;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -59,6 +62,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private final ApplicationEventPublisher eventPublisher;
     private final WebSocketMetrics webSocketMetrics;
 
+    @Autowired
+    @Qualifier("chatEventTxTemplate")
+    private TransactionTemplate txTemplate;
+
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
@@ -67,18 +74,24 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         try {
             switch (accessor.getCommand()) {
-                case CONNECT -> {
+                case CONNECT -> webSocketMetrics.recordInterceptorDuration("CONNECT", () -> {
                     try {
                         handleConnect(accessor);
                     } catch (MessageDeliveryException e) {
                         webSocketMetrics.recordConnectError();
                         throw e;
                     }
+                });
+                case SUBSCRIBE -> {
+                    webSocketMetrics.recordInterceptorDuration("SUBSCRIBE", () -> handleSubscribe(accessor));
+                    return null; // broker에 전달하지 않음 — handleSubscribe에서 직접 SessionSubscribeEvent 발행
                 }
-                case SUBSCRIBE -> handleSubscribe(accessor);
                 case UNSUBSCRIBE -> handleUnsubscribe(accessor);
                 case SEND -> {
-                    if (!handleSend(accessor)) return null;
+                    final boolean[] pass = {true};
+                    webSocketMetrics.recordInterceptorDuration("SEND",
+                            () -> pass[0] = handleSend(accessor));
+                    if (!pass[0]) return null;
                 }
                 default -> {
                 }
@@ -132,8 +145,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         WebSocketSession ws = sessionAttributes == null ? null
                 : (WebSocketSession) sessionAttributes.get(WebSocketSessionRegistry.WS_SESSION_ATTR);
         if (ws == null) throw new MessageDeliveryException("Websocket Session missing");
-        if (ws instanceof PrincipalWebSocketSession pws) {
-            pws.setPrincipal(auth);
+        // ConcurrentWebSocketSessionDecorator로 감싸져 있으므로 decorator 체인을 타고 내려가 PrincipalWebSocketSession을 찾음
+        WebSocketSession current = ws;
+        while (current instanceof WebSocketSessionDecorator decorator) {
+            if (current instanceof PrincipalWebSocketSession pws) {
+                pws.setPrincipal(auth);
+                break;
+            }
+            current = decorator.getDelegate();
         }
         accessor.setUser(auth);
         Instant expiry = parsed.getExpiration().toInstant();
@@ -144,25 +163,46 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private void handleSubscribe(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
         if (destination == null) throw new MessageDeliveryException("Invalid subscribe");
+        String sid = accessor.getSessionId();
 
         if (destination.startsWith(ChatEventPublisher.ROOM_TOPIC_PREFIX)) {
             String[] parts = destination.split("/");
             if (parts.length >= 4) {
                 ChatRoomId roomId = ChatRoomId.of(Long.parseLong(parts[3]));
-                ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new MessageDeliveryException("Room not found"));
-                Optional<MemberId> memberId = resolveAuthenticatedMemberId(accessor.getSessionId());
-                if (!accessChecker.canSubscribe(chatRoom, memberId)) {
-                    throw new MessageDeliveryException("Access denied to room: " + roomId.value());
+                Optional<MemberId> memberId = resolveAuthenticatedMemberId(sid);
+                txTemplate.executeWithoutResult(status -> {
+                    ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                            .orElseThrow(() -> new MessageDeliveryException("Room not found"));
+                    if (!accessChecker.canSubscribe(chatRoom, memberId)) {
+                        throw new MessageDeliveryException("Access denied to room: " + roomId.value());
+                    }
+                });
+                webSocketSessionRegistry.subscribeRoom(sid, accessor.getSubscriptionId(), roomId.value());
+                // register anonymous WS session so getTargets() can deliver messages to unauthenticated subscribers
+                Map<String, Object> attrs = accessor.getSessionAttributes();
+                if (attrs != null) {
+                    WebSocketSession ws = (WebSocketSession) attrs.get(WebSocketSessionRegistry.WS_SESSION_ATTR);
+                    webSocketSessionRegistry.registerAnonymousWs(sid, ws);
                 }
-                webSocketSessionRegistry.subscribeRoom(accessor.getSessionId(), accessor.getSubscriptionId(), roomId.value());
+            }
+        } else {
+            // queue subscription: track destination -> subscriptionId for sendToUser delivery
+            String subId = accessor.getSubscriptionId();
+            if (subId != null) {
+                webSocketSessionRegistry.subscribeQueue(sid, destination, subId);
             }
         }
+        populateUserFromRegistry(accessor); // event 발행 전 user 세팅 (switch 이후 populateUserFromRegistry는 SUBSCRIBE에서 도달 안 함)
+        Message<byte[]> subscribeMessage = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        eventPublisher.publishEvent(new SessionSubscribeEvent(this, subscribeMessage, accessor.getUser()));
     }
 
     private void handleUnsubscribe(StompHeaderAccessor accessor) {
         String subscriptionId = accessor.getSubscriptionId();
         if (subscriptionId == null) return;
-        webSocketSessionRegistry.unsubscribeRoom(accessor.getSessionId(), subscriptionId);
+        String sid = accessor.getSessionId();
+        webSocketSessionRegistry.unsubscribeRoom(sid, subscriptionId);
+        webSocketSessionRegistry.unsubscribeQueue(sid, subscriptionId);
     }
 
     private boolean handleSend(StompHeaderAccessor accessor) {
@@ -194,7 +234,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         return true;
     }
 
-    @Async
+    @Async("wsEventExecutor")
     @EventListener
     public void onRoomSubscribed(SessionSubscribeEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());

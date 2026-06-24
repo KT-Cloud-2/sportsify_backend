@@ -1,22 +1,8 @@
 /**
- * [A] 메시지 전송 부하 테스트 — Ramping 패턴
+ * [A] 단일 메시지 전송 부하 테스트 — Ramping 패턴 (수정본)
  *
- * 시나리오: VU 마다 WebSocket 연결 → 구독 ACK 대기 → 메시지 N건 전송 → 연결 종료
- * 목적:     VU 증가에 따라 메시지 처리량과 레이턴시가 어떻게 변하는지 측정
- *
- * 실행:
- *   k6 run k6/chat/ramping.js
- *   k6 run -e BASE_URL=http://staging.example.com k6/chat/ramping.js
- *
- * 사전 조건:
- *   - k6/chat/seed.sql 을 실행해 멤버·방·멤버십 데이터를 미리 적재한다
- *     예) ./k6/chat/run.sh ramping
- *   - /dev/token?memberId={id} 엔드포인트가 활성화되어 있어야 한다 (local 프로파일)
- *
- * 측정 지표 (단계별):
- *   1. 연결       : ws_connecting, stomp_connect_ms
- *   2. 구독       : stomp_subscribe_ms, stomp_subscribe_success
- *   3. 메시지 송수신: stomp_messages_sent, stomp_message_roundtrip_ms
+ * 시나리오: VU 마다 WebSocket 연결 → 구독 ACK 대기 → 메시지 1건 전송 → 연결 종료
+ * 목적:      VU 증가에 따라 단일 메시지 처리량과 단발성 레이턴시 변화 측정
  */
 
 import ws from 'k6/ws';
@@ -38,8 +24,7 @@ const msgConfirmed = new Counter('stomp_messages_confirmed');
 const msgRoundtripTime = new Trend('stomp_message_roundtrip_ms', true);
 const subscribeFailed = new Counter('stomp_subscribe_failed');
 
-// 4. 서버→클라이언트 단방향 지연: EventEnvelope.occurredAt (메시지 생성·DB 커밋 시각) ~ k6 수신 시각
-//    roundtrip 에서 빼면 클라이언트→서버 처리 시간(inbound + DB)을 역산할 수 있다.
+// 4. 서버→클라이언트 단방향 지연
 const serverToClientMs = new Trend('stomp_server_to_client_ms', true);
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
@@ -47,13 +32,13 @@ const WS_URL = BASE_URL.replace(/^http/, 'ws') + '/ws/chat';
 
 const MAX_VUS = parseInt(__ENV.MAX_VUS || '500');
 const MEMBER_OFFSET = 20000;
-const MSG_INTERVAL_MS = 1000;
+const DELAY_BEFORE_SEND_MS = 1000; // 구독 성공 후 메시지 발송까지의 대기 시간 (필요시 조절)
 const ITERATION_DURATION_MS = 30_000;
 
 const ROOM_IDS = Array.from({length: 20}, (_, i) => 9021 + i);
 
 const stages = [
-    {duration: '3m', target: MAX_VUS},
+    {duration: '2m', target: MAX_VUS},
 ];
 
 export const options = {
@@ -61,20 +46,16 @@ export const options = {
     gracefulStop: '30s',
     gracefulRampDown: '30s',
     thresholds: {
-        // 연결
         http_req_failed: ['rate<0.01'],
         ws_connecting: ['p(95)<2000'],
         stomp_connect_ms: ['p(95)<2000'],
-        // 구독
         stomp_subscribe_ms: ['p(95)<2000'],
         stomp_subscribe_success: ['count>0'],
-        // 메시지 송수신
         stomp_messages_sent: ['count>0'],
         stomp_messages_confirmed: ['count>0'],
         stomp_subscribe_failed: ['count<1'],
         stomp_message_roundtrip_ms: ['p(95)<2000'],
         stomp_server_to_client_ms: ['p(95)<1000'],
-        // 전체
         iteration_duration: ['p(95)<2000'],
     },
 };
@@ -101,7 +82,7 @@ export default function (data) {
         connectedAt: 0,
         subscribeSentAt: 0,
         subscribed: false,
-        pendingMsgs: new Map(),  // clientMessageId → sentAt
+        pendingMsgs: new Map(),
     };
 
     const res = ws.connect(WS_URL, {}, function (socket) {
@@ -132,19 +113,18 @@ export default function (data) {
                         subscribeSuccess.add(1);
                         state.subscribed = true;
 
+                        // 💡 지전체 루프 대신 setTimeout을 사용하여 단 1번만 발송하도록 수정
                         socket.setTimeout(() => {
-                            socket.setInterval(() => {
-                                const clientMessageId = `k6-ramp-${__VU}-${Date.now()}`;
-                                state.pendingMsgs.set(clientMessageId, Date.now());
-                                msgSent.add(1);
-                                socket.send(stomp.send('/app/chat.send', {
-                                    clientMessageId,
-                                    roomId: roomId,
-                                    type: 'TEXT',
-                                    content: 'ramping test msg',
-                                }));
-                            }, MSG_INTERVAL_MS);
-                        }, 10000);
+                            const clientMessageId = `k6-ramp-${__VU}-${Date.now()}`;
+                            state.pendingMsgs.set(clientMessageId, Date.now());
+                            msgSent.add(1);
+                            socket.send(stomp.send('/app/chat.send', {
+                                clientMessageId,
+                                roomId: roomId,
+                                type: 'TEXT',
+                                content: 'ramping test single msg',
+                            }));
+                        }, DELAY_BEFORE_SEND_MS);
                     }
                     return;
                 }

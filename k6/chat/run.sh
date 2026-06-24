@@ -64,6 +64,9 @@ run_k6() {
 }
 
 case "$TARGET" in
+    ramping_once)
+        run_k6 ramping_once.js -e MAX_VUS="$VUS"
+        ;;
     ramping)
         run_k6 ramping.js -e MAX_VUS="$VUS"
         ;;
@@ -74,6 +77,7 @@ case "$TARGET" in
         run_k6 broadcast.js -e MAX_VUS="$VUS"
         ;;
     all)
+        run_k6 ramping_once.js
         run_k6 ramping.js
         run_k6 constant.js
         run_k6 broadcast.js
