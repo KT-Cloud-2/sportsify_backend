@@ -10,9 +10,6 @@ server:
       enabled: true
 
 spring:
-  threads:
-    virtual:
-      enabled: true
   application:
     name: sportsify
 
@@ -30,3 +27,4 @@ spring:
     datatype:
       datetime:
         write-dates-as-timestamps: false
+

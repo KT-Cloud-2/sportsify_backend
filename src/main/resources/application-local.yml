@@ -6,16 +6,13 @@ spring:
       - classpath:monitoring.yml
       - classpath:oauth.yml
       - classpath:payment.yml
+      - classpath:notification-local.yml
 
   datasource:
     url: jdbc:postgresql://localhost:5432/${DB_NAME:sportsify}
     username: ${DB_USERNAME:sportsify}
     password: ${DB_PASSWORD:sportsify}
     driver-class-name: org.postgresql.Driver
-
-  flyway:
-    enabled: true
-    locations: classpath:db/seed
 
   data:
     redis:
@@ -36,3 +33,4 @@ springdoc:
 logging:
   level:
     com.sportsify: DEBUG
+
