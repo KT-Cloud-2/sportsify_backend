@@ -133,7 +133,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         ArgumentCaptor<ReplayBatch> captor = ArgumentCaptor.forClass(ReplayBatch.class);
-        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/queue/replay"));
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/user/queue/replay"));
 
         List<com.sportsify.chat.domain.model.event.EventEnvelope<MessageSentPayload>> envelopes = captor.getValue().messages();
         assertThat(envelopes).hasSize(3);
@@ -150,7 +150,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         ArgumentCaptor<ReplayBatch> captor = ArgumentCaptor.forClass(ReplayBatch.class);
-        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/queue/replay"));
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/user/queue/replay"));
 
         List<com.sportsify.chat.domain.model.event.EventEnvelope<MessageSentPayload>> envelopes = captor.getValue().messages();
         assertThat(envelopes).hasSize(10);
@@ -167,7 +167,7 @@ class MissedMessageReplayerTest {
         replayer.onSubscribe(event(VALID_DESTINATION, "0", SESSION_ID));
 
         ArgumentCaptor<ReplayBatch> captor = ArgumentCaptor.forClass(ReplayBatch.class);
-        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/queue/replay"));
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), captor.capture(), eq("/user/queue/replay"));
 
         List<com.sportsify.chat.domain.model.event.EventEnvelope<MessageSentPayload>> envelopes = captor.getValue().messages();
         assertThat(envelopes).hasSize(10);
@@ -187,7 +187,7 @@ class MissedMessageReplayerTest {
 
         replayer.onSubscribe(event(VALID_DESTINATION, "0", customSid));
 
-        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), any(ReplayBatch.class), eq("/queue/replay"));
+        verify(chatEventPublisher).publishToUser(eq(SESSION_MEMBER_ID), any(ReplayBatch.class), eq("/user/queue/replay"));
     }
 
     // ──────────────────────── 픽스처 헬퍼 ────────────────────────

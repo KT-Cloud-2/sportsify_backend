@@ -22,6 +22,7 @@ import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
@@ -35,6 +36,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -75,9 +79,21 @@ class ChatEventHandlerTest {
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepo;
 
+    @Mock
+    private WebSocketMetrics webSocketMetrics;
+
+    @Mock
+    private TransactionTemplate txTemplate;
+
     @BeforeEach
     void setUp() {
         lenient().when(roomMemberNotifyCache.getNotifiableMemberIds(any())).thenReturn(Optional.of(Set.of()));
+        lenient().doAnswer(inv -> { inv.getArgument(0, Runnable.class).run(); return null; })
+                .when(webSocketMetrics).recordBrokerPublish(any());
+        lenient().doAnswer(inv -> {
+            TransactionCallback<?> cb = inv.getArgument(0);
+            return cb.doInTransaction(null);
+        }).when(txTemplate).execute(any());
     }
 
     // ──────────────────────── 메시지 이벤트 ────────────────────────

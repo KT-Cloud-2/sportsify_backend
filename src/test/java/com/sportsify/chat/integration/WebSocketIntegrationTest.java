@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -250,8 +251,9 @@ class WebSocketIntegrationTest {
     private Set<String> getRoomSessions(long roomId) throws Exception {
         Field field = WebSocketSessionRegistry.class.getDeclaredField("roomSessions");
         field.setAccessible(true);
-        Map<Long, Set<String>> map = (Map<Long, Set<String>>) field.get(registry);
-        return map.get(roomId);
+        Map<Long, ConcurrentHashMap<String, String>> map = (Map<Long, ConcurrentHashMap<String, String>>) field.get(registry);
+        ConcurrentHashMap<String, String> roomMap = map.get(roomId);
+        return roomMap != null ? roomMap.keySet() : null;
     }
 
     private void setGraceDeadlineToPast(String sid) throws Exception {
