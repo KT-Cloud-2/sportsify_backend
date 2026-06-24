@@ -14,8 +14,8 @@
 
 set -uo pipefail
 
-# 인자 > 환경변수 > 기본값(90) 순으로 적용
-THRESHOLD="${1:-${THRESHOLD:-90}}"
+# 인자 > 환경변수 > 기본값(75) 순으로 적용
+THRESHOLD="${1:-${THRESHOLD:-75}}"
 INTERVAL="${INTERVAL:-5}"
 CONTAINER="${CONTAINER:-sportsify-app}"
 K6_PID="${K6_PID:-}"
