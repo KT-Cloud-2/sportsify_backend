@@ -622,11 +622,8 @@
     </div>
     <div class="token-bar">
         <select id="headerMemberId" onchange="syncMemberId()">
-            <option value="1">Member 1 (야구팬1)</option>
-            <option value="2">Member 2 (축구팬2)</option>
-            <option value="3">Member 3 (농구팬3)</option>
-            <option value="4">Member 4 (관리자)</option>
-            <option value="5">Member 5 (스포츠팬4)</option>
+            <option value="1">Member 1 (데모유저1)</option>
+            <option value="2">Member 2 (데모유저2)</option>
         </select>
         <button class="btn-primary btn-sm" onclick="fetchToken()">토큰 발급</button>
         <button class="btn-secondary btn-sm" onclick="clearToken()">초기화</button>
@@ -652,11 +649,8 @@
             <h2>개발용 토큰 발급</h2>
             <label>Member ID</label>
             <select id="authMemberId" onchange="syncMemberIdFromAuth()">
-                <option value="1">1 — 야구팬1 (USER)</option>
-                <option value="2">2 — 축구팬2 (USER)</option>
-                <option value="3">3 — 농구팬3 (USER)</option>
-                <option value="4">4 — 관리자 (ADMIN)</option>
-                <option value="5">5 — 스포츠팬4 (USER)</option>
+                <option value="1">1 — 데모유저1 (USER)</option>
+                <option value="2">2 — 데모유저2 (USER)</option>
             </select>
             <div class="btn-row">
                 <button class="btn-primary" onclick="fetchToken()">토큰 발급 (서버)</button>

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Controller;
 import java.security.Principal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.concurrent.Executor;
 
 @Controller
 @Slf4j
@@ -32,6 +33,7 @@ public class ChatStompController {
     private final ChatEventPublisher chatEventPublisher;
     private final Clock clock;
     private final WebSocketMetrics webSocketMetrics;
+    private final Executor virtualThreadExecutor;
 
     /**
      * 5-17-3-1. 메시지 전송
@@ -43,11 +45,13 @@ public class ChatStompController {
     public void send(@Payload ChatSendPayload payload, Principal principal) {
         long id = Long.parseLong(principal.getName());
         webSocketMetrics.recordMessageIn();
-        webSocketMetrics.recordMessageDuration(() -> {
+        virtualThreadExecutor.execute(() -> {
             try {
-                messageService.send(MessageCreateRequest.from(payload), id);
+                webSocketMetrics.recordMessageDuration(() -> messageService.send(MessageCreateRequest.from(payload), id));
+            } catch (BusinessException e) {
+                chatEventPublisher.publishToUser(id, ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, e, payload.clientMessageId()), "/user/queue/errors");
             } catch (Exception e) {
-                throw new MessageSendException(e, payload.clientMessageId());
+                chatEventPublisher.publishToUser(id, ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, "메시지 전송에 실패했습니다.", payload.clientMessageId()), "/user/queue/errors");
             }
         });
     }
@@ -79,14 +83,15 @@ public class ChatStompController {
         ));
     }
 
-    @MessageExceptionHandler(MessageSendException.class)
-    @SendToUser("/queue/errors")
-    public ErrorResponse handleMessageSendException(MessageSendException e) {
-        if (e.getCause() instanceof BusinessException be) {
-            return ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, be, e.clientMessageId());
-        }
-        return ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, "메시지 전송에 실패했습니다.", e.clientMessageId());
-    }
+    // send 함수가 virtual thread를 통해 실행됨에 따라 해당 예외를 잡지 못해 죽은 코드가 되어 주석처리 했습니다.
+//    @MessageExceptionHandler(MessageSendException.class)
+//    @SendToUser("/queue/errors")
+//    public ErrorResponse handleMessageSendException(MessageSendException e) {
+//        if (e.getCause() instanceof BusinessException be) {
+//            return ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, be, e.clientMessageId());
+//        }
+//        return ErrorResponse.from(ErrorEventType.MESSAGE_FAILED, "메시지 전송에 실패했습니다.", e.clientMessageId());
+//    }
 
     @MessageExceptionHandler(BusinessException.class)
     @SendToUser("/queue/errors")
