@@ -1,6 +1,7 @@
 package com.sportsify.common.dev;
 
 import com.sportsify.infrastructure.security.JwtProvider;
+import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ import java.util.stream.LongStream;
 public class DevTokenController {
 
     private final JwtProvider jwtProvider;
+    private final MemberJpaRepository memberJpaRepository;
 
     private static final ExecutorService TOKEN_EXECUTOR =
             Executors.newVirtualThreadPerTaskExecutor();
@@ -35,6 +37,24 @@ public class DevTokenController {
     ) {
         String token = jwtProvider.createAccessToken(memberId, role);
         return ResponseEntity.ok(Map.of("token", token, "memberId", String.valueOf(memberId)));
+    }
+
+    @GetMapping("/by-email")
+    public ResponseEntity<Map<String, String>> issueByEmail(
+            @RequestParam String email,
+            @RequestParam(defaultValue = "USER") String role
+    ) {
+        return memberJpaRepository.findByEmail(email)
+                .map(member -> {
+                    String token = jwtProvider.createAccessToken(member.getId(), role);
+                    return ResponseEntity.ok(Map.of(
+                            "token", token,
+                            "memberId", String.valueOf(member.getId()),
+                            "email", member.getEmail(),
+                            "nickname", member.getNickname()
+                    ));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/bulk")
