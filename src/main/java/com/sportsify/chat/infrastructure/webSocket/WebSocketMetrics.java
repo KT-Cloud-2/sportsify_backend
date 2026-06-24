@@ -20,6 +20,7 @@ public class WebSocketMetrics {
     private Counter messagesInCounter;
     private Counter messagesOutCounter;
     private Timer messageDurationTimer;
+    private Timer brokerPublishTimer;
     private Counter disconnectCounter;
 
     @PostConstruct
@@ -40,7 +41,12 @@ public class WebSocketMetrics {
                 .description("Outbound chat messages broadcast to rooms")
                 .register(meterRegistry);
         messageDurationTimer = Timer.builder("ws_message_duration")
-                .description("Message processing duration")
+                .description("Message processing duration (inbound → DB commit)")
+                .publishPercentiles(0.5, 0.90, 0.95, 0.99)
+                .register(meterRegistry);
+        brokerPublishTimer = Timer.builder("ws_broker_publish_duration")
+                .description("SimpleBroker dispatch time: convertAndSend 호출 ~ 모든 구독자 outbound 큐 적재 완료")
+                .publishPercentiles(0.5, 0.90, 0.95, 0.99)
                 .register(meterRegistry);
         disconnectCounter = Counter.builder("ws_disconnect_total")
                 .description("WebSocket disconnections")
@@ -61,6 +67,19 @@ public class WebSocketMetrics {
 
     public void recordMessageDuration(Runnable task) {
         messageDurationTimer.record(task);
+    }
+
+    public void recordBrokerPublish(Runnable task) {
+        brokerPublishTimer.record(task);
+    }
+
+    public void recordInterceptorDuration(String command, Runnable task) {
+        Timer.builder("ws_interceptor_duration")
+                .description("StompAuthChannelInterceptor preSend duration")
+                .tag("command", command)
+                .publishPercentiles(0.5, 0.90, 0.95, 0.99)
+                .register(meterRegistry)
+                .record(task);
     }
 
     @EventListener

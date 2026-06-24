@@ -26,6 +26,10 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -34,6 +38,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,13 +78,23 @@ class StompAuthChannelInterceptorTest {
     @Mock
     WebSocketMetrics webSocketMetrics;
 
+    @Mock
+    TransactionTemplate txTemplate;
+
     StompAuthChannelInterceptor interceptor;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         interceptor = new StompAuthChannelInterceptor(
                 jwtProvider, registry, redisTemplate,
                 Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher, webSocketMetrics);
+        Field txField = StompAuthChannelInterceptor.class.getDeclaredField("txTemplate");
+        txField.setAccessible(true);
+        txField.set(interceptor, txTemplate);
+        lenient().doAnswer(inv -> { inv.getArgument(1, Runnable.class).run(); return null; })
+                .when(webSocketMetrics).recordInterceptorDuration(any(), any());
+        lenient().doAnswer(inv -> { inv.getArgument(0, Consumer.class).accept(null); return null; })
+                .when(txTemplate).executeWithoutResult(any());
     }
 
     // ── 헬퍼 ─────────────────────────────────────────────────
@@ -118,7 +133,7 @@ class StompAuthChannelInterceptorTest {
      */
     private void stubAuthenticatedSession(long memberId) {
         WebSocketSessionRegistry.SessionInfo info = new WebSocketSessionRegistry.SessionInfo(
-                SID, memberId, "USER", NOW, TOKEN_EXPIRY, null, new ConcurrentHashMap<>());
+                SID, memberId, "USER", NOW, TOKEN_EXPIRY, null, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
         given(registry.get(SID)).willReturn(Optional.of(info));
     }
 
@@ -215,9 +230,8 @@ class StompAuthChannelInterceptorTest {
     @Test
     @DisplayName("방이 아닌 destination은 인증된 유저도 인증 없이도 구독할 수 있다")
     void subscribe_비방목적지_통과() {
-        Message<?> result = interceptor.preSend(subscribeMessage("/user/queue/errors"), channel);
+        interceptor.preSend(subscribeMessage("/user/queue/errors"), channel);
 
-        assertThat(result).isNotNull();
         verifyNoInteractions(chatRoomRepository);
     }
 

@@ -29,7 +29,7 @@ public class MissedMessageReplayer {
     private final ChatEventPublisher chatEventPublisher;
 
     @EventListener
-    @Async
+    @Async("wsEventExecutor")
     public void onSubscribe(SessionSubscribeEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
         String destination = accessor.getDestination();
@@ -67,7 +67,7 @@ public class MissedMessageReplayer {
                 })
                 .toList();
 
-        chatEventPublisher.publishToUser(memberId, new ReplayBatch(envelopes), "/queue/replay");
+        chatEventPublisher.publishToUser(memberId, new ReplayBatch(envelopes), "/user/queue/replay");
 
         log.debug("Replayed {} messages to memberId={} for roomId={}", toSend.size(), memberId, roomId);
     }

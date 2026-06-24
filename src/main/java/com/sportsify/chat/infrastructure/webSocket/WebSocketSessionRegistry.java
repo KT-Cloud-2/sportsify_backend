@@ -49,9 +49,9 @@ public class WebSocketSessionRegistry {
      */
     private final Map<Long, Set<String>> userSessions = new ConcurrentHashMap<>();
     /**
-     * roomId -> Set<sessionId>
+     * roomId -> {sessionId -> subscriptionId}
      */
-    private final Map<Long, Set<String>> roomSessions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, ConcurrentHashMap<String, String>> roomSessions = new ConcurrentHashMap<>();
     private final Clock clock;
     @Lazy
     @Autowired
@@ -59,7 +59,7 @@ public class WebSocketSessionRegistry {
     private MessageChannel clientInboundChannel;
 
     public void register(String sid, WebSocketSession ws, Long memberId, String role, Instant tokenExpiresAt, Instant connectedAt) {
-        SessionInfo newInfo = new SessionInfo(sid, memberId, role, connectedAt, tokenExpiresAt, null, new ConcurrentHashMap<>());
+        SessionInfo newInfo = new SessionInfo(sid, memberId, role, connectedAt, tokenExpiresAt, null, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
         SessionInfo old = sessions.put(sid, newInfo);
         if (old != null) {
             removeFromIndexes(old);
@@ -80,9 +80,38 @@ public class WebSocketSessionRegistry {
     }
 
     public void subscribeRoom(String sid, String subscriptionId, Long roomId) {
-        roomSessions.computeIfAbsent(roomId, _ -> ConcurrentHashMap.newKeySet()).add(sid);
+        roomSessions.computeIfAbsent(roomId, _ -> new ConcurrentHashMap<>()).put(sid, subscriptionId);
         SessionInfo info = sessions.get(sid);
         if (info != null) info.subscribedRooms().put(subscriptionId, roomId);
+    }
+
+    public void subscribeQueue(String sid, String destination, String subscriptionId) {
+        SessionInfo info = sessions.get(sid);
+        if (info != null) info.queueSubs().put(destination, subscriptionId);
+    }
+
+    public void unsubscribeQueue(String sid, String subscriptionId) {
+        SessionInfo info = sessions.get(sid);
+        if (info == null) return;
+        info.queueSubs().values().removeIf(subId -> subId.equals(subscriptionId));
+    }
+
+    public record SessionQueueTarget(String sessionId, String subscriptionId) {}
+
+    public List<SessionQueueTarget> getUserQueueTargets(Long memberId, String destination) {
+        return List.copyOf(userSessions.getOrDefault(memberId, Set.of())).stream()
+                .map(sessions::get)
+                .filter(Objects::nonNull)
+                .map(info -> {
+                    String subId = info.queueSubs().get(destination);
+                    return subId != null ? new SessionQueueTarget(info.sessionId(), subId) : null;
+                })
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public void registerAnonymousWs(String sid, WebSocketSession ws) {
+        if (ws != null) wsSessions.putIfAbsent(sid, ws);
     }
 
     public void unsubscribeRoom(String sid, String subscriptionId) {
@@ -90,9 +119,9 @@ public class WebSocketSessionRegistry {
         if (info == null) return;
         Long roomId = info.subscribedRooms().remove(subscriptionId);
         if (roomId == null) return;
-        roomSessions.computeIfPresent(roomId, (_, set) -> {
-            set.remove(sid);
-            return set.isEmpty() ? null : set;
+        roomSessions.computeIfPresent(roomId, (_, map) -> {
+            map.remove(sid);
+            return map.isEmpty() ? null : map;
         });
     }
 
@@ -119,15 +148,17 @@ public class WebSocketSessionRegistry {
 
     public void revokeRoomSubscriptionByMember(Long memberId, Long roomId) {
         Set<String> memberSids = userSessions.getOrDefault(memberId, Set.of());
-        Set<String> roomSids = roomSessions.getOrDefault(roomId, Set.of());
+        ConcurrentHashMap<String, String> roomMap = roomSessions.get(roomId);
+        if (roomMap == null) return;
         List.copyOf(memberSids).stream()
-                .filter(roomSids::contains)
+                .filter(roomMap::containsKey)
                 .forEach(sid -> revokeRoomSubscription(sid, roomId));
     }
 
     public void revokeAllRoomSubscriptions(Long roomId) {
-        List.copyOf(roomSessions.getOrDefault(roomId, Set.of()))
-                .forEach(sid -> revokeRoomSubscription(sid, roomId));
+        ConcurrentHashMap<String, String> roomMap = roomSessions.get(roomId);
+        if (roomMap == null) return;
+        List.copyOf(roomMap.keySet()).forEach(sid -> revokeRoomSubscription(sid, roomId));
     }
 
     public Optional<SessionInfo> get(String sid) {
@@ -139,11 +170,13 @@ public class WebSocketSessionRegistry {
     }
 
     public int getTotalSubscriptionCount() {
-        return roomSessions.values().stream().mapToInt(Set::size).sum();
+        return roomSessions.values().stream().mapToInt(Map::size).sum();
     }
 
     public Set<Long> getSubscribedMemberIds(Long roomId) {
-        return roomSessions.getOrDefault(roomId, Set.of()).stream()
+        ConcurrentHashMap<String, String> roomMap = roomSessions.get(roomId);
+        if (roomMap == null) return Set.of();
+        return roomMap.keySet().stream()
                 .map(sessions::get)
                 .filter(Objects::nonNull)
                 .map(SessionInfo::memberId)
@@ -203,14 +236,12 @@ public class WebSocketSessionRegistry {
     private void revokeRoomSubscription(String sid, Long roomId) {
         SessionInfo info = sessions.get(sid);
         if (info == null) return;
-        List<String> subIds = info.subscribedRooms().entrySet().stream()
-                .filter(e -> e.getValue().equals(roomId))
-                .map(Map.Entry::getKey)
-                .toList();
-        subIds.forEach(subId -> {
-            unsubscribeRoom(sid, subId);             // registry 즉시 정리
-            forceUnsubscribeFromBroker(sid, subId);  // broker 구독 해제
-        });
+        ConcurrentHashMap<String, String> roomMap = roomSessions.get(roomId);
+        String subId = roomMap != null ? roomMap.get(sid) : null;
+        if (subId != null) {
+            unsubscribeRoom(sid, subId);
+            forceUnsubscribeFromBroker(sid, subId);
+        }
         eventPublisher.publishEvent(new RoomSubscriptionRevokedEvent(sid, roomId, info.memberId()));
     }
 
@@ -233,19 +264,22 @@ public class WebSocketSessionRegistry {
             return set.isEmpty() ? null : set;
         });
         info.subscribedRooms().values().forEach(roomId ->
-                roomSessions.compute(roomId, (_, set) -> {
-                    if (set == null) return null;
-                    set.remove(info.sessionId());
-                    return set.isEmpty() ? null : set;
+                roomSessions.computeIfPresent(roomId, (_, map) -> {
+                    map.remove(info.sessionId());
+                    return map.isEmpty() ? null : map;
                 })
         );
     }
 
     private void onSessionEnded(String sid) {
+        wsSessions.remove(sid);
         SessionInfo info = sessions.remove(sid);
-        if (info == null) return;
+        if (info == null) {
+            // anonymous session: clean up roomSessions index
+            roomSessions.values().forEach(m -> m.remove(sid));
+            return;
+        }
         try {
-            wsSessions.remove(sid);
             removeFromIndexes(info);
             eventPublisher.publishEvent(new WsSessionEndedEvent(sid));
         } catch (Exception e) {
@@ -255,6 +289,28 @@ public class WebSocketSessionRegistry {
 
     /* -------------------- record -------------------- */
 
+    public List<SessionSendTarget> getTargets(Long roomId) {
+        ConcurrentHashMap<String, String> roomMap = roomSessions.get(roomId);
+        if (roomMap == null || roomMap.isEmpty()) return List.of();
+        List<SessionSendTarget> targets = new ArrayList<>(roomMap.size());
+        roomMap.forEach((sid, subId) -> {
+            WebSocketSession ws = wsSessions.get(sid);
+            if (ws != null && ws.isOpen())
+                targets.add(new SessionSendTarget(sid, subId, ws));
+        });
+        return targets;
+    }
+
+    public List<WebSocketSession> getUserSessions(Long memberId) {
+        return List.copyOf(userSessions.getOrDefault(memberId, Set.of())).stream()
+                .map(wsSessions::get)
+                .filter(ws -> ws != null && ws.isOpen())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public record SessionSendTarget(String sessionId, String subscriptionId, WebSocketSession session) {
+    }
+
     public record SessionInfo(
             String sessionId,
             Long memberId,
@@ -262,7 +318,8 @@ public class WebSocketSessionRegistry {
             Instant connectedAt,
             Instant tokenExpiresAt,
             Instant graceDeadline,
-            ConcurrentHashMap<String, Long> subscribedRooms
+            ConcurrentHashMap<String, Long> subscribedRooms,
+            ConcurrentHashMap<String, String> queueSubs  // destination -> subscriptionId
     ) {
         public Authentication toAuthentication() {
             return new UsernamePasswordAuthenticationToken(
@@ -270,11 +327,11 @@ public class WebSocketSessionRegistry {
         }
 
         public SessionInfo withTokenExpiresAt(Instant expiresAt) {
-            return new SessionInfo(sessionId, memberId, role, connectedAt, expiresAt, graceDeadline, subscribedRooms);
+            return new SessionInfo(sessionId, memberId, role, connectedAt, expiresAt, graceDeadline, subscribedRooms, queueSubs);
         }
 
         public SessionInfo withGraceDeadline(Instant deadline) {
-            return new SessionInfo(sessionId, memberId, role, connectedAt, tokenExpiresAt, deadline, subscribedRooms);
+            return new SessionInfo(sessionId, memberId, role, connectedAt, tokenExpiresAt, deadline, subscribedRooms, queueSubs);
         }
     }
 }

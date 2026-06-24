@@ -5,13 +5,8 @@ import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEv
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
-import java.security.Principal;
 import java.util.Map;
 
 @Component
@@ -20,27 +15,28 @@ import java.util.Map;
 public class ChatEventPublisher {
 
     public static final String ROOM_TOPIC_PREFIX = "/topic/rooms/";
-    public static final String TYPING_SUFFIX = "/typing";
 
-    private final SimpMessagingTemplate template;
     private final WebSocketMetrics webSocketMetrics;
+    private final DirectRoomMessageSender directRoomMessageSender;
 
     public void publishToRoom(long roomId, Object payload) {
-        template.convertAndSend(ROOM_TOPIC_PREFIX + roomId, payload);
+        // SimpleBroker 경유 (DefaultSubscriptionRegistry ReadWriteLock 경쟁 발생)
+//        template.convertAndSend(ROOM_TOPIC_PREFIX + roomId, payload);
+        directRoomMessageSender.sendToRoom(roomId, payload);
         webSocketMetrics.recordMessageOut();
     }
 
     public void publishToRoomTyping(long roomId, Object payload) {
-        template.convertAndSend(ROOM_TOPIC_PREFIX + roomId + TYPING_SUFFIX, payload);
+        directRoomMessageSender.sendToRoom(roomId, payload);
     }
 
     public void publishToUser(long userId, Object payload, String queue) {
-        template.convertAndSendToUser(String.valueOf(userId), queue, payload);
+        directRoomMessageSender.sendToUser(userId, queue, payload);
     }
 
     @EventListener
     public void onTokenExpired(TokenExpiredEvent event) {
-        publishToUser(event.memberId(), Map.of("type", ErrorEventType.TOKEN_EXPIRED), "/queue/session-errors");
+        publishToUser(event.memberId(), Map.of("type", ErrorEventType.TOKEN_EXPIRED), "/user/queue/session-errors");
     }
 
     @EventListener
@@ -51,6 +47,6 @@ public class ChatEventPublisher {
                 event.sessionId(),
                 event.roomId()
         );
-        publishToUser(event.memberId(), Map.of("type", ErrorEventType.KICKED_FROM_ROOM, "roomId", event.roomId()), "/queue/session-errors");
+        publishToUser(event.memberId(), Map.of("type", ErrorEventType.KICKED_FROM_ROOM, "roomId", event.roomId()), "/user/queue/session-errors");
     }
 }
