@@ -148,16 +148,22 @@ class PaymentServiceIntegrationTest {
                 }
             });
         }
-        latch.await();
-        executorService.shutdown();
+       try {
+    boolean finished = latch.await(10, TimeUnit.SECONDS);
 
-        // then
-        assertThat(exceptions).isEmpty();
-        assertThat(responses).hasSize(numberOfThreads);
+    assertThat(finished)
+            .as("모든 스레드가 10초 내에 종료되어야 함")
+            .isTrue();
+} finally {
+    executorService.shutdownNow();
+}
 
-        Long expectedPaymentId = responses.get(0).getPaymentId();
-        for (PaymentResponse res : responses) {
-            assertThat(res.getPaymentId()).isEqualTo(expectedPaymentId);
-        }
-    }
+// then
+assertThat(exceptions).isEmpty();
+assertThat(responses).hasSize(numberOfThreads);
+
+Long expectedPaymentId = responses.get(0).getPaymentId();
+for (PaymentResponse res : responses) {
+    assertThat(res.getPaymentId()).isEqualTo(expectedPaymentId);
+}
 }
