@@ -6,6 +6,7 @@ import com.sportsify.chat.domain.model.event.message.ReadReceiptPayload;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.ReadCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,10 +27,17 @@ public class ReadReceiptFlusher {
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
+    @PreDestroy
+    public void destroy() {
+        flush();
+    }
+
     @Scheduled(fixedDelayString = "${chat.read-receipt.flush-interval-ms:5000}")
     public void flush() {
         try {
             readCache.drainAll().forEach(this::flushOne);
+        } catch (IllegalStateException e) {
+            log.debug("Read receipt flush skipped: connection unavailable ({})", e.getMessage());
         } catch (Exception e) {
             log.error("Read receipt flush failed", e);
         }

@@ -34,6 +34,11 @@ public class NotificationChannelRepositoryAdapter implements NotificationChannel
     }
 
     @Override
+    public List<NotificationChannel> findByMemberIdInAndEnabledTrue(List<Long> memberIds) {
+        return jpaRepository.findByMemberIdInAndEnabledTrue(memberIds);
+    }
+
+    @Override
     public boolean existsByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType) {
         return jpaRepository.existsByMemberIdAndChannelType(memberId, channelType);
     }

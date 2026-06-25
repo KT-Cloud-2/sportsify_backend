@@ -21,6 +21,8 @@ public interface OrderRepository {
 
     List<Long> findPendingOrderIdsWithFailedPayment();
 
+    List<Long> findPendingOrderIdsWithCompletedPayment();
+
     void bulkUpdateOrders(@Param("ids") List<Long> ids, @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 
     Optional<Order> findByIdWithAll(Long id);

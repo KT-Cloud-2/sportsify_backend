@@ -17,6 +17,7 @@ import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
 import com.sportsify.chat.domain.repository.MessageRepository;
 import com.sportsify.chat.domain.repository.RoomMemberNotifyCache;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import com.sportsify.common.notification.NotificationEventPublisher;
 import com.sportsify.common.notification.NotificationEventType;
@@ -25,10 +26,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Set;
@@ -40,21 +40,22 @@ import java.util.stream.Collectors;
 public class ChatEventHandler {
 
     private final ChatEventPublisher publisher;
+    private final WebSocketMetrics webSocketMetrics;
     private final WebSocketSessionRegistry webSocketSessionRegistry;
     private final MessageRepository messageRepo;
     private final RoomMemberNotifyCache roomMemberNotifyCache;
     private final NotificationEventPublisher notificationEventPublisher;
     private final ChatRoomMemberRepository chatRoomMemberRepo;
+    private final TransactionTemplate txTemplate;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Async("chatEventExecutor")
     public void sendEvent(EventEnvelope<?> event) {
         Object payload = event.payload();
         boolean isDirect = event.roomType() == ChatRoomType.DIRECT;
 
         if (payload instanceof MessagePayload) {
-            publisher.publishToRoom(event.roomId(), event);
+            webSocketMetrics.recordBrokerPublish(() -> publisher.publishToRoom(event.roomId(), event));
             if (payload instanceof MessageSentPayload sentPayload && isDirect) {
                 sendMessageNotification(event.roomId(), event.roomName(), sentPayload);
             }
@@ -69,17 +70,21 @@ public class ChatEventHandler {
             case MemberInvitePayload p -> String.valueOf(p.invitedId());
             default -> null;
         };
-        EventEnvelope<?> toPublish = event;
         String alertText = EventType.valueOf(event.event()).formatAlert(userId);
+        EventEnvelope<?> toPublish = event;
         if (alertText != null) {
-            Message alert = messageRepo.save(Message.createAlert(
-                    ChatRoomId.of(event.roomId()),
-                    MessageContent.of(alertText),
-                    event.occurredAt()
-            ));
-            toPublish = event.withAlertMessageId(alert.getId().value());
+            EventEnvelope<?> saved = txTemplate.execute(status -> {
+                Message alert = messageRepo.save(Message.createAlert(
+                        ChatRoomId.of(event.roomId()),
+                        MessageContent.of(alertText),
+                        event.occurredAt()
+                ));
+                return event.withAlertMessageId(alert.getId().value());
+            });
+            if (saved != null) toPublish = saved;
         }
-        publisher.publishToRoom(event.roomId(), toPublish);
+        EventEnvelope<?> finalEnvelope = toPublish;
+        webSocketMetrics.recordBrokerPublish(() -> publisher.publishToRoom(event.roomId(), finalEnvelope));
 
 
         switch (payload) {
@@ -95,10 +100,11 @@ public class ChatEventHandler {
                 if (isDirect) roomMemberNotifyCache.put(event.roomId(), p.memberId(), true);
             }
             case MemberLeftPayload p -> {
+                webSocketSessionRegistry.revokeRoomSubscriptionByMember(p.memberId(), event.roomId());
                 if (isDirect) roomMemberNotifyCache.remove(event.roomId(), p.memberId());
             }
             case MemberInvitePayload p -> {
-                if (isDirect) sendInviteNotification(event.roomId(), event.roomName(), p);
+                sendInviteNotification(event.roomId(), event.roomName(), p);
             }
             default -> {
             }

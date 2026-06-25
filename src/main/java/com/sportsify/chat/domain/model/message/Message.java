@@ -113,11 +113,7 @@ public class Message extends AbstractAggregateRoot<Message> {
     /**
      * 메시지를 논리 삭제
      */
-    public void softDelete(MemberId senderId, Instant now) {
-        Objects.requireNonNull(senderId, "senderId");
-        if (!senderId.equals(this.senderId)) {
-            throw new IllegalStateException("Cannot delete message because senderId does not match");
-        }
+    public void softDelete(Instant now) {
         if (this.status == MessageStatus.DELETED) {
             return;
         }

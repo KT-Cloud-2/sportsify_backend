@@ -15,6 +15,7 @@ public class TestContainersConfig {
     public PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(DockerImageName.parse("postgres:18"))
                 .withDatabaseName("sportsify")
+                .withCommand("postgres", "-c", "max_connections=1000")
                 .withReuse(true);
     }
 

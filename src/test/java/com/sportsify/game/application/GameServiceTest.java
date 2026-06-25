@@ -15,7 +15,6 @@ import com.sportsify.game.presentation.dto.GameCreateResponseDto;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.domain.repository.TeamRepository;
-import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,10 +50,6 @@ class GameServiceTest {
 
     @Mock
     private GameSaleTaskScheduler gameSaleTaskScheduler;
-
-    @Mock
-    private OrderExpirationScheduler orderExpirationScheduler;
-
 
     @Test
     @DisplayName("경기 생성 성공")

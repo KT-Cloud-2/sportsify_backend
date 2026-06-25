@@ -4,6 +4,7 @@ import com.sportsify.chat.application.webSocket.ChatRoomAccessChecker;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
 import com.sportsify.chat.domain.repository.ChatRoomRepository;
 import com.sportsify.chat.infrastructure.webSocket.StompAuthChannelInterceptor;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
 import com.sportsify.infrastructure.security.JwtProvider;
 import io.jsonwebtoken.Claims;
@@ -23,7 +24,12 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -32,6 +38,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -68,14 +75,26 @@ class StompAuthChannelInterceptorTest {
     Claims claims;
     @Mock
     ApplicationEventPublisher eventPublisher;
+    @Mock
+    WebSocketMetrics webSocketMetrics;
+
+    @Mock
+    TransactionTemplate txTemplate;
 
     StompAuthChannelInterceptor interceptor;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         interceptor = new StompAuthChannelInterceptor(
                 jwtProvider, registry, redisTemplate,
-                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher);
+                Clock.fixed(NOW, ZoneOffset.UTC), accessChecker, chatRoomRepository, eventPublisher, webSocketMetrics);
+        Field txField = StompAuthChannelInterceptor.class.getDeclaredField("txTemplate");
+        txField.setAccessible(true);
+        txField.set(interceptor, txTemplate);
+        lenient().doAnswer(inv -> { inv.getArgument(1, Runnable.class).run(); return null; })
+                .when(webSocketMetrics).recordInterceptorDuration(any(), any());
+        lenient().doAnswer(inv -> { inv.getArgument(0, Consumer.class).accept(null); return null; })
+                .when(txTemplate).executeWithoutResult(any());
     }
 
     // ── 헬퍼 ─────────────────────────────────────────────────
@@ -91,6 +110,7 @@ class StompAuthChannelInterceptorTest {
             attrs.put(WebSocketSessionRegistry.WS_SESSION_ATTR, wsSession);
             accessor.setSessionAttributes(attrs);
         }
+        accessor.setLeaveMutable(true);
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
@@ -113,7 +133,7 @@ class StompAuthChannelInterceptorTest {
      */
     private void stubAuthenticatedSession(long memberId) {
         WebSocketSessionRegistry.SessionInfo info = new WebSocketSessionRegistry.SessionInfo(
-                SID, memberId, "USER", NOW, TOKEN_EXPIRY, null, new ConcurrentHashMap<>());
+                SID, memberId, "USER", NOW, TOKEN_EXPIRY, null, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
         given(registry.get(SID)).willReturn(Optional.of(info));
     }
 
@@ -177,7 +197,7 @@ class StompAuthChannelInterceptorTest {
 
         assertThatThrownBy(() -> interceptor.preSend(connectMessage(true, false), channel))
                 .isInstanceOf(MessageDeliveryException.class);
-        verifyNoInteractions(registry);
+        verify(registry, never()).register(any(), any(), any(), any(), any(), any());
     }
 
     // ── SUBSCRIBE 성공 ────────────────────────────────────────
@@ -210,9 +230,8 @@ class StompAuthChannelInterceptorTest {
     @Test
     @DisplayName("방이 아닌 destination은 인증된 유저도 인증 없이도 구독할 수 있다")
     void subscribe_비방목적지_통과() {
-        Message<?> result = interceptor.preSend(subscribeMessage("/user/queue/errors"), channel);
+        interceptor.preSend(subscribeMessage("/user/queue/errors"), channel);
 
-        assertThat(result).isNotNull();
         verifyNoInteractions(chatRoomRepository);
     }
 
@@ -256,6 +275,70 @@ class StompAuthChannelInterceptorTest {
         // registry.get(SID) 기본값 Optional.empty() → resolveAuthenticatedMemberId 에서 예외
         assertThatThrownBy(() -> interceptor.preSend(sendMessage(), channel))
                 .isInstanceOf(MessageDeliveryException.class);
+    }
+
+    // ── onRoomSubscribed ──────────────────────────────────────
+
+    @Test
+    @DisplayName("JOINED 멤버가 구독하면 revoke를 호출하지 않는다")
+    void onRoomSubscribed_JOINED멤버_revoke없음() {
+        given(registry.getWsSession(SID)).willReturn(Optional.of(wsSession));
+        stubAuthenticatedSession(MEMBER_ID);
+        given(accessChecker.canSubscribeForUpdate(any(), any())).willReturn(true);
+
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/1"));
+
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("BAN된 멤버가 구독하면 revokeRoomSubscriptionByMember를 호출한다")
+    void onRoomSubscribed_BAN된멤버_revoke호출() {
+        given(registry.getWsSession(SID)).willReturn(Optional.of(wsSession));
+        stubAuthenticatedSession(MEMBER_ID);
+        given(accessChecker.canSubscribeForUpdate(any(), any())).willReturn(false);
+
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/1"));
+
+        verify(registry).revokeRoomSubscriptionByMember(MEMBER_ID, 1L);
+    }
+
+    @Test
+    @DisplayName("익명 유저(memberId 없음)는 접근 체크를 생략한다")
+    void onRoomSubscribed_익명유저_체크생략() {
+        given(registry.getWsSession(SID)).willReturn(Optional.of(wsSession));
+
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/1"));
+
+        verifyNoInteractions(accessChecker);
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("방 topic이 아닌 destination은 체크를 생략한다")
+    void onRoomSubscribed_비방destination_체크생략() {
+        interceptor.onRoomSubscribed(subscribeEvent("/user/queue/errors"));
+
+        verifyNoInteractions(accessChecker);
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("roomId 파싱이 불가능한 destination은 체크를 생략한다")
+    void onRoomSubscribed_잘못된destination형식_체크생략() {
+        interceptor.onRoomSubscribed(subscribeEvent("/topic/rooms/not-a-number"));
+
+        verifyNoInteractions(accessChecker);
+        verify(registry, never()).revokeRoomSubscriptionByMember(any(), any());
+    }
+
+    private SessionSubscribeEvent subscribeEvent(String destination) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setSessionId(SID);
+        accessor.setSubscriptionId("sub-1");
+        accessor.setDestination(destination);
+        return new SessionSubscribeEvent(new Object(),
+                MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders()));
     }
 
     // ── 기타 커맨드 ───────────────────────────────────────────

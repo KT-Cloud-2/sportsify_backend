@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -16,6 +18,16 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
     @Override
     public Notification save(Notification notification) {
         return jpaRepository.save(notification);
+    }
+
+    @Override
+    public List<Notification> saveAll(List<Notification> notifications) {
+        return jpaRepository.saveAll(notifications);
+    }
+
+    @Override
+    public Set<Long> findExistingMemberIdsByEventId(Long eventId, List<Long> memberIds) {
+        return jpaRepository.findMemberIdsByEventIdAndMemberIdIn(eventId, memberIds);
     }
 
     @Override

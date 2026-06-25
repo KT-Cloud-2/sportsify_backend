@@ -5,6 +5,7 @@ import com.sportsify.notification.infrastructure.config.NotificationProperties;
 import com.sportsify.notification.infrastructure.config.RedisStreamsConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.stream.PendingMessage;
 import org.springframework.data.redis.connection.stream.RecordId;
@@ -15,12 +16,13 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class StreamMaintenanceScheduler {
+public class StreamMaintenanceScheduler implements SmartLifecycle {
 
     private static final Map<String, NotificationEventType> STREAM_TO_EVENT =
             NotificationEventType.streamKeyMap();
@@ -29,13 +31,32 @@ public class StreamMaintenanceScheduler {
     private final PelMessageProcessor pelMessageProcessor;
     private final NotificationProperties properties;
 
+    private final AtomicBoolean running = new AtomicBoolean(false);
+
+    @Override
+    public void start() {
+        running.set(true);
+    }
+
+    @Override
+    public void stop() {
+        running.set(false);
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running.get();
+    }
+
     @Scheduled(cron = "${notification.scheduler.pel-reclaim-cron}")
     public void reclaimPendingMessages() {
+        if (!running.get()) return;
         STREAM_TO_EVENT.forEach(this::reclaimForStream);
     }
 
     @Scheduled(cron = "${notification.scheduler.stream-trim-cron}")
     public void trimStreams() {
+        if (!running.get()) return;
         for (String streamKey : RedisStreamsConfig.STREAM_KEYS) {
             Long removed = redisTemplate.opsForStream()
                     .trim(streamKey, properties.stream().maxLen(), true);

@@ -3,6 +3,7 @@ package com.sportsify.chat.presentation;
 import com.sportsify.chat.application.message.service.MessageService;
 import com.sportsify.chat.domain.model.event.ErrorEventType;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
+import com.sportsify.chat.infrastructure.webSocket.WebSocketMetrics;
 import com.sportsify.chat.presentation.message.controller.ChatStompController;
 import com.sportsify.chat.presentation.message.dto.ChatReadPayload;
 import com.sportsify.chat.presentation.message.dto.ChatSendPayload;
@@ -22,10 +23,10 @@ import java.security.Principal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,13 +41,21 @@ class ChatStompControllerTest {
     MessageService messageService;
     @Mock
     ChatEventPublisher chatEventPublisher;
+    @Mock
+    WebSocketMetrics webSocketMetrics;
+    @Mock
+    Executor virtualThreadExecutor;
 
     ChatStompController controller;
     Principal principal = () -> String.valueOf(MEMBER_ID);
 
     @BeforeEach
     void setUp() {
-        controller = new ChatStompController(messageService, chatEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC));
+        controller = new ChatStompController(messageService, chatEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC), webSocketMetrics, virtualThreadExecutor);
+        lenient().doAnswer(inv -> { inv.getArgument(0, Runnable.class).run(); return null; })
+                .when(virtualThreadExecutor).execute(any());
+        lenient().doAnswer(inv -> { inv.getArgument(0, Runnable.class).run(); return null; })
+                .when(webSocketMetrics).recordMessageDuration(any());
     }
 
     // ── send ──────────────────────────────────────────────────
@@ -63,34 +72,27 @@ class ChatStompControllerTest {
     }
 
     @Test
-    @DisplayName("send 중 BusinessException 발생 시 에러 응답이 유저에게 발행된다")
-    void send_BusinessException_에러발행() {
-        ChatSendPayload payload = new ChatSendPayload(CLIENT_MESSAGE_ID, ROOM_ID, "TEXT", "안녕하세요");
+    @DisplayName("handleBusinessException은 MESSAGE_FAILED 이벤트와 에러 코드·메시지를 담은 ErrorResponse를 반환한다")
+    void handleBusinessException_에러응답_구조검증() {
         BusinessException ex = new BusinessException(ErrorCode.FORBIDDEN, "전송 불가");
 
-        willThrow(ex)
-                .given(messageService)
-                .send(any(), eq(MEMBER_ID));
+        ErrorResponse result = controller.handleBusinessException(ex);
 
-        controller.send(payload, principal);
+        assertThat(result.event()).isEqualTo(ErrorEventType.MESSAGE_FAILED.name());
+        assertThat(result.errorCode()).isEqualTo(ErrorCode.FORBIDDEN.toString());
+        assertThat(result.message()).isEqualTo("전송 불가");
+        assertThat(result.clientMessageId()).isNull();
+    }
 
-        ArgumentCaptor<ErrorResponse> payloadCaptor = ArgumentCaptor.forClass(ErrorResponse.class);
+    @Test
+    @DisplayName("handleException은 MESSAGE_FAILED 이벤트와 고정 메시지를 담은 ErrorResponse를 반환한다")
+    void handleException_에러응답_구조검증() {
+        ErrorResponse result = controller.handleException();
 
-        verify(chatEventPublisher).publishToUser(
-                eq(MEMBER_ID),
-                payloadCaptor.capture(),
-                eq("/queue/errors")
-        );
-
-        ErrorResponse error = payloadCaptor.getValue();
-
-        assertThat(error.event()).isEqualTo(ErrorEventType.MESSAGE_FAILED.name());
-
-        assertThat(error.clientMessageId()).isEqualTo(CLIENT_MESSAGE_ID);
-
-        assertThat(error.errorCode()).isEqualTo(ErrorCode.FORBIDDEN.toString());
-
-        assertThat(error.message()).isEqualTo("전송 불가");
+        assertThat(result.event()).isEqualTo(ErrorEventType.MESSAGE_FAILED.name());
+        assertThat(result.message()).isEqualTo("메시지 전송에 실패했습니다.");
+        assertThat(result.errorCode()).isNull();
+        assertThat(result.clientMessageId()).isNull();
     }
 
     // ── markRead ──────────────────────────────────────────────

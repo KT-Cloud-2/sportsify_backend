@@ -47,13 +47,14 @@ public class SecurityConfig {
             "/api/chat/rooms/**",
             "/api/chat/messages/getMessages/**",
             "/ws/chat/**",
-            "/actuator/prometheus"
+            "/actuator/prometheus",
+            "/actuator/metrics/**"
     );
 
     private static final List<String> LOCAL_ONLY_PATHS = List.of(
             "/dev/**", "/notification-test.html", "/dev-test.html", "/checkout.html", "/success.html", "/fail.html"
     );
-    private static final List<String> SSE_PATHS = List.of(
+    private static final List<String> SSE_PUBLIC_PATHS = List.of(
             "/api/notifications/stream"
     );
 
@@ -69,7 +70,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtProvider, redisTemplate, SSE_PATHS);
+        return new JwtAuthenticationFilter(jwtProvider, redisTemplate);
     }
 
     @Bean
@@ -80,12 +81,15 @@ public class SecurityConfig {
             publicPaths.addAll(LOCAL_ONLY_PATHS);
         }
 
+        publicPaths.addAll(SSE_PUBLIC_PATHS);
+
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicPaths.toArray(String[]::new)).permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2

@@ -48,7 +48,7 @@ public class MessageService {
         MemberId id = MemberId.of(memberId);
         MessageContent content = MessageContent.of(request.content());
 
-        ChatRoom chatRoom = chatRoomRepo.findByIdForUpdateWrite(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value()));
+        ChatRoom chatRoom = chatRoomRepo.findById(chatRoomId).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + chatRoomId.value()));
         ChatRoomStatus chatRoomStatus = chatRoom.getStatus();
 
         switch (chatRoomStatus) {
@@ -58,7 +58,7 @@ public class MessageService {
             }
             default -> throw new IllegalStateException("Unhandled status " + chatRoomStatus);
         }
-        MemberStatus memberStatus = chatRoomMemberRepo.findByRoomAndMemberForUpdate(chatRoomId, id).orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "User : " + id.value() + " is not room member : " + chatRoomId.value())).getStatus();
+        MemberStatus memberStatus = chatRoomMemberRepo.findByRoomAndMember(chatRoomId, id).orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "User : " + id.value() + " is not room member : " + chatRoomId.value())).getStatus();
 
         switch (memberStatus) {
             case BANNED -> throw new BusinessException(ErrorCode.FORBIDDEN, "Banned user: " + id.value());
@@ -88,17 +88,27 @@ public class MessageService {
      */
     @Transactional
     public MessageDeleteResponse delete(Long messageId, Long memberId) {
-
         Message message = messageRepo.findByIdForUpdate(MessageId.of(messageId)).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Message not found " + messageId));
         if (message.isDeleted()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Message not found " + messageId);
         }
+        ChatRoom chatRoom = chatRoomRepo.findByIdForUpdateWrite(message.getRoomId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + message.getRoomId().value()));
+        switch (chatRoom.getStatus()) {
+            case DELETED -> throw new BusinessException(ErrorCode.NOT_FOUND, "Cannot find chat room: " + message.getRoomId().value());
+            case ARCHIVED -> throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "This room is archived: " + message.getRoomId().value());
+            case ACTIVE -> {
+            }
+            default -> throw new IllegalStateException("Unhandled status " + chatRoom.getStatus());
+        }
         MemberId id = MemberId.of(memberId);
-        if (message.getSenderId() == null || !message.getSenderId().equals(id)) {
+        boolean isSender = message.getSenderId() != null && message.getSenderId().equals(id);
+        boolean isRoomCreator = chatRoom.getCreatedBy().equals(id);
+        if (!isSender && !isRoomCreator) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot delete other user's message");
         }
         Instant now = Instant.now(clock);
-        message.softDelete(id, now);
+        message.softDelete(now);
         Message savedMessage = messageRepo.save(message);
         savedMessage.getEvents().forEach(eventPublisher::publishEvent);
         return MessageDeleteResponse.from(savedMessage);

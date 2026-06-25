@@ -5,20 +5,29 @@ import com.sportsify.common.exception.ErrorCode;
 import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.domain.model.Notification;
+import com.sportsify.notification.domain.model.NotificationSetting;
+import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
+import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -33,7 +42,55 @@ class NotificationServiceTest {
     private NotificationEventRepository eventRepository;
 
     @Mock
+    private NotificationSettingRepository settingRepository;
+
+    @Mock
+    private NotificationChannelRepository channelRepository;
+
+    @Mock
     private SseNotificationPort sseNotificationPort;
+
+    // ─── subscribe ────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("SSE 구독")
+    class SSE구독 {
+
+        @Test
+        @DisplayName("설정이 존재하면 저장된 설정으로 SSE 구독을 시작한다")
+        void subscribe_설정존재_저장된설정사용() {
+            // GIVEN
+            NotificationSetting saved = NotificationSetting.createDefault(1L);
+            SseEmitter emitter = new SseEmitter();
+            given(settingRepository.findByMemberId(1L)).willReturn(Optional.of(saved));
+            given(sseNotificationPort.subscribe(eq(1L), eq(saved), any())).willReturn(emitter);
+
+            // WHEN
+            SseEmitter result = notificationService.subscribe(1L);
+
+            // THEN
+            assertThat(result).isSameAs(emitter);
+            verify(settingRepository).findByMemberId(1L);
+        }
+
+        @Test
+        @DisplayName("설정이 없으면 기본값으로 SSE 구독을 시작하고 DB에 저장하지 않는다")
+        void subscribe_설정없음_기본설정사용() {
+            // GIVEN
+            SseEmitter emitter = new SseEmitter();
+            given(settingRepository.findByMemberId(1L)).willReturn(Optional.empty());
+            given(sseNotificationPort.subscribe(eq(1L), any(NotificationSetting.class), any())).willReturn(emitter);
+
+            // WHEN
+            SseEmitter result = notificationService.subscribe(1L);
+
+            // THEN
+            assertThat(result).isSameAs(emitter);
+            verify(settingRepository, never()).save(any());
+        }
+    }
+
+    // ─── markRead ─────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("읽지 않은 알림을 읽음 처리한다")

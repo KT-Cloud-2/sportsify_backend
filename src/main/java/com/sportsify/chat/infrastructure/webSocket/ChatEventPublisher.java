@@ -1,51 +1,52 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
 import com.sportsify.chat.domain.model.event.ErrorEventType;
+import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ChatEventPublisher {
-    
-    public static final String ROOM_TOPIC_PREFIX = "/topic/rooms/";
-    public static final String TYPING_SUFFIX = "/typing";
-    public static final String SESSION_ERROR_QUEUE_PREFIX = "/queue/errors-user";
-    public static final String SESSION_REPLAY_QUEUE_PREFIX = "/queue/replay-user";
 
-    private final SimpMessagingTemplate template;
+    public static final String ROOM_TOPIC_PREFIX = "/topic/rooms/";
+
+    private final WebSocketMetrics webSocketMetrics;
+    private final DirectRoomMessageSender directRoomMessageSender;
 
     public void publishToRoom(long roomId, Object payload) {
-        template.convertAndSend(ROOM_TOPIC_PREFIX + roomId, payload);
+        // SimpleBroker 경유 (DefaultSubscriptionRegistry ReadWriteLock 경쟁 발생)
+//        template.convertAndSend(ROOM_TOPIC_PREFIX + roomId, payload);
+        directRoomMessageSender.sendToRoom(roomId, payload);
+        webSocketMetrics.recordMessageOut();
     }
 
     public void publishToRoomTyping(long roomId, Object payload) {
-        template.convertAndSend(ROOM_TOPIC_PREFIX + roomId + TYPING_SUFFIX, payload);
+        directRoomMessageSender.sendToRoom(roomId, payload);
     }
 
     public void publishToUser(long userId, Object payload, String queue) {
-        template.convertAndSendToUser(String.valueOf(userId), queue, payload);
-    }
-
-    public void publishErrorToSession(String sid, Object payload) {
-        template.convertAndSend(SESSION_ERROR_QUEUE_PREFIX + sid, payload);
-    }
-
-    public void publishReplayToSession(String sid, Object payload) {
-        template.convertAndSend(SESSION_REPLAY_QUEUE_PREFIX + sid, payload);
+        directRoomMessageSender.sendToUser(userId, queue, payload);
     }
 
     @EventListener
     public void onTokenExpired(TokenExpiredEvent event) {
-        publishErrorToSession(event.sessionId(), Map.of("type", ErrorEventType.TOKEN_EXPIRED));
+        publishToUser(event.memberId(), Map.of("type", ErrorEventType.TOKEN_EXPIRED), "/user/queue/session-errors");
     }
 
     @EventListener
     public void onRoomSubscriptionRevoked(RoomSubscriptionRevokedEvent event) {
-        publishErrorToSession(event.sessionId(), Map.of("type", ErrorEventType.KICKED_FROM_ROOM, "roomId", event.roomId()));
+        log.info(
+                "[BAN SEND] memberId={}, sessionId={}, destination={}",
+                event.memberId(),
+                event.sessionId(),
+                event.roomId()
+        );
+        publishToUser(event.memberId(), Map.of("type", ErrorEventType.KICKED_FROM_ROOM, "roomId", event.roomId()), "/user/queue/session-errors");
     }
 }

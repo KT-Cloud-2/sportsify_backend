@@ -1,15 +1,21 @@
 package com.sportsify.notification.infrastructure;
 
+import com.sportsify.notification.domain.model.NotificationSetting;
 import com.sportsify.notification.infrastructure.sse.SseEmitterManager;
 import com.sportsify.notification.support.NotificationIntegrationTestSupport;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,7 +26,15 @@ import static org.mockito.Mockito.verify;
 
 class SseEmitterManagerTest {
 
-    private final SseEmitterManager manager = new SseEmitterManager(NotificationIntegrationTestSupport.defaultProperties());
+    private SseEmitterManager manager;
+    private NotificationSetting defaultSetting;
+
+    @BeforeEach
+    void setUp() {
+        manager = new SseEmitterManager(NotificationIntegrationTestSupport.defaultProperties(), new SimpleMeterRegistry(), Executors.newVirtualThreadPerTaskExecutor());
+        ReflectionTestUtils.invokeMethod(manager, "initMetrics");
+        defaultSetting = NotificationSetting.createDefault(1L);
+    }
 
     // ─── 연결 (subscribe) ────────────────────────────────────────────────
 
@@ -32,7 +46,7 @@ class SseEmitterManagerTest {
         @DisplayName("subscribe 후 isConnected가 true를 반환한다")
         void subscribe_연결상태true() {
             // GIVEN & WHEN
-            manager.subscribe(1L);
+            manager.subscribe(1L, defaultSetting, List.of());
 
             // THEN
             assertThat(manager.isConnected(1L)).isTrue();
@@ -43,11 +57,11 @@ class SseEmitterManagerTest {
         void subscribe_중복구독_기존emitter교체() {
             try (MockedConstruction<SseEmitter> mocked = mockConstruction(SseEmitter.class)) {
                 // GIVEN
-                manager.subscribe(1L);
+                manager.subscribe(1L, defaultSetting, List.of());
                 SseEmitter first = mocked.constructed().get(0);
 
                 // WHEN
-                manager.subscribe(1L);
+                manager.subscribe(1L, defaultSetting, List.of());
 
                 // THEN: 기존 emitter가 complete 되었어야 한다
                 verify(first).complete();
@@ -67,7 +81,7 @@ class SseEmitterManagerTest {
         void onCompletion_emitter제거() {
             try (MockedConstruction<SseEmitter> mocked = mockConstruction(SseEmitter.class)) {
                 // GIVEN
-                manager.subscribe(1L);
+                manager.subscribe(1L, defaultSetting, List.of());
 
                 // WHEN: onCompletion에 등록된 람다를 직접 실행
                 ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
@@ -84,7 +98,7 @@ class SseEmitterManagerTest {
         void onTimeout_emitter제거() {
             try (MockedConstruction<SseEmitter> mocked = mockConstruction(SseEmitter.class)) {
                 // GIVEN
-                manager.subscribe(1L);
+                manager.subscribe(1L, defaultSetting, List.of());
 
                 // WHEN: 타임아웃 발생 시뮬레이션
                 ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
@@ -101,7 +115,7 @@ class SseEmitterManagerTest {
         void onError_emitter제거() {
             try (MockedConstruction<SseEmitter> mocked = mockConstruction(SseEmitter.class)) {
                 // GIVEN
-                manager.subscribe(1L);
+                manager.subscribe(1L, defaultSetting, List.of());
 
                 // WHEN: 클라이언트 연결 오류 시뮬레이션
                 ArgumentCaptor<Consumer> captor = ArgumentCaptor.forClass(Consumer.class);
@@ -121,7 +135,7 @@ class SseEmitterManagerTest {
                             .when(mock).send(any(SseEmitter.SseEventBuilder.class)))) {
 
                 // GIVEN
-                manager.subscribe(1L);
+                manager.subscribe(1L, defaultSetting, List.of());
 
                 // WHEN: send 중 네트워크 오류 발생
                 manager.send(1L, "data");
@@ -135,7 +149,7 @@ class SseEmitterManagerTest {
         @DisplayName("unsubscribe 호출 시 emitter가 제거된다")
         void unsubscribe_emitter제거() {
             // GIVEN
-            manager.subscribe(1L);
+            manager.subscribe(1L, defaultSetting, List.of());
 
             // WHEN
             manager.unsubscribe(1L);

@@ -22,7 +22,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
-    private final List<String> ssePaths;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -40,8 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String resolveToken(HttpServletRequest request) {
-        String token = resolveBearerToken(request);
-        return token != null ? token : resolveSseToken(request);
+        return resolveBearerToken(request);
     }
 
     private String resolveBearerToken(HttpServletRequest request) {
@@ -50,17 +48,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return header.substring(7);
         }
         return null;
-    }
-
-    private String resolveSseToken(HttpServletRequest request) {
-        String accept = request.getHeader("Accept");
-        if (!StringUtils.hasText(accept) || !accept.contains("text/event-stream")) {
-            return null;
-        }
-        if (!ssePaths.contains(request.getRequestURI())) {
-            return null;
-        }
-        return request.getParameter("token");
     }
 
     private boolean isBlacklisted(String token) {

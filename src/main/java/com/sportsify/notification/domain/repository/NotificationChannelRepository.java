@@ -10,6 +10,7 @@ public interface NotificationChannelRepository {
     Optional<NotificationChannel> findById(Long id);
     Optional<NotificationChannel> findByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType);
     List<NotificationChannel> findByMemberIdAndEnabledTrue(Long memberId);
+    List<NotificationChannel> findByMemberIdInAndEnabledTrue(List<Long> memberIds);
     boolean existsByMemberIdAndChannelType(Long memberId, NotificationChannelType channelType);
     int countByMemberIdForUpdate(Long memberId);
     void delete(NotificationChannel channel);

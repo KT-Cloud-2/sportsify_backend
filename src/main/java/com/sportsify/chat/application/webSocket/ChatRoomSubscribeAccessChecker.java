@@ -1,6 +1,7 @@
 package com.sportsify.chat.application.webSocket;
 
 import com.sportsify.chat.domain.model.chatRoom.ChatRoom;
+import com.sportsify.chat.domain.model.chatRoom.ChatRoomId;
 import com.sportsify.chat.domain.model.chatRoom.ChatRoomType;
 import com.sportsify.chat.domain.model.chatRoom.MemberId;
 import com.sportsify.chat.domain.repository.ChatRoomMemberRepository;
@@ -35,5 +36,12 @@ public class ChatRoomSubscribeAccessChecker implements ChatRoomAccessChecker {
         return memberId.filter(id -> chatRoomMemberRepository.existsJoinedByRoomAndMember(chatRoom.getId(), id)).isPresent();
     }
 
+    @Override
+    @Transactional
+    public boolean canSubscribeForUpdate(ChatRoomId roomId, Optional<MemberId> memberId) {
+        return memberId.filter(id ->
+                chatRoomMemberRepository.existsJoinedByRoomAndMemberForUpdate(roomId, id)
+        ).isPresent();
+    }
 
 }

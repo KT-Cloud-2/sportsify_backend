@@ -44,8 +44,9 @@ public abstract class NotificationIntegrationTestSupport extends RepositoryTestS
                 new NotificationProperties.Channel(2),
                 new NotificationProperties.Fanout(500),
                 new NotificationProperties.Payload(30),
-                new NotificationProperties.Sse(1800000),
-                new NotificationProperties.Slack("", "", Duration.ofMinutes(10))
+                new NotificationProperties.Sse(1800000, "0/10 * * * * *", 15000),
+                new NotificationProperties.Slack("", "", Duration.ofMinutes(10)),
+                new NotificationProperties.Buffer(500, Duration.ofSeconds(1))
         );
     }
 }

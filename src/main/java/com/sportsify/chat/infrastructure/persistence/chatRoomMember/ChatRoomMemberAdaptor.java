@@ -131,6 +131,11 @@ public class ChatRoomMemberAdaptor implements ChatRoomMemberRepository {
         return jpaRepo.existsByRoomIdAndMemberIdAndStatus(roomId.value(), memberId.value(), "JOINED");
     }
 
+    @Override
+    public boolean existsJoinedByRoomAndMemberForUpdate(ChatRoomId roomId, MemberId memberId) {
+        return jpaRepo.existsJoinedByRoomAndMemberForUpdate(roomId.value(), memberId.value());
+    }
+
     /**
      * fitler 없이 모든 user를 delete 시키기 때문에 주의가 필요합니다
      */

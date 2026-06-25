@@ -53,6 +53,11 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
+    public List<Long> findPendingOrderIdsWithCompletedPayment() {
+        return jpaRepository.findPendingOrderIdsWithCompletedPayment();
+    }
+
+    @Override
     public void bulkUpdateOrders(List<Long> ids, OrderStatus status, LocalDateTime now) {
         jpaRepository.bulkUpdateOrders(ids, status, now);
     }

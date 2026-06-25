@@ -1,6 +1,7 @@
 package com.sportsify.ticketing.application;
 
 import com.sportsify.game.domain.repository.GameSeatRepository;
+import com.sportsify.ticketing.application.processor.OrderSyncProcessor;
 import com.sportsify.ticketing.application.service.OrderService;
 import com.sportsify.ticketing.domain.model.OrderSeatStatus;
 import com.sportsify.ticketing.domain.model.OrderStatus;
@@ -35,6 +36,8 @@ class OrderServiceTest {
     private OrderSeatRepository orderSeatRepository;
     @Mock
     private GameSeatRepository gameSeatRepository;
+    @Mock
+    private OrderSyncProcessor orderSyncProcessor;
 
     @Test
     @DisplayName("만료된 주문이 없을 때 그대로 return한다.")
@@ -79,6 +82,33 @@ class OrderServiceTest {
         verify(gameSeatRepository).bulkReleaseGameSeatsByOrderIds(anyList());
         verify(orderSeatRepository).bulkUpdateOrderSeats(anyList(), any());
         verify(orderRepository).bulkUpdateOrders(anyList(), any(), any());
+    }
+
+    @Test
+    @DisplayName("완료 미처리된 주문들이 있을 때 각각 완료 처리가 진행된다.")
+    void success_completeStuckOrders(CapturedOutput output) {
+        List<Long> stuckOrders = List.of(1L, 2L);
+        when(orderRepository.findPendingOrderIdsWithCompletedPayment()).thenReturn(stuckOrders);
+
+        int successCount = orderService.completeStuckOrders();
+
+        verify(orderSyncProcessor, times(stuckOrders.size())).completeSingleOrder(anyLong());
+        assertThat(output.getOut()).contains("[ORDER_SCHEDULER] Sync complete size: " + stuckOrders.size());
+        assertThat(successCount).isEqualTo(stuckOrders.size());
+    }
+
+    @Test
+    @DisplayName("완료 재처리 주문 중, 실패한 건은 그대로 넘어간다.")
+    void successAndErrorLog_completeStuckOrders(CapturedOutput output) {
+        List<Long> stuckOrders = List.of(1L, 2L);
+        when(orderRepository.findPendingOrderIdsWithCompletedPayment()).thenReturn(stuckOrders);
+        doNothing().when(orderSyncProcessor).completeSingleOrder(stuckOrders.getFirst());
+        doThrow(new RuntimeException("fail")).when(orderSyncProcessor).completeSingleOrder(stuckOrders.getLast());
+
+        int successCount = orderService.completeStuckOrders();
+
+        assertThat(output.getOut()).contains("[ORDER_SCHEDULER_SYNC_FAIL] 주문 ID " + stuckOrders.getLast());
+        assertThat(successCount).isEqualTo(1);
     }
 
     @Test

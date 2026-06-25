@@ -73,8 +73,8 @@ class MessageServiceTest {
         ChatRoomMember member = joinedMember(10L, 1L);
         Message saved = message(100L, 10L, 1L, "안녕하세요", MessageStatus.ACTIVE);
 
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(room));
-        given(chatRoomMemberRepo.findByRoomAndMemberForUpdate(ChatRoomId.of(10L), MemberId.of(1L))).willReturn(Optional.of(member));
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(room));
+        given(chatRoomMemberRepo.findByRoomAndMember(ChatRoomId.of(10L), MemberId.of(1L))).willReturn(Optional.of(member));
         given(messageRepo.save(any())).willReturn(saved);
 
         MessageCreateResponse result = messageService.send(
@@ -93,7 +93,7 @@ class MessageServiceTest {
     @DisplayName("존재하지 않는 채팅방에 메시지 전송 시 예외가 발생한다")
     void send_채팅방없음_예외() {
         stubClock();
-        given(chatRoomRepo.findByIdForUpdateWrite(any())).willReturn(Optional.empty());
+        given(chatRoomRepo.findById(any())).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> messageService.send(
                 new MessageCreateRequest(null, 10L, "TEXT", "안녕"), 1L))
@@ -113,7 +113,7 @@ class MessageServiceTest {
         ChatRoom archived = ChatRoom.restore(
                 ChatRoomId.of(10L), ChatRoomName.of("방"), ChatRoomType.GAME, null,
                 GameId.of(5L), NOW, NOW, ChatRoomStatus.ARCHIVED, MemberId.of(1L));
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(archived));
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(archived));
 
         assertThatThrownBy(() -> messageService.send(
                 new MessageCreateRequest(null, 10L, "TEXT", "안녕"), 1L))
@@ -133,7 +133,7 @@ class MessageServiceTest {
         ChatRoom deleted = ChatRoom.restore(
                 ChatRoomId.of(10L), ChatRoomName.of("방"), ChatRoomType.GAME, null,
                 GameId.of(5L), NOW, NOW, ChatRoomStatus.DELETED, MemberId.of(1L));
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(deleted));
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(deleted));
 
         assertThatThrownBy(() -> messageService.send(
                 new MessageCreateRequest(null, 10L, "TEXT", "안녕"), 1L))
@@ -143,15 +143,15 @@ class MessageServiceTest {
 
     /**
      * 방의 멤버가 아닌 사용자는 메시지를 전송할 수 없다.
-     * findByRoomAndMemberForUpdate가 empty 반환 시 FORBIDDEN 예외.
-     * Mock: findByIdForUpdateWrite → ACTIVE 방, findByRoomAndMemberForUpdate → empty
+     * findByRoomAndMember가 empty 반환 시 FORBIDDEN 예외.
+     * Mock: findByIdForUpdateWrite → ACTIVE 방, findByRoomAndMember → empty
      */
     @Test
     @DisplayName("채팅방 멤버가 아닌 사용자가 메시지 전송 시 예외가 발생한다")
     void send_멤버아님_예외() {
         stubClock();
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
-        given(chatRoomMemberRepo.findByRoomAndMemberForUpdate(any(), any())).willReturn(Optional.empty());
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
+        given(chatRoomMemberRepo.findByRoomAndMember(any(), any())).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> messageService.send(
                 new MessageCreateRequest(null, 10L, "TEXT", "안녕"), 1L))
@@ -161,14 +161,14 @@ class MessageServiceTest {
     /**
      * BANNED 멤버는 메시지 전송이 차단된다. BAN 제재의 핵심 효과.
      * 실패 포인트: switch에서 BANNED 케이스 누락 시 BAN 멤버가 메시지를 전송함.
-     * Mock: findByRoomAndMemberForUpdate → BANNED 멤버 반환
+     * Mock: findByRoomAndMember → BANNED 멤버 반환
      */
     @Test
     @DisplayName("BANNED 멤버가 메시지 전송 시 예외가 발생한다")
     void send_BANNED멤버_예외() {
         stubClock();
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
-        given(chatRoomMemberRepo.findByRoomAndMemberForUpdate(any(), any()))
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
+        given(chatRoomMemberRepo.findByRoomAndMember(any(), any()))
                 .willReturn(Optional.of(memberWithStatus(10L, 1L, MemberStatus.BANNED)));
 
         assertThatThrownBy(() -> messageService.send(
@@ -179,14 +179,14 @@ class MessageServiceTest {
 
     /**
      * LEFT(퇴장) 멤버는 재입장 없이 메시지를 전송할 수 없다.
-     * Mock: findByRoomAndMemberForUpdate → LEFT 멤버 반환
+     * Mock: findByRoomAndMember → LEFT 멤버 반환
      */
     @Test
     @DisplayName("LEFT 멤버가 메시지 전송 시 예외가 발생한다")
     void send_LEFT멤버_예외() {
         stubClock();
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
-        given(chatRoomMemberRepo.findByRoomAndMemberForUpdate(any(), any()))
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
+        given(chatRoomMemberRepo.findByRoomAndMember(any(), any()))
                 .willReturn(Optional.of(memberWithStatus(10L, 1L, MemberStatus.LEFT)));
 
         assertThatThrownBy(() -> messageService.send(
@@ -197,14 +197,14 @@ class MessageServiceTest {
     /**
      * INVITED(초대 수락 전) 멤버는 아직 방 구성원이 아니므로 메시지 전송 불가.
      * 초대 수락 전 메시지 전송을 허용하면 방 입장 전 메시지가 표시되는 UX 오류 발생.
-     * Mock: findByRoomAndMemberForUpdate → INVITED 멤버 반환
+     * Mock: findByRoomAndMember → INVITED 멤버 반환
      */
     @Test
     @DisplayName("초대 수락 전(INVITED) 멤버가 메시지 전송 시 예외가 발생한다")
     void send_INVITED멤버_예외() {
         stubClock();
-        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
-        given(chatRoomMemberRepo.findByRoomAndMemberForUpdate(any(), any()))
+        given(chatRoomRepo.findById(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
+        given(chatRoomMemberRepo.findByRoomAndMember(any(), any()))
                 .willReturn(Optional.of(memberWithStatus(10L, 1L, MemberStatus.INVITED)));
 
         assertThatThrownBy(() -> messageService.send(
@@ -221,6 +221,7 @@ class MessageServiceTest {
         Message msg = message(100L, 10L, 1L, "삭제할 메시지", MessageStatus.ACTIVE);
 
         given(messageRepo.findByIdForUpdate(MessageId.of(100L))).willReturn(Optional.of(msg));
+        given(chatRoomRepo.findByIdForUpdateWrite(ChatRoomId.of(10L))).willReturn(Optional.of(chatRoom(10L, ChatRoomType.GAME)));
         given(messageRepo.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         MessageDeleteResponse result = messageService.delete(100L, 1L);

@@ -1,3 +1,3 @@
 package com.sportsify.chat.infrastructure.webSocket;
 
-public record TokenExpiredEvent(String sessionId) {}
+public record TokenExpiredEvent(String sessionId, long memberId) {}

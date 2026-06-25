@@ -1,14 +1,15 @@
 package com.sportsify.chat.infrastructure;
 
-import com.sportsify.chat.infrastructure.webSocket.RoomSubscriptionRevokedEvent;
 import com.sportsify.chat.infrastructure.webSocket.TokenExpiredEvent;
 import com.sportsify.chat.infrastructure.webSocket.WebSocketSessionRegistry;
+import com.sportsify.chat.infrastructure.webSocket.dto.RoomSubscriptionRevokedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -21,13 +22,13 @@ import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class WebSocketSessionRegistryTest {
@@ -58,7 +59,7 @@ class WebSocketSessionRegistryTest {
     // ── register ─────────────────────────────────────────────
 
     @Test
-    @DisplayName("register 후 get으로 SessionInfo를 조회할 수 있다")
+    @DisplayName("register 후 SessionInfo를 조회할 수 있다")
     void register_세션저장_조회성공() {
         registerDefault();
 
@@ -70,21 +71,18 @@ class WebSocketSessionRegistryTest {
         assertThat(info.get().role()).isEqualTo(ROLE);
         assertThat(info.get().tokenExpiresAt()).isEqualTo(TOKEN_EXPIRY);
     }
-
-    /**
-     * wsSessions.put이 실패하면 sessions에서 해당 항목을 제거해 부분 등록 상태를 방지한다.
-     * 롤백이 누락되면 sessions에 항목이 남아 있지만 wsSessions에는 없는 불일치 상태가 된다.
-     * 실패 포인트: sessions.remove(sid, newInfo) 호출이 누락되면 get(SID)가 Present를 반환한다.
-     */
+    
     @Test
     @DisplayName("register 도중 wsSessions 저장이 실패하면 sessions에서 해당 세션이 롤백된다")
     void register_롤백_예외시sessions정리() throws Exception {
-        injectFailingWsSessions();
+        Map<String, WebSocketSession> failingMap = injectFailingWsSessions();
 
         assertThatThrownBy(() -> registry.register(SID, wsSession, MEMBER_ID, ROLE, TOKEN_EXPIRY, CONNECTED_AT))
                 .isInstanceOf(RuntimeException.class);
 
-        assertThat(registry.get(SID)).isEmpty();
+        assertThat(sessions()).doesNotContainKey(SID);
+        verify(failingMap).remove(SID);
+        assertThat(userSessions()).doesNotContainKey(MEMBER_ID);
     }
 
     // ── subscribeRoom ─────────────────────────────────────────
@@ -155,7 +153,7 @@ class WebSocketSessionRegistryTest {
         verify(ws2, never()).close(any());
         // 방 구독 인덱스에서 제거됨
         assertThat(registry.get(SID).get().subscribedRooms()).doesNotContainValue(10L);
-        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L));
+        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L, MEMBER_ID));
     }
 
     // ── revokeAllRoomSubscriptions ────────────────────────────
@@ -176,8 +174,8 @@ class WebSocketSessionRegistryTest {
         verify(wsSession, never()).close(any());
         verify(ws2, never()).close(any());
         // 두 세션 모두 방 구독 해제 이벤트 발행
-        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L));
-        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent("sid-2", 10L));
+        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent(SID, 10L, MEMBER_ID));
+        verify(eventPublisher).publishEvent(new RoomSubscriptionRevokedEvent("sid-2", 10L, 99L));
     }
 
     // ── onDisconnect ──────────────────────────────────────────
@@ -208,7 +206,7 @@ class WebSocketSessionRegistryTest {
 
         verify(wsSession, never()).close(any());
         assertThat(registry.get(SID)).isPresent();
-        verify(eventPublisher).publishEvent(new TokenExpiredEvent(SID));
+        verify(eventPublisher).publishEvent(new TokenExpiredEvent(SID, MEMBER_ID));
     }
 
     @Test
@@ -264,12 +262,27 @@ class WebSocketSessionRegistryTest {
     // ── helpers ───────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private void injectFailingWsSessions() throws Exception {
+    private Map<String, WebSocketSession> injectFailingWsSessions() throws Exception {
         Field field = WebSocketSessionRegistry.class.getDeclaredField("wsSessions");
         field.setAccessible(true);
         Map<String, WebSocketSession> failingMap = mock(Map.class);
         doThrow(new RuntimeException("simulated storage failure")).when(failingMap).put(any(), any());
         field.set(registry, failingMap);
+        return failingMap;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, WebSocketSessionRegistry.SessionInfo> sessions() throws Exception {
+        Field field = WebSocketSessionRegistry.class.getDeclaredField("sessions");
+        field.setAccessible(true);
+        return (Map<String, WebSocketSessionRegistry.SessionInfo>) field.get(registry);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<Long, Set<String>> userSessions() throws Exception {
+        Field field = WebSocketSessionRegistry.class.getDeclaredField("userSessions");
+        field.setAccessible(true);
+        return (Map<Long, Set<String>>) field.get(registry);
     }
 
     private SessionDisconnectEvent disconnectEvent(String sid) {

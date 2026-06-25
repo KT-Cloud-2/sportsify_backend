@@ -5,7 +5,7 @@ import com.sportsify.common.notification.NotificationEventType;
 import com.sportsify.common.notification.payload.TicketOpenPayload;
 import com.sportsify.game.domain.model.GameStatus;
 import com.sportsify.game.domain.repository.GameRepository;
-import com.sportsify.ticketing.application.scheduler.OrderExpirationScheduler;
+import com.sportsify.ticketing.application.scheduler.OrderMaintenanceScheduler;
 import com.sportsify.ticketing.application.service.OrderService;
 import com.sportsify.ticketing.domain.model.OrderConstants;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +25,13 @@ public class GameStatusUpdater {
     private final OrderService orderService;
     private final TaskScheduler gameTaskScheduler;
     private final NotificationEventPublisher notificationEventPublisher;
-    private final OrderExpirationScheduler orderExpirationScheduler;
+    private final OrderMaintenanceScheduler orderMaintenanceScheduler;
 
     public void openSale(Long gameId) {
         gameRepository.findByIdForUpdate(gameId).ifPresent(game -> {
             if (game.getStatus() == GameStatus.SCHEDULED) {
                 game.updateStatus(GameStatus.ON_SALE);
-                orderExpirationScheduler.onSaleStarted();
+                orderMaintenanceScheduler.onSaleStarted();
 
                 notificationEventPublisher.publish(
                         NotificationEventType.TICKET_OPEN,
@@ -48,7 +48,7 @@ public class GameStatusUpdater {
         gameRepository.findByIdForUpdate(gameId).ifPresent(game -> {
             if (game.getStatus() == GameStatus.ON_SALE) {
                 game.updateStatus(GameStatus.SALE_CLOSED);
-                orderExpirationScheduler.onSaleEnded();
+                orderMaintenanceScheduler.onSaleEnded();
 
                 gameTaskScheduler.schedule(() -> {
                     orderService.expireUnpaidOrdersBulk();
