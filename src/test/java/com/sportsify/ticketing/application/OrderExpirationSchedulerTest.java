@@ -124,10 +124,10 @@ public class OrderExpirationSchedulerTest extends RepositoryTestSupport {
             ReservationSeatsResponseDto resDto = reservationService.reserveSeat(member.getId(), reqDto);
             Order order = orderRepository.findById(resDto.orderId()).orElseThrow();
 
+            // 💡 데이터 제약 조건 위반을 방지하기 위해 .seatId() 설정을 제외했습니다.
             Payment payment = Payment.builder()
                     .userId(member.getId())
                     .matchId(game.getId())
-                    .seatId(gameSeatIds.get(0))
                     .orderId(order.getId())
                     .tossOrderId("TEST_TOSS_ORDER_" + order.getId())
                     .idempotencyKey("TEST_IDEMPOTENCY_" + order.getId())
