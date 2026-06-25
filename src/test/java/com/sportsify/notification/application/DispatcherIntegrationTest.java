@@ -173,7 +173,7 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
     @Test
     @DisplayName("EMAIL 채널 발송 실패 시 NotificationHistory에 이력이 기록된다")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void 채널발송실패시_NotificationHistory_이력기록() {
+    void 채널발송실패시_NotificationHistory_이력기록() throws InterruptedException {
         transactionTemplate.executeWithoutResult(status ->
                 channelRepository.save(
                         NotificationChannel.create(memberId, NotificationChannelType.EMAIL, "invalid-target@fail.com")));
@@ -187,11 +187,18 @@ class DispatcherIntegrationTest extends NotificationIntegrationTestSupport {
 
         assertThat(notificationCountFor(memberId, event.getId())).isEqualTo(1);
 
-        List<Map<String, Object>> historyRows = jdbcTemplate.queryForList(
-                "SELECT nh.status FROM notification_history nh " +
-                "JOIN notifications n ON nh.notification_id = n.id " +
-                "WHERE n.member_id = ? AND n.event_id = ?",
-                memberId, event.getId());
+        // EMAIL은 비동기 발송이므로 history 저장 완료를 기다린다
+        long deadline = System.currentTimeMillis() + 5_000;
+        List<Map<String, Object>> historyRows = List.of();
+        while (System.currentTimeMillis() < deadline) {
+            historyRows = jdbcTemplate.queryForList(
+                    "SELECT nh.status FROM notification_history nh " +
+                    "JOIN notifications n ON nh.notification_id = n.id " +
+                    "WHERE n.member_id = ? AND n.event_id = ?",
+                    memberId, event.getId());
+            if (!historyRows.isEmpty()) break;
+            Thread.sleep(50);
+        }
 
         assertThat(historyRows).isNotEmpty();
     }

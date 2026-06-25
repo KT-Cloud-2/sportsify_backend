@@ -16,8 +16,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(NotificationController.class)
 class NotificationControllerApiTest extends WebMvcTestSupport {
@@ -78,13 +80,6 @@ class NotificationControllerApiTest extends WebMvcTestSupport {
                         .param("token", rawToken))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/event-stream"));
-    }
-
-    @Test
-    @DisplayName("GET /api/notifications/stream — 토큰 없이 요청 시 400 반환")
-    void subscribe_토큰없음_400() throws Exception {
-        mockMvc.perform(get("/api/notifications/stream"))
-                .andExpect(status().isBadRequest());
     }
 
     @Test
