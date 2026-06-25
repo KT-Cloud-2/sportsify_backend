@@ -12,8 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -59,12 +59,13 @@ public class NotificationController implements NotificationApi {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@RequestParam String token, HttpServletResponse response) throws IOException {
-        if (!jwtProvider.isValidIgnoringExpiry(token)) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return null;
-        }
-        Long memberId = jwtProvider.getMemberIdIgnoringExpiry(token);
+    public SseEmitter subscribe(
+            @RequestParam(required = false) String token,
+            @AuthenticationPrincipal Long principalMemberId,
+            HttpServletResponse response
+    ) throws IOException {
+        Long memberId = resolveSubscriberId(token, principalMemberId, response);
+        if (memberId == null) return null;
         return notificationService.subscribe(memberId);
     }
 
@@ -131,5 +132,20 @@ public class NotificationController implements NotificationApi {
         return ResponseEntity.ok(NotificationChannelResponse.from(
                 notificationSettingService.toggleChannel(memberId, channelId)
         ));
+    }
+
+    private Long resolveSubscriberId(String token, Long principalMemberId, HttpServletResponse response) throws IOException {
+        if (token != null) {
+            if (!jwtProvider.isValidIgnoringExpiry(token)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                return null;
+            }
+            return jwtProvider.getMemberIdIgnoringExpiry(token);
+        }
+        if (principalMemberId != null) {
+            return principalMemberId;
+        }
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+        return null;
     }
 }

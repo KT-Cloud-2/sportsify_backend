@@ -4,6 +4,7 @@ import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.domain.model.NotificationChannel;
 import com.sportsify.notification.domain.model.NotificationSetting;
 import com.sportsify.notification.infrastructure.config.NotificationProperties;
+import com.sportsify.notification.presentation.dto.NotificationResponse;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -77,7 +78,7 @@ public class SseEmitterManager implements SseNotificationPort {
         sessions.forEach((memberId, session) ->
                 sseVirtualThreadExecutor.execute(() -> {
                     try {
-                        session.emitter().send(SseEmitter.event().name("ping").data(""));
+                        session.emitter().send(SseEmitter.event().comment("ping"));
                     } catch (Exception e) {
                         removeSession(memberId, session.emitter());
                     }
@@ -88,7 +89,16 @@ public class SseEmitterManager implements SseNotificationPort {
     private void sendToEmitter(Long memberId, SseEmitter emitter, Object data) {
         long start = System.nanoTime();
         try {
-            emitter.send(SseEmitter.event().name("notification").data(data));
+            if (data instanceof NotificationResponse response) {
+                emitter.send(SseEmitter.event()
+                        .name("notification")
+                        .data(response.eventType().name()));
+                emitter.send(SseEmitter.event()
+                        .name("notification-detail")
+                        .data(response));
+            } else {
+                emitter.send(SseEmitter.event().name("notification").data(data));
+            }
             sentCounter.increment();
         } catch (IOException e) {
             removeSession(memberId, emitter);

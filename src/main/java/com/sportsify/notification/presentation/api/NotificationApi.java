@@ -43,7 +43,7 @@ public interface NotificationApi {
             const es = new EventSource('/api/notifications/stream?token={accessToken}');
             ```
             """)
-    SseEmitter subscribe(String token, HttpServletResponse response) throws IOException;
+    SseEmitter subscribe(String token, Long principalMemberId, HttpServletResponse response) throws IOException;
 
     // ── 설정 ──
 
