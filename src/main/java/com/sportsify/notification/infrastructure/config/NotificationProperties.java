@@ -14,7 +14,8 @@ public record NotificationProperties(
         Fanout fanout,
         Payload payload,
         Sse sse,
-        Slack slack
+        Slack slack,
+        Buffer buffer
 ) {
     public record Pel(Duration claimMinIdle, int batchSize, Duration stuckTimeout, List<Integer> backoffMinutes, int maxStuckRetry) {}
 
@@ -28,7 +29,9 @@ public record NotificationProperties(
 
     public record Payload(long gameStartOffsetMinutes) {}
 
-    public record Sse(long timeoutMs) {}
+    public record Sse(long timeoutMs, String pingCron, long pingWindowMs) {}
 
     public record Slack(String webhookUrl, String signingSecret, Duration suppressTtl) {}
+
+    public record Buffer(int maxSize, Duration flushInterval) {}
 }

@@ -12,6 +12,7 @@ import com.sportsify.notification.domain.repository.NotificationChannelRepositor
 import com.sportsify.notification.domain.repository.NotificationHistoryRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
 import com.sportsify.notification.domain.repository.NotificationSettingRepository;
+import com.sportsify.notification.presentation.dto.NotificationResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,8 +23,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.sportsify.notification.domain.model.NotificationSetting;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -41,6 +44,7 @@ class DispatcherTest {
     @Mock private NotificationSender emailSender;
     @Mock private NotificationSender slackSender;
 
+    private final Executor directExecutor = Runnable::run;
     private Dispatcher dispatcher;
 
     private NotificationEvent event;
@@ -53,12 +57,16 @@ class DispatcherTest {
         lenient().when(settingRepository.findByMemberId(anyLong())).thenReturn(Optional.empty());
         dispatcher = new Dispatcher(
                 notificationRepository, channelRepository, historyRepository,
-                settingRepository, sseNotificationPort, List.of(emailSender)
+                settingRepository, sseNotificationPort, directExecutor, List.of(emailSender)
         );
 
         event = NotificationEvent.withId(1L, NotificationEventType.PAYMENT_COMPLETED, "{}");
         emailChannel = NotificationChannel.create(10L, NotificationChannelType.EMAIL, "user@example.com");
-        notification = Notification.withId(100L, 10L, 1L);
+        notification = mock(Notification.class);
+        lenient().when(notification.getId()).thenReturn(100L);
+        lenient().when(notification.getMemberId()).thenReturn(10L);
+        lenient().when(notification.getCreatedAt()).thenReturn(LocalDateTime.now());
+        lenient().when(notification.isAlreadyRead()).thenReturn(false);
     }
 
     @Test
@@ -83,7 +91,7 @@ class DispatcherTest {
         boolean result = dispatcher.toMember(event, 10L, "{}");
 
         assertThat(result).isFalse();
-        verify(sseNotificationPort).send(eq(10L), eq("PAYMENT_COMPLETED"));
+        verify(sseNotificationPort).send(eq(10L), any(NotificationResponse.class));
         verify(historyRepository, never()).save(any());
     }
 
@@ -103,7 +111,7 @@ class DispatcherTest {
     }
 
     @Test
-    @DisplayName("발송 실패 시 FAILED 이력을 저장하고 true를 반환한다")
+    @DisplayName("이메일 발송 실패 시 FAILED 이력을 저장하고 false를 반환한다")
     void dispatchToMember_발송실패_FAILED이력저장() {
         given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
         given(notificationRepository.save(any())).willReturn(notification);
@@ -112,7 +120,8 @@ class DispatcherTest {
 
         boolean result = dispatcher.toMember(event, 10L, "{}");
 
-        assertThat(result).isTrue();
+        // 이메일은 비동기 발송이므로 toMember 반환값에 영향 없음 (FailureEventListener가 처리)
+        assertThat(result).isFalse();
         verify(emailSender).send(any(), any(), any());
         verify(historyRepository).save(any());
     }
@@ -155,12 +164,12 @@ class DispatcherTest {
             given(slackSender.channelType()).willReturn(NotificationChannelType.SLACK);
             dispatcher = new Dispatcher(
                     notificationRepository, channelRepository, historyRepository,
-                    settingRepository, sseNotificationPort, List.of(emailSender, slackSender)
+                    settingRepository, sseNotificationPort, directExecutor, List.of(emailSender, slackSender)
             );
         }
 
         @Test
-        @DisplayName("여러 채널 중 일부만 실패해도 anyFailed는 true를 반환한다")
+        @DisplayName("비이메일 채널 실패 시 anyFailed는 true를 반환한다")
         void dispatchToMember_복수채널_일부실패_true반환() {
             NotificationChannel slackChannel = NotificationChannel.create(10L, NotificationChannelType.SLACK, "webhook-url");
             given(notificationRepository.existsByEventIdAndMemberId(1L, 10L)).willReturn(false);
@@ -172,6 +181,7 @@ class DispatcherTest {
             boolean result = dispatcher.toMember(event, 10L, "{}");
 
             assertThat(result).isTrue();
+            // slack(비이메일) 1건 실패 이력 + email 1건 성공 이력 = 2건
             verify(historyRepository, times(2)).save(any());
         }
     }

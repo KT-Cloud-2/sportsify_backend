@@ -1,6 +1,5 @@
 # Sportsify
 
-[![CI](https://github.com/KT-Cloud-2/sportsify_backend/actions/workflows/ci.yml/badge.svg)](https://github.com/KT-Cloud-2/sportsify_backend/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-533%20passed-brightgreen)
 ![Java](https://img.shields.io/badge/Java-25-blue)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen)

@@ -1,22 +1,25 @@
 package com.sportsify.notification.presentation.controller;
 
+import com.sportsify.infrastructure.security.JwtProvider;
 import com.sportsify.notification.application.dto.UpdateNotificationSettingCommand;
 import com.sportsify.notification.application.service.NotificationService;
 import com.sportsify.notification.application.service.NotificationSettingService;
 import com.sportsify.notification.presentation.api.NotificationApi;
 import com.sportsify.notification.presentation.dto.*;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -26,6 +29,7 @@ public class NotificationController implements NotificationApi {
 
     private final NotificationService notificationService;
     private final NotificationSettingService notificationSettingService;
+    private final JwtProvider jwtProvider;
 
     // ── 인박스 ──
 
@@ -55,7 +59,13 @@ public class NotificationController implements NotificationApi {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@AuthenticationPrincipal Long memberId) {
+    public SseEmitter subscribe(
+            @RequestParam(required = false) String token,
+            @AuthenticationPrincipal Long principalMemberId,
+            HttpServletResponse response
+    ) throws IOException {
+        Long memberId = resolveSubscriberId(token, principalMemberId, response);
+        if (memberId == null) return null;
         return notificationService.subscribe(memberId);
     }
 
@@ -122,5 +132,20 @@ public class NotificationController implements NotificationApi {
         return ResponseEntity.ok(NotificationChannelResponse.from(
                 notificationSettingService.toggleChannel(memberId, channelId)
         ));
+    }
+
+    private Long resolveSubscriberId(String token, Long principalMemberId, HttpServletResponse response) throws IOException {
+        if (token != null) {
+            if (!jwtProvider.isValidIgnoringExpiry(token)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                return null;
+            }
+            return jwtProvider.getMemberIdIgnoringExpiry(token);
+        }
+        if (principalMemberId != null) {
+            return principalMemberId;
+        }
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+        return null;
     }
 }

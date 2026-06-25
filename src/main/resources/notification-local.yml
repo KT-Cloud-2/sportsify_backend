@@ -1,0 +1,3 @@
+notification:
+  buffer:
+    flush-interval: 500ms

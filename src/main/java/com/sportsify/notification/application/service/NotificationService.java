@@ -6,8 +6,11 @@ import com.sportsify.notification.application.dto.NotificationResult;
 import com.sportsify.notification.application.port.SseNotificationPort;
 import com.sportsify.notification.domain.model.Notification;
 import com.sportsify.notification.domain.model.NotificationEvent;
+import com.sportsify.notification.domain.model.NotificationSetting;
+import com.sportsify.notification.domain.repository.NotificationChannelRepository;
 import com.sportsify.notification.domain.repository.NotificationEventRepository;
 import com.sportsify.notification.domain.repository.NotificationRepository;
+import com.sportsify.notification.domain.repository.NotificationSettingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +29,8 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationEventRepository eventRepository;
+    private final NotificationSettingRepository settingRepository;
+    private final NotificationChannelRepository channelRepository;
     private final SseNotificationPort sseNotificationPort;
 
     @Transactional(readOnly = true)
@@ -51,7 +56,9 @@ public class NotificationService {
     }
 
     public SseEmitter subscribe(Long memberId) {
-        return sseNotificationPort.subscribe(memberId);
+        NotificationSetting setting = settingRepository.findByMemberId(memberId)
+                .orElseGet(() -> NotificationSetting.createDefault(memberId));
+        return sseNotificationPort.subscribe(memberId, setting, List.of());
     }
 
     private Map<Long, NotificationEvent> buildEventMap(List<Notification> notifications) {

@@ -8,6 +8,7 @@ import com.sportsify.chat.config.ChatIntegrationTestFixture;
 import com.sportsify.chat.infrastructure.persistence.chatRoom.ChatRoomJpaEntity;
 import com.sportsify.chat.infrastructure.persistence.chatRoom.ChatRoomJpaRepository;
 import com.sportsify.chat.infrastructure.persistence.chatRoomMember.ChatRoomMemberJpaRepository;
+import com.sportsify.chat.application.event.ChatEventHandler;
 import com.sportsify.chat.infrastructure.webSocket.ChatEventPublisher;
 import com.sportsify.config.TestContainersConfig;
 import org.junit.jupiter.api.AfterEach;
@@ -50,6 +51,8 @@ class ChatRoomManagementIntegrationTest {
     private ChatIntegrationTestFixture fixture;
     @MockitoBean
     private ChatEventPublisher chatEventPublisher;
+    @MockitoBean
+    private ChatEventHandler chatEventHandler;
 
     @AfterEach
     void tearDown() {

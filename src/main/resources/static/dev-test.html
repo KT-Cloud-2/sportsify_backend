@@ -658,6 +658,14 @@
             </div>
             <p class="hint">GET /dev/token?memberId={id} — 로컬 프로파일 전용</p>
             <hr>
+            <label>이메일로 토큰 발급</label>
+            <div class="row">
+                <input id="emailInput" type="email" placeholder="alice@example.com" style="margin-bottom:0">
+                <button class="btn-success" onclick="fetchTokenByEmail()">발급</button>
+            </div>
+            <p class="hint" style="margin-top:4px">GET /dev/token/by-email?email={email}</p>
+            <div id="emailTokenResult" style="margin-top:6px"></div>
+            <hr>
             <label>수동 JWT 입력</label>
             <textarea id="tokenTextarea" oninput="onManualToken()" placeholder="eyJ..." rows="3"></textarea>
         </div>
@@ -905,18 +913,23 @@
 
         <div class="card">
             <h2>Redis Stream 이벤트 발행</h2>
+            <label style="margin-bottom:6px">수신자 Member ID</label>
+            <input id="pubTargetMemberId" type="number" value="1" placeholder="단건 이벤트 수신자 (결제·채팅)">
             <div class="event-grid">
-                <button class="event-btn" onclick="publish('ticket.opened', {ticketId:1, eventName:'2025 KBO 개막전'})">
-                    <span class="icon">🎟️</span>티켓 오픈
+                <button class="event-btn" onclick="publishTicketOpen()">
+                    <span class="icon">🎫</span>티켓 오픈<br><small style="font-size:10px;color:#64748b">브로드캐스트</small>
                 </button>
-                <button class="event-btn" onclick="publish('payment.completed', {orderId:99, amount:55000, itemName:'VIP석 1매'})">
-                    <span class="icon">💳</span>결제 완료
+                <button class="event-btn" onclick="publishPaymentCompleted()">
+                    <span class="icon">✅</span>결제 완료<br><small style="font-size:10px;color:#64748b">단건</small>
                 </button>
-                <button class="event-btn" onclick="publish('game.starting', {gameId:1, homeTeam:'LG', awayTeam:'두산', startsIn:'10분'})">
-                    <span class="icon">⚾</span>경기 시작
+                <button class="event-btn" onclick="publishGameStart()">
+                    <span class="icon">⚾</span>경기 시작<br><small style="font-size:10px;color:#64748b">브로드캐스트</small>
                 </button>
-                <button class="event-btn" onclick="publish('chat.mentioned', {roomId:1, mentionedBy:'홍길동', preview:'@me 잠깐요!'})">
-                    <span class="icon">💬</span>채팅 멘션
+                <button class="event-btn" onclick="publishChatMention()">
+                    <span class="icon">💬</span>채팅 멘션<br><small style="font-size:10px;color:#64748b">단건</small>
+                </button>
+                <button class="event-btn" onclick="publishChatInvited()" style="grid-column:1/-1">
+                    <span class="icon">📩</span>채팅 초대<br><small style="font-size:10px;color:#64748b">단건</small>
                 </button>
             </div>
             <hr>
@@ -1160,6 +1173,32 @@
         alog('authLog', '토큰 초기화', 'warn');
     }
 
+    async function fetchTokenByEmail() {
+        const email = document.getElementById('emailInput').value.trim();
+        if (!email) { alog('authLog', '이메일을 입력하세요', 'warn'); return; }
+        const resultEl = document.getElementById('emailTokenResult');
+        resultEl.textContent = '조회 중...';
+        try {
+            const res = await fetch(`/dev/token/by-email?email=${encodeURIComponent(email)}`);
+            if (res.status === 404) {
+                resultEl.innerHTML = '<span style="color:#f87171">해당 이메일의 회원이 없습니다</span>';
+                alog('authLog', `이메일 조회 실패 — 없는 회원: ${email}`, 'err');
+                return;
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            currentToken = data.token;
+            document.getElementById('tokenInput').value = currentToken;
+            document.getElementById('tokenTextarea').value = currentToken;
+            setTokenStatus(`발급 완료 (memberId=${data.memberId}, ${data.nickname})`, true);
+            resultEl.innerHTML = `<span style="color:#4ade80">memberId=${data.memberId} | ${data.nickname} (${data.email})</span>`;
+            alog('authLog', `이메일 기반 토큰 발급 — memberId=${data.memberId} (${data.email})`, 'ok');
+        } catch (e) {
+            resultEl.innerHTML = `<span style="color:#f87171">${e.message}</span>`;
+            alog('authLog', `이메일 토큰 발급 실패: ${e.message}`, 'err');
+        }
+    }
+
     function onManualToken() {
         const val = document.getElementById('tokenTextarea').value.trim();
         document.getElementById('tokenInput').value = val;
@@ -1388,15 +1427,14 @@
             return;
         }
         if (sseReader) {
-            try {
-                await sseReader.cancel();
-            } catch {
-            }
+            try { await sseReader.cancel(); } catch {}
             sseReader = null;
         }
         logTo('sseLog', 'SSE 연결 중...', 'inf');
         try {
-            const res = await fetch('/api/notifications/stream', {headers: {'Authorization': `Bearer ${token}`, 'Accept': 'text/event-stream'}});
+            const res = await fetch('/api/notifications/stream', {
+                headers: {'Authorization': `Bearer ${token}`, 'Accept': 'text/event-stream'}
+            });
             if (!res.ok) {
                 logTo('sseLog', `연결 실패: HTTP ${res.status}`, 'err');
                 return;
@@ -1405,18 +1443,44 @@
             setSseBadge(true);
             sseReader = res.body.getReader();
             const dec = new TextDecoder();
+            let buf = '';
             (async () => {
                 try {
                     while (true) {
                         const {done, value} = await sseReader.read();
                         if (done) break;
-                        dec.decode(value).split('\n').forEach(line => {
-                            if (line.startsWith('data:')) {
+                        buf += dec.decode(value, {stream: true});
+                        const lines = buf.split('\n');
+                        buf = lines.pop();
+                        let eventName = '';
+                        for (const line of lines) {
+                            if (line.startsWith('event:')) {
+                                eventName = line.slice(6).trim();
+                            } else if (line.startsWith('data:')) {
                                 const d = line.slice(5).trim();
-                                logTo('sseLog', `수신: ${d}`, 'sse');
-                                if (d && d !== 'ping') setTimeout(loadNotifications, 600);
+                                if (!d) continue;
+                                if (eventName === 'notification') {
+                                    logTo('sseLog', `수신: ${d}`, 'sse');
+                                    try {
+                                        const notif = JSON.parse(d);
+                                        if (notif.id) {
+                                            prependNotification(notif);
+                                        } else {
+                                            // id 없는 신호(버퍼 경로) — 재조회
+                                            setTimeout(loadNotifications, 600);
+                                        }
+                                    } catch {
+                                        setTimeout(loadNotifications, 600);
+                                    }
+                                } else if (eventName === 'ping') {
+                                    logTo('sseLog', 'ping', 'inf');
+                                } else {
+                                    logTo('sseLog', `[${eventName || 'data'}] ${d}`, 'sse');
+                                    if (d !== 'ping') setTimeout(loadNotifications, 600);
+                                }
+                                eventName = '';
                             }
-                        });
+                        }
                     }
                 } catch (e) {
                     if (e.name !== 'AbortError') logTo('sseLog', `스트림 오류: ${e.message}`, 'err');
@@ -1460,6 +1524,49 @@
         logTo('pubLog', res.ok ? `완료: ${stream}` : `실패: HTTP ${res.status}`, res.ok ? 'ok' : 'err');
     }
 
+    function targetMemberId() {
+        return Number(document.getElementById('pubTargetMemberId').value) || 1;
+    }
+
+    // 브로드캐스트 — 알림 설정 켜진 회원 전원
+    function publishTicketOpen() {
+        publish('ticket.opened', {
+            gameId: 1,
+            homeTeam: 'LG 트윈스',
+            awayTeam: 'KT 위즈',
+            saleStartAt: new Date().toISOString().slice(0, 19),
+            gameStartAt: new Date(Date.now() + 3600000).toISOString().slice(0, 19)
+        });
+    }
+
+    // 단건 — 수신자 memberId 필수
+    function publishPaymentCompleted() {
+        const memberId = targetMemberId();
+        publish('payment.completed', {paymentId: 9001, memberId, amount: 55000});
+    }
+
+    // 브로드캐스트
+    function publishGameStart() {
+        publish('game.starting', {
+            gameId: 1,
+            homeTeam: 'LG 트윈스',
+            awayTeam: 'KT 위즈',
+            gameStartAt: new Date(Date.now() + 1800000).toISOString().slice(0, 19)
+        });
+    }
+
+    // 단건 — senderId=1(고정), memberId=수신자
+    function publishChatMention() {
+        const memberId = targetMemberId();
+        publish('chat.mentioned', {memberId, roomId: 1, roomName: 'KBO 팬 채팅', senderId: 1, message: '@me 잠깐요!'});
+    }
+
+    // 단건 — memberId=초대받은 사람
+    function publishChatInvited() {
+        const memberId = targetMemberId();
+        publish('chat.invited', {memberId, roomId: 42, roomName: 'KT 위즈 팬클럽', senderId: 1, message: '채팅방에 초대되었습니다.'});
+    }
+
     async function publishCustom() {
         const stream = document.getElementById('customStream').value.trim();
         const payloadStr = document.getElementById('customPayload').value.trim();
@@ -1480,6 +1587,66 @@
     /* ══════════════════════════════════════
        알림 — 목록 / 설정 / 채널
     ══════════════════════════════════════ */
+    const EVENT_LABEL = {
+        TICKET_OPEN: '🎫 티켓 오픈',
+        GAME_START: '⚾ 경기 시작',
+        PAYMENT_COMPLETED: '✅ 결제 완료',
+        CHAT_MENTION: '💬 채팅 멘션',
+        CHAT_INVITED: '📩 채팅 초대',
+    };
+
+    function formatPayload(eventType, payloadStr) {
+        try {
+            const p = JSON.parse(payloadStr);
+            switch (eventType) {
+                case 'TICKET_OPEN':
+                    return `${p.homeTeam ?? '?'} vs ${p.awayTeam ?? '?'} · 티켓 오픈`;
+                case 'GAME_START': {
+                    const diff = p.gameStartAt ? Math.round((new Date(p.gameStartAt) - Date.now()) / 60000) : null;
+                    const when = diff == null ? '' : diff <= 0 ? ' · 지금 시작' : ` · ${diff}분 후`;
+                    return `${p.homeTeam ?? '?'} vs ${p.awayTeam ?? '?'}${when}`;
+                }
+                case 'PAYMENT_COMPLETED':
+                    return `${p.amount != null ? p.amount.toLocaleString() + '원' : '?'} 결제 완료`;
+                case 'CHAT_MENTION':
+                    return `${p.roomName ?? `채팅방 #${p.roomId ?? '?'}`} · ${p.message ?? '멘션'}`;
+                case 'CHAT_INVITED':
+                    return `${p.roomName ?? `채팅방 #${p.roomId ?? '?'}`} 에 초대됨`;
+                default:
+                    return payloadStr;
+            }
+        } catch {
+            return payloadStr || '';
+        }
+    }
+
+    function buildNotifHtml(n) {
+        const label = EVENT_LABEL[n.eventType] || n.eventType || '알림';
+        const msg = formatPayload(n.eventType, n.payload || '{}');
+        const time = n.createdAt ? new Date(n.createdAt).toLocaleString('ko-KR') : '';
+        return `
+        <div class="notif-item ${n.read ? 'read' : 'unread'}" id="notif-${n.id}">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                <div style="flex:1;min-width:0">
+                    <span class="notif-type">${escHtml(label)}</span>
+                    <p style="font-size:12px;margin-top:4px">${escHtml(msg)}</p>
+                    <p class="notif-meta">${escHtml(time)}</p>
+                </div>
+                ${!n.read ? `<button class="btn-secondary btn-sm" style="flex-shrink:0" onclick="markRead(${n.id})">읽음</button>` : ''}
+            </div>
+        </div>`;
+    }
+
+    function prependNotification(notif) {
+        const el = document.getElementById('notifList');
+        if (el.querySelector('p')) el.innerHTML = '';
+        el.insertAdjacentHTML('afterbegin', buildNotifHtml(notif));
+        const badge = document.getElementById('unreadBadge');
+        const cur = parseInt(badge.textContent) || 0;
+        badge.textContent = `${cur + 1} 읽지 않음`;
+        logTo('sseLog', `알림 추가: [${notif.eventType}] id=${notif.id}`, 'ok');
+    }
+
     async function loadNotifications() {
         const res = await api('GET', '/api/notifications?page=0&size=20', undefined, 'notiLog');
         if (!res?.ok) return;
@@ -1488,18 +1655,8 @@
         document.getElementById('unreadBadge').textContent = `${unread} 읽지 않음`;
         const el = document.getElementById('notifList');
         el.innerHTML = !items.length
-                ? '<p style="color:#475569;font-size:13px">알림 없음</p>'
-                : items.map(n => `
-                <div class="notif-item ${n.read ? 'read' : 'unread'}">
-                    <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
-                        <div style="flex:1;min-width:0">
-                            <span class="notif-type">${n.eventType || '알림'}</span>
-                            <p style="font-size:12px;margin-top:4px;word-break:break-all">${escHtml(n.payload || '')}</p>
-                            <p class="notif-meta">${new Date(n.createdAt).toLocaleString('ko-KR')}</p>
-                        </div>
-                        ${!n.read ? `<button class="btn-secondary btn-sm" style="flex-shrink:0" onclick="markRead(${n.id})">읽음</button>` : ''}
-                    </div>
-                </div>`).join('');
+            ? '<p style="color:#475569;font-size:13px">알림 없음</p>'
+            : items.map(buildNotifHtml).join('');
     }
 
     async function markRead(id) {

@@ -27,7 +27,7 @@ public class FailureEventListener {
         this.redisTemplate = redisTemplate;
     }
 
-    @Async
+    @Async("notificationAsyncExecutor")
     @EventListener
     public void onPermanentlyFailed(NotificationPermanentlyFailedEvent event) {
         log.error("[알림 영구 실패] eventId={} eventType={} retryCount={} source={}",

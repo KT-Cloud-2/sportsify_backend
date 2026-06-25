@@ -68,3 +68,4 @@ docs/docs-export.html
 
 ### Logs ###
 logs/
+/k6/notification/tokens.json

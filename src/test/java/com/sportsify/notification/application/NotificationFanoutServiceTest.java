@@ -1,6 +1,7 @@
 package com.sportsify.notification.application;
 
 import com.sportsify.common.notification.NotificationEventType;
+import com.sportsify.notification.application.service.BufferedChunkService;
 import com.sportsify.notification.application.service.ChunkService;
 import com.sportsify.notification.application.service.FanoutService;
 import com.sportsify.notification.application.service.PayloadParser;
@@ -31,13 +32,14 @@ class FanoutServiceTest {
 
     @Mock private NotificationSettingRepository settingRepository;
     @Mock private ChunkService chunkService;
+    @Mock private BufferedChunkService bufferedChunkService;
     @Mock private PayloadParser payloadParser;
 
     private FanoutService fanoutService;
 
     @BeforeEach
     void setUp() {
-        fanoutService = new FanoutService(settingRepository, chunkService, payloadParser, NotificationIntegrationTestSupport.defaultProperties());
+        fanoutService = new FanoutService(settingRepository, chunkService, bufferedChunkService, payloadParser, NotificationIntegrationTestSupport.defaultProperties());
     }
 
     @Test

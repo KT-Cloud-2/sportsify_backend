@@ -4,7 +4,8 @@ import com.sportsify.notification.application.dto.NotificationResult;
 import com.sportsify.common.notification.NotificationEventType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 
 @Schema(description = "알림 응답")
 public record NotificationResponse(
@@ -12,7 +13,7 @@ public record NotificationResponse(
         @Schema(description = "알림 이벤트 유형") NotificationEventType eventType,
         @Schema(description = "알림 페이로드 (이벤트 관련 부가 정보)") String payload,
         @Schema(description = "읽음 여부") boolean read,
-        @Schema(description = "알림 생성 일시") LocalDateTime createdAt
+        @Schema(description = "알림 생성 일시 (UTC ISO-8601)") Instant createdAt
 ) {
     public static NotificationResponse from(NotificationResult result) {
         return new NotificationResponse(
@@ -20,7 +21,7 @@ public record NotificationResponse(
                 result.eventType(),
                 result.payload(),
                 result.read(),
-                result.createdAt()
+                result.createdAt().toInstant(ZoneOffset.UTC)
         );
     }
 }

@@ -39,6 +39,7 @@ public class RedisStreamsConfig {
                 .builder()
                 .pollTimeout(POLL_TIMEOUT)
                 .targetType(String.class)
+                .errorHandler(e -> log.warn("Stream poll error (일시적 연결 오류, 자동 재시도): {}", e.getMessage()))
                 .build();
 
         var container = StreamMessageListenerContainer.create(connectionFactory, options);

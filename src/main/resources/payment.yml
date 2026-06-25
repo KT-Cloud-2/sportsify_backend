@@ -1,0 +1,5 @@
+toss:
+  payments:
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:test-payment-secret}
+    confirm-url: https://api.tosspayments.com/v1/payments/confirm
+    cancel-url: https://api.tosspayments.com/v1/payments/{paymentKey}/cancel

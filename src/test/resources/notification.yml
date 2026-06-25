@@ -1,0 +1,46 @@
+notification:
+  pel:
+    claim-min-idle: 10m
+    batch-size: 100
+    stuck-timeout: 10m
+    backoff-minutes: 1,3,5,10
+    max-stuck-retry: 3
+  stream:
+    max-len: 10000
+  scheduler:
+    stream-trim-cron: "0 0 3 * * *"
+    stuck-recovery-cron: "0 0/10 * * * *"
+    pel-reclaim-cron: "0 0/1 * * * *"
+    reserved-dispatch-cron: "0 0/5 * * * *"
+    leader-lock-ttl: 310s
+  channel:
+    max-per-member: 2
+  fanout:
+    chunk-size: 500
+  payload:
+    game-start-offset-minutes: 30
+  sse:
+    timeout-ms: 180_000
+    ping-cron: "0/10 * * * * *"
+    ping-window-ms: 120000
+  slack:
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+    signing-secret: ${SLACK_SIGNING_SECRET:}
+    suppress-ttl: 10m
+  buffer:
+    max-size: 1
+    flush-interval: 1h
+
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: name
+    password: password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          timeout: 5000
+          starttls:
+            enable: true

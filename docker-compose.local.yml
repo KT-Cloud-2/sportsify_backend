@@ -1,6 +1,7 @@
-# 로컬 개발용 인프라 (postgres + redis)
+# 로컬 개발용 인프라 (postgres + redis + app)
 # 실행:  docker compose -f docker-compose.local.yml up -d
 # 종료:  docker compose -f docker-compose.local.yml down
+# app 빌드 포함: docker compose -f docker-compose.local.yml up -d --build
 #
 # [postgres 스키마 초기화]
 # 1) 볼륨 포함 전체 삭제 후 재기동 (Flyway가 마이그레이션 재실행)
@@ -16,6 +17,12 @@
 # 이는 처음 실행에서만 추가하면 됨
 
 services:
+  sysctl-init:
+    image: alpine:latest
+    container_name: sysctl-init
+    privileged: true
+    command: sysctl -w fs.file-max=2097152
+    restart: "no"
   postgres:
     image: postgres:18
     container_name: sportsify-postgres
@@ -29,6 +36,7 @@ services:
       -c shared_preload_libraries=pg_stat_statements
       -c pg_stat_statements.track=all
       -c pg_stat_statements.max=10000
+      -c max_connections=300
     ports:
       - "5432:5432"
     volumes:
@@ -58,6 +66,41 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sportsify-app
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_NAME: ${DB_NAME:-sportsify}
+      DB_USERNAME: ${DB_USERNAME:-sportsify}
+      DB_PASSWORD: ${DB_PASSWORD:-sportsify}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-sportsify}
+      SPRING_DATA_REDIS_HOST: redis
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxMetaspaceSize=256m
+        -XX:MaxRAMPercentage=80.0
+        -XX:SoftMaxHeapSize=2G
+        -XX:ZCollectionInterval=5
+        -XX:+UseZGC
+    ports:
+      - "8080:8080"
+    depends_on:
+      sysctl-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 4G
 
 volumes:
   postgres_data:

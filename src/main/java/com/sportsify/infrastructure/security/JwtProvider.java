@@ -37,6 +37,17 @@ public class JwtProvider {
                 .compact();
     }
 
+    public String createAccessTokenWithExpiry(Long memberId, String role, long expiryMs) {
+        return Jwts.builder()
+                .subject(String.valueOf(memberId))
+                .claim("role", role)
+                .claim("type", "access")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiryMs))
+                .signWith(key)
+                .compact();
+    }
+
     public String createRefreshToken(Long memberId) {
         return Jwts.builder()
                 .subject(String.valueOf(memberId))
@@ -66,6 +77,29 @@ public class JwtProvider {
 
     public Long getMemberId(String token) {
         return Long.valueOf(parse(token).getSubject());
+    }
+
+    public Long getMemberIdIgnoringExpiry(String token) {
+        return Long.valueOf(parseIgnoringExpiry(token).getSubject());
+    }
+
+    public boolean isValidIgnoringExpiry(String token) {
+        try {
+            parse(token);
+            return true;
+        } catch (ExpiredJwtException e) {
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private Claims parseIgnoringExpiry(String token) {
+        try {
+            return parse(token);
+        } catch (ExpiredJwtException e) {
+            return e.getClaims();
+        }
     }
 
     public long getRefreshTokenExpiryMs() {

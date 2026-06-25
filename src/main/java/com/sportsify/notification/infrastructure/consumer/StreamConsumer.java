@@ -59,15 +59,10 @@ public class StreamConsumer {
                 return;
             }
 
-            boolean failed = fanoutService.fanout(event, eventType, message.getValue());
-            statusService.markEventStatus(event.getId(), failed);
-            if (failed) {
-                log.warn("즉시 발송 실패, PEL 보류 streamKey={} id={}", streamKey, message.getId());
-                return;
-            }
-
-            acknowledge(streamKey, message);
-            log.info("즉시 발송 완료, ACK streamKey={} id={}", streamKey, message.getId());
+            // 버퍼 경로: ACK는 flush 후 NotificationBatchBuffer.ackAll()이 처리
+            fanoutService.fanoutBuffered(event, eventType, message.getValue(), streamKey, message.getId());
+            statusService.markEventStatus(event.getId(), false);
+            log.info("버퍼 enqueue 완료 streamKey={} id={}", streamKey, message.getId());
         } catch (Exception e) {
             log.error("Stream 처리 실패 streamKey={} id={} error={}", streamKey, message.getId(), e.getMessage());
         }

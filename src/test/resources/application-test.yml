@@ -1,8 +1,13 @@
 spring:
+  config:
+    import:
+      - classpath:notification.yml
+      - classpath:payment.yml
   # datasource/redis는 TestContainersConfig의 @ServiceConnection이 동적으로 주입
   datasource:
     hikari:
       connection-timeout: 5000
+      maximum-pool-size: 60
   flyway:
     enabled: true
     locations: classpath:db/migration
