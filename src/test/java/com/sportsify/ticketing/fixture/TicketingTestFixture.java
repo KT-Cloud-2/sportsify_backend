@@ -85,7 +85,6 @@ public class TicketingTestFixture {
         return gameRepository.save(game);
     }
 
-    // 괄호가 꼬여서 갇혀있던 메서드들을 정상 분리했습니다.
     public List<Long> createGameSeatsWithCount(Game game, int count) {
         Stadium stadium = game.getStadium();
 
