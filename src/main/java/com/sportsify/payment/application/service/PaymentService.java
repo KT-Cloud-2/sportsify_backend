@@ -209,7 +209,6 @@ public class PaymentService {
                 || !Objects.equals(existingPayment.getAmount(), request.getAmount())
                 || !Objects.equals(existingPayment.getPaymentMethod(), request.getPaymentMethod())) {
 
-            // 공통 에러코드 대신, 하영님이 커스텀으로 파놓으신 예외 클래스로 매핑해 컴파일 에러 근본적 해결!
             throw new InvalidPaymentStatusException("동일한 idempotencyKey로 다른 결제 요청을 생성할 수 없습니다.");
         }
     }

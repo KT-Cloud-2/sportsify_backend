@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit; // 👈 누락되었던 핵심 import 추가
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -148,22 +149,24 @@ class PaymentServiceIntegrationTest {
                 }
             });
         }
-       try {
-    boolean finished = latch.await(10, TimeUnit.SECONDS);
 
-    assertThat(finished)
-            .as("모든 스레드가 10초 내에 종료되어야 함")
-            .isTrue();
-} finally {
-    executorService.shutdownNow();
-}
+        try {
+            boolean finished = latch.await(10, TimeUnit.SECONDS);
 
-// then
-assertThat(exceptions).isEmpty();
-assertThat(responses).hasSize(numberOfThreads);
+            assertThat(finished)
+                    .as("모든 스레드가 10초 내에 종료되어야 함")
+                    .isTrue();
+        } finally {
+            executorService.shutdownNow();
+        }
 
-Long expectedPaymentId = responses.get(0).getPaymentId();
-for (PaymentResponse res : responses) {
-    assertThat(res.getPaymentId()).isEqualTo(expectedPaymentId);
-}
+        // then
+        assertThat(exceptions).isEmpty();
+        assertThat(responses).hasSize(numberOfThreads);
+
+        Long expectedPaymentId = responses.get(0).getPaymentId();
+        for (PaymentResponse res : responses) {
+            assertThat(res.getPaymentId()).isEqualTo(expectedPaymentId);
+        }
+    }
 }
