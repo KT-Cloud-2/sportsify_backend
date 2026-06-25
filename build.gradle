@@ -112,6 +112,15 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
     useJUnitPlatform()
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+    maxParallelForks = 1
+
+    testLogging {
+        events "passed", "failed", "skipped"
+        showStandardStreams true
+        showExceptions true
+        showCauses true
+        exceptionFormat "full"
+    }
 
     finalizedBy jacocoTestReport
 }
