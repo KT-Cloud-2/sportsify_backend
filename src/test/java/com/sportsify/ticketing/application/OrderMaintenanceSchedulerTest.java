@@ -75,6 +75,7 @@ public class OrderMaintenanceSchedulerTest extends RepositoryTestSupport {
 
     @BeforeEach
     void beforeEach() {
+        fixture.deleteAll();
         member = fixture.createMember("t1@test.com", "n1");
         game = fixture.createGame();
         scheduler.onSaleStarted();

@@ -1,22 +1,26 @@
 package com.sportsify.ticketing.fixture;
 
-import com.sportsify.ticketing.domain.model.Order;
-import com.sportsify.ticketing.domain.model.OrderSeat;
-import com.sportsify.game.domain.model.GameSeat;
 import com.sportsify.game.domain.model.*;
 import com.sportsify.game.domain.repository.*;
 import com.sportsify.member.domain.model.Member;
 import com.sportsify.member.domain.model.OAuthProvider;
 import com.sportsify.member.infrastructure.repository.MemberJpaRepository;
+import com.sportsify.chat.infrastructure.persistence.chatRoom.ChatRoomJpaRepository;
+import com.sportsify.chat.infrastructure.persistence.chatRoomMember.ChatRoomMemberJpaRepository;
+import com.sportsify.chat.infrastructure.persistence.message.MessageJpaRepository;
 import com.sportsify.payment.domain.repository.PaymentRepository;
 import com.sportsify.team.domain.model.SportType;
 import com.sportsify.team.domain.model.Team;
 import com.sportsify.team.infrastructure.repository.TeamJpaRepository;
+import com.sportsify.ticketing.domain.model.Order;
+import com.sportsify.ticketing.domain.model.OrderSeat;
 import com.sportsify.ticketing.infrastructure.repository.OrderJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.OrderSeatJpaRepository;
 import com.sportsify.ticketing.infrastructure.repository.TicketJpaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,7 +29,7 @@ import java.util.List;
 @Component
 public class TicketingTestFixture {
 
-    public int TICKET_PRICE = 15000;
+    public static final int TICKET_PRICE = 15000;
     @Autowired
     private TicketJpaRepository ticketRepository;
     @Autowired
@@ -52,6 +56,12 @@ public class TicketingTestFixture {
     private OrderSeatJpaRepository orderSeatRepository;
     @Autowired
     private PaymentRepository paymentRepository;
+    @Autowired
+    private ChatRoomJpaRepository chatRoomRepository;
+    @Autowired
+    private ChatRoomMemberJpaRepository chatRoomMemberRepository;
+    @Autowired
+    private MessageJpaRepository messageRepository;
 
     public Game createGame() {
         Stadium stadium = stadiumRepository.save(
@@ -170,6 +180,7 @@ public class TicketingTestFixture {
         return memberRepository.save(Member.create(number + "@test.com", "n-" + number, OAuthProvider.GOOGLE, "g-" + number));
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void deleteAll() {
         ticketRepository.deleteAll();
         orderSeatRepository.deleteAll();
@@ -177,6 +188,9 @@ public class TicketingTestFixture {
         orderRepository.deleteAll();
         gameSeatRepository.deleteAll();
         pricePolicyRepository.deleteAll();
+        chatRoomMemberRepository.deleteAll();
+        messageRepository.deleteAll();
+        chatRoomRepository.deleteAll();
         gameRepository.deleteAll();
         seatRepository.deleteAll();
         sectionRepository.deleteAll();
