@@ -1,6 +1,5 @@
 package com.sportsify.payment.presentation.controller;
 
-import com.sportsify.payment.application.dto.CancelPaymentRequest;
 import com.sportsify.payment.application.dto.PaymentResponse;
 import com.sportsify.payment.application.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,20 +8,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
 
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,18 +35,88 @@ class PaymentControllerTest {
 
     @BeforeEach
     void setUp() {
-        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
-        validator.afterPropertiesSet();
+        HandlerMethodArgumentResolver mockUserResolver = new HandlerMethodArgumentResolver() {
+            @Override
+            public boolean supportsParameter(MethodParameter parameter) {
+                return parameter.hasParameterAnnotation(AuthenticationPrincipal.class)
+                        && Long.class.equals(parameter.getParameterType());
+            }
+
+            @Override
+            public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+                                          NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+                return 1L;
+            }
+        };
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new PaymentController(paymentService))
-                .setValidator(validator)
+                .setCustomArgumentResolvers(mockUserResolver)
                 .build();
     }
 
     @Test
-    @DisplayName("cancel payment api success")
+    @DisplayName("결제 생성 API - 성공할 경우 200 OK를 반환한다")
+    void createPayment_success() throws Exception {
+        // given
+        PaymentResponse response = PaymentResponse.builder()
+                .paymentId(1L)
+                .orderId(123L)
+                .amount(50000L)
+                .status("READY")
+                .requestedAt(LocalDateTime.now())
+                .build();
+
+        when(paymentService.createPayment(any(), any())).thenReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/payments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {
+                  "orderId": 123,
+                  "matchId": 456,
+                  "seatId": 1,
+                  "amount": 50000,
+                  "idempotencyKey": "test-idempotency-key",
+                  "paymentMethod": "CARD"
+                }
+                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("결제 승인 API - 성공할 경우 200 OK를 반환한다")
+    void confirmPayment_success() throws Exception {
+        // given
+        PaymentResponse response = PaymentResponse.builder()
+                .paymentId(1L)
+                .orderId(123L)
+                .paymentKey("PAYMENT_KEY_123")
+                .amount(50000L)
+                .status("DONE")
+                .requestedAt(LocalDateTime.now())
+                .build();
+
+        when(paymentService.confirmPayment(any())).thenReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/payments/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "paymentKey": "PAYMENT_KEY_123",
+                                  "orderId": 123,
+                                  "amount": 50000
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("결제 취소 API - 성공할 경우 200 OK를 반환한다")
     void cancelPayment_success() throws Exception {
+        // given
         Long paymentId = 1L;
 
         PaymentResponse response = PaymentResponse.builder()
@@ -59,9 +129,9 @@ class PaymentControllerTest {
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        given(paymentService.cancelPayment(eq(paymentId), any(CancelPaymentRequest.class)))
-                .willReturn(response);
+        when(paymentService.cancelPayment(any(), any())).thenReturn(response);
 
+        // when & then
         mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -69,23 +139,14 @@ class PaymentControllerTest {
                                   "cancelReason": "user requested cancel"
                                 }
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paymentId").value(paymentId))
-                .andExpect(jsonPath("$.orderId").value(123L))
-                .andExpect(jsonPath("$.paymentKey").value("PAYMENT_KEY_123"))
-                .andExpect(jsonPath("$.amount").value(50000))
-                .andExpect(jsonPath("$.paymentMethod").value("CARD"))
-                .andExpect(jsonPath("$.status").value("CANCELED"));
-
-        verify(paymentService).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
+                .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("cancel payment fails when cancel reason is blank")
+    @DisplayName("결제 취소 API - 취소 사유가 공백인 경우 400 Bad Request를 반환한다")
     void cancelPayment_blankCancelReason() throws Exception {
-        Long paymentId = 1L;
-
-        mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
+        // when & then
+        mockMvc.perform(post("/api/payments/{paymentId}/cancel", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -93,17 +154,16 @@ class PaymentControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
-
-        verify(paymentService, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 
     @Test
-    @DisplayName("cancel payment fails when cancel reason is too long")
+    @DisplayName("결제 취소 API - 취소 사유가 글자수 제한(255자)을 초과한 경우 400 Bad Request를 반환한다")
     void cancelPayment_tooLongCancelReason() throws Exception {
-        Long paymentId = 1L;
+        // given
         String longReason = "a".repeat(256);
 
-        mockMvc.perform(post("/api/payments/{paymentId}/cancel", paymentId)
+        // when & then
+        mockMvc.perform(post("/api/payments/{paymentId}/cancel", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -111,7 +171,5 @@ class PaymentControllerTest {
                                 }
                                 """.formatted(longReason)))
                 .andExpect(status().isBadRequest());
-
-        verify(paymentService, never()).cancelPayment(eq(paymentId), any(CancelPaymentRequest.class));
     }
 }

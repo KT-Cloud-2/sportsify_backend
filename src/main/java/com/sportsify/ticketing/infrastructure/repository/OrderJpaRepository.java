@@ -59,17 +59,16 @@ public interface OrderJpaRepository extends JpaRepository<Order, Long> {
             """)
     List<Long> findPendingOrderIdsWithCompletedPayment();
 
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
     @Query("""
-                SELECT DISTINCT g.id
-                FROM OrderSeat os
-                JOIN os.gameSeat gs
-                JOIN gs.game g
-                WHERE os.order.id = :orderId
+            SELECT DISTINCT g.id
+            FROM OrderSeat os
+            JOIN os.gameSeat gs
+            JOIN gs.game g
+            WHERE os.order.id = :orderId
             """)
     Long findGameIdByOrderId(@Param("orderId") Long orderId);
 
