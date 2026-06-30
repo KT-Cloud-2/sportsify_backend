@@ -28,7 +28,7 @@
 ## _Documents._
 
 - [프로젝트 개요](docs/01-project-overview.md)
-- [팀 규칙 컨벤샨](docs/03-team-rules.md)
+- [팀 규칙 컨벤션](docs/03-team-rules.md)
 - [API 명세서](docs/04-api-spec.md)
 
 ## _ER Diagram._
@@ -185,9 +185,6 @@ Client A      WebSocket Server (STOMP)   SessionRegistry   DB (chat_messages)   
    │              │◀──ackAll()────│                │               │        │            │
 ```
 
-### MVP 핵심 기능
-
-## _Trouble Shooting._
 
 ## _Test._
 
