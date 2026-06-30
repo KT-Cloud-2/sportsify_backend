@@ -19,8 +19,7 @@
 | 🔔 스마트 알림 | 예매 완료, 경기 시작 등 주요 이벤트 실시간 알림 (SSE, Email) |
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/a79fd86c-ab7f-4236-912d-de86253e8104">
-시연 연상 (5분)
+  <img width="400" height="225" alt="시연_배속_움짤" src="https://github.com/user-attachments/assets/d11d2dd0-6b99-4428-8b7a-7a89d8950db3" />
 </p>
 
 
